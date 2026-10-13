@@ -33,5 +33,5 @@
 ## Do not change
 - Never change anything in mounted folders, only ever read from them.
 - Do not change anything in the reference folders:
-    - `SwissSigma-SDLhack/data`
+    - `SwissSigma-SDLhack/data/Opentrons_Example_Files`
     - `SwissSigma-SDLhack/data/project_proposal`
