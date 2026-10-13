@@ -1,0 +1,128 @@
+{
+    "ordering": [
+        [
+            "A1",
+            "B1"
+        ],
+        [
+            "A2",
+            "B2"
+        ],
+        [
+            "A3",
+            "B3"
+        ]
+    ],
+    "brand": {
+        "brand": "Sarstedt",
+        "brandId": [
+            "TC-Plate",
+            "6 Well",
+            "Standard F"
+        ]
+    },
+    "metadata": {
+        "displayName": "Sarstedt 6 Well Plate 15750 µL",
+        "displayCategory": "wellPlate",
+        "displayVolumeUnits": "µL",
+        "tags": []
+    },
+    "dimensions": {
+        "xDimension": 127.8,
+        "yDimension": 85.2,
+        "zDimension": 20.25
+    },
+    "wells": {
+        "A1": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 24,
+            "y": 61.2,
+            "z": 3.25
+        },
+        "B1": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 24,
+            "y": 23.75,
+            "z": 3.25
+        },
+        "A2": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 61.45,
+            "y": 61.2,
+            "z": 3.25
+        },
+        "B2": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 61.45,
+            "y": 23.75,
+            "z": 3.25
+        },
+        "A3": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 98.9,
+            "y": 61.2,
+            "z": 3.25
+        },
+        "B3": {
+            "depth": 17,
+            "totalLiquidVolume": 15750,
+            "shape": "circular",
+            "diameter": 34.45,
+            "x": 98.9,
+            "y": 23.75,
+            "z": 3.25
+        }
+    },
+    "groups": [
+        {
+            "metadata": {
+                "wellBottomShape": "flat"
+            },
+            "wells": [
+                "A1",
+                "B1",
+                "A2",
+                "B2",
+                "A3",
+                "B3"
+            ]
+        }
+    ],
+    "parameters": {
+        "format": "irregular",
+        "quirks": [],
+        "isTiprack": false,
+        "isMagneticModuleCompatible": false,
+        "loadName": "sarstedt_6_wellplate_15750ul"
+    },
+    "namespace": "custom_beta",
+    "version": 1,
+    "schemaVersion": 2,
+    "cornerOffsetFromSlot": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+    },
+    "stackingOffsetWithLabware": {
+    "opentrons_universal_flat_adapter": {
+      "x": 0,
+      "y": 0,
+      "z": 9.1
+    }
+  }
+}
