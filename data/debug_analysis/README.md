@@ -20,3 +20,9 @@ Debug files to help with coding the final analysis of opentron outputs. All file
 Green solvents: 2-MeTHF, EtOAc, DMC, CPME, MeCN, i-PrOAc. Plate 1 is the initial grid (all 15 equal-part binaries + 5 equal-part ternaries). Plate 2 mimics a Bayesian-optimisation round 2 (20 two- or three-component mixtures in 5 % steps).
 
 Spectra: each proxy has one Gaussian band (A 275 nm, B 320 nm, C 410 nm; standard 350 nm) scaled by a fake "dissolved fraction" that rewards balanced mixtures, on a UV-rising baseline with noise.
+
+## Assumptions (placeholders, change when the real system is defined)
+
+- The three proxies are generic `proxy_A`, `proxy_B`, `proxy_C` with made-up band positions (275, 320, 410 nm); swap in the real molecules and their λmax when known.
+- Volume fractions are rounded to 3 decimal places, so equal-part ternaries sum to 0.999 rather than 1.
+- The calibration standard is dissolved in DMF; the proposal does not specify its solvent.
