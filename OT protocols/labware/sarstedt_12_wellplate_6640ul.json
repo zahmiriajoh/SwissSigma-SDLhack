@@ -1,0 +1,196 @@
+{
+    "ordering": [
+        [
+            "A1",
+            "B1",
+            "C1"
+        ],
+        [
+            "A2",
+            "B2",
+            "C2"
+        ],
+        [
+            "A3",
+            "B3",
+            "C3"
+        ],
+        [
+            "A4",
+            "B4",
+            "C4"
+        ]
+    ],
+    "brand": {
+        "brand": "Sarstedt",
+        "brandId": [
+            "TC-Plate",
+            "12 Well",
+            "Standard F"
+        ]
+    },
+    "metadata": {
+        "displayName": "Sarstedt 12 Well Plate 6640 µL",
+        "displayCategory": "wellPlate",
+        "displayVolumeUnits": "µL",
+        "tags": []
+    },
+    "dimensions": {
+        "xDimension": 127.8,
+        "yDimension": 85.2,
+        "zDimension": 20.25
+    },
+    "wells": {
+        "A1": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 26.5,
+            "y": 67.7,
+            "z": 3.25
+        },
+        "B1": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 26.5,
+            "y": 43.4,
+            "z": 3.25
+        },
+        "C1": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 26.5,
+            "y": 19.1,
+            "z": 3.25
+        },
+        "A2": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 50.8,
+            "y": 67.7,
+            "z": 3.25
+        },
+        "B2": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 50.8,
+            "y": 43.4,
+            "z": 3.25
+        },
+        "C2": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 50.8,
+            "y": 19.1,
+            "z": 3.25
+        },
+        "A3": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 75.1,
+            "y": 67.7,
+            "z": 3.25
+        },
+        "B3": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 75.1,
+            "y": 43.4,
+            "z": 3.25
+        },
+        "C3": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 75.1,
+            "y": 19.1,
+            "z": 3.25
+        },
+        "A4": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 99.4,
+            "y": 67.7,
+            "z": 3.25
+        },
+        "B4": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 99.4,
+            "y": 43.4,
+            "z": 3.25
+        },
+        "C4": {
+            "depth": 17,
+            "totalLiquidVolume": 6640,
+            "shape": "circular",
+            "diameter": 21.8,
+            "x": 99.4,
+            "y": 19.1,
+            "z": 3.25
+        }
+    },
+    "groups": [
+        {
+            "metadata": {
+                "wellBottomShape": "flat"
+            },
+            "wells": [
+                "A1",
+                "B1",
+                "C1",
+                "A2",
+                "B2",
+                "C2",
+                "A3",
+                "B3",
+                "C3",
+                "A4",
+                "B4",
+                "C4"
+            ]
+        }
+    ],
+    "parameters": {
+        "format": "irregular",
+        "quirks": [],
+        "isTiprack": false,
+        "isMagneticModuleCompatible": false,
+        "loadName": "sarstedt_12_wellplate_6640ul"
+    },
+    "namespace": "custom_beta",
+    "version": 1,
+    "schemaVersion": 2,
+    "cornerOffsetFromSlot": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+    },
+    "stackingOffsetWithLabware": {
+    "opentrons_universal_flat_adapter": {
+      "x": 0,
+      "y": 0,
+      "z": 9.1
+    }
+  }
+}
