@@ -117,6 +117,25 @@ for name, extra in [("replicates2", ["--replicates", "2"]), ("3solutes_2ctrl", [
     check(f"layout {name}", rc == 0 and rc2 == 0)
     sim(f"layout_{name}", proto_with(os.path.join(T, name, "ot_input_round7.csv")))
 
+# --- Flex analog replays the OT-2 liquid handling step for step -------------------------
+flex_path = os.path.join(P, "..", "OTFlex analog", "sdl_solubility_flex_analog.py")
+if os.path.exists(flex_path):
+    def handling_steps(src, name):
+        path = os.path.join(T, name + ".py")
+        open(path, "w").write(re.sub(r"TEST_CSV = \[.*?\n\]\n", "TEST_CSV = " + repr(rows) + "\n", src, count=1, flags=re.S))
+        r = subprocess.run([SIM, "-L", os.path.join(P, "labware"), path], capture_output=True, text=True)
+        steps = []
+        for ln in (r.stdout + r.stderr).splitlines():
+            ln = ln.strip()
+            if re.match(r"(Aspirating|Dispensing|Air gap|Mixing|Blowing out|Delaying for 0 minutes and 1)", ln):
+                ln = re.sub(r" on slot \w+| on (Heater-Shaker|opentrons).*$", "", ln)
+                steps.append(re.sub(r"Opentrons (OT-2|Flex) 96 Tip Rack \d+ µL", "tiprack", ln))
+        return r.returncode, steps
+    rc1, a_steps = handling_steps(PROTO, "cmp_ot2")
+    rc2, b_steps = handling_steps(open(flex_path).read(), "cmp_flex_analog")
+    check("Flex analog = OT-2 liquid handling", rc1 == 0 and rc2 == 0 and a_steps == b_steps and len(a_steps) > 0,
+          f"{len(a_steps)} vs {len(b_steps)} steps")
+
 w = max(len(n) for _, n, _ in results)
 for st, n, info in results:
     print(f"{st}  {n:<{w}}  {info}")
