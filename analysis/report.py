@@ -200,7 +200,7 @@ def gp_posteriors(run, seed=0):
     from SDL_BO import space
     from SDL_BO.campaign import fit_per_solute
     from SDL_BO.dataset import load_dataset
-    return fit_per_solute(load_dataset(run.folder / "bo_dataset.csv"), seed=seed), space.GREEN_SOLVENTS
+    return fit_per_solute(load_dataset(run._optional("bo_dataset.csv")), seed=seed), space.GREEN_SOLVENTS
 
 
 def r4_gp(run, outdir, trios, seed=0):
@@ -391,7 +391,7 @@ def r7_dataset(run, outdir):
     fig.tight_layout()
     files = ["bo_dataset.csv", "bo_dataset_shared.csv"] + [f"plate_map_round{r}.csv" for r in run.rounds] + [f"results_round{r}_wells.csv" for r in run.rounds]
     notes = [f"{len(wide)} condition rows over {len(run.rounds)} round(s), {len(run.solutes)} solutes.",
-             "Deliverable files in the run folder: " + ", ".join(f"`{f}`" for f in files if (run.folder / f).exists()) + "; QC numbers in `qc_summary.md`."]
+             "Deliverable files in the run folder: " + ", ".join(f"`{f}`" for f in files if run._optional(f)) + "; QC numbers in `qc_summary.md`."]
     return pd.DataFrame(), notes, [save(fig, outdir / "report_R7_dataset.png")]
 
 

@@ -112,3 +112,23 @@ def test_cli_qc_layout(tmp_path):
                              "--outdir", tmp_path], capture_output=True, text=True, cwd=REPO)
     assert result.returncode == 0, result.stdout + result.stderr
     assert (tmp_path / f"qc_plate_map_round{FIRST_ROUND}.csv").exists() and (tmp_path / f"ot_input_round{FIRST_ROUND}_qc.csv").exists()
+
+
+def test_run_reads_the_production_csvs_layout_and_skips_unmeasured_rounds(toy_run, tmp_path):
+    """Files split into csvs/ratios (robot inputs) and csvs/uvvis (reader exports) with the next round already laid out."""
+    import shutil
+    csvs = tmp_path / "csvs"
+    (csvs / "ratios").mkdir(parents=True)
+    (csvs / "uvvis").mkdir()
+    for f in toy_run.folder.iterdir():
+        if f.suffix != ".csv":
+            continue
+        sub = "ratios" if f.name.startswith(("plate_map", "qc_plate_map", "ot_input", "suggestions")) else \
+              "uvvis" if f.name.startswith(("reader_", "plate_log")) else ""
+        shutil.copy(f, csvs / sub / f.name)
+    last = max(toy_run.rounds)
+    shutil.copy(csvs / "ratios" / f"plate_map_round{last}.csv", csvs / "ratios" / f"plate_map_round{last + 1}.csv")  # laid out, unmeasured
+    run = Run(csvs)
+    assert run.rounds == toy_run.rounds and run.pending_rounds == [last + 1]
+    assert run.wavelengths(last) is not None and run.qc_spectra(last) is not None and run.plate_log() is not None
+    assert run.pooled_objective().shape == toy_run.pooled_objective().shape

@@ -8,6 +8,9 @@ Expected files in the folder, per round N (missing optional ones are skipped by 
     reader_roundN_plate{P}.csv, reader_roundN_blank.csv   plate reader   spectra                      (optional)
     reader_roundN_qc.csv, qc_plate_map_roundN.csv        QC plate: blanks + calibration series       (optional)
     plate_log_roundN.csv            lab notes             plate, read_delay_min (shake end -> read)   (optional)
+
+Files may sit in the folder itself or in its `ratios/` (robot inputs, plate maps) and `uvvis/` (reader exports, plate
+logs) subfolders, the production layout (production/README.md); the first match wins.
 """
 import re
 from pathlib import Path
@@ -55,15 +58,25 @@ class Run:
 
     def __init__(self, folder):
         self.folder = Path(folder)
-        self.rounds = sorted(int(m.group(1)) for p in self.folder.glob("plate_map_round*.csv")
-                             if (m := re.search(r"round(\d+)\.csv$", p.name)))
+        self.dirs = [d for d in (self.folder, self.folder / "ratios", self.folder / "uvvis") if d.is_dir()]
+        laid_out = sorted({int(m.group(1)) for d in self.dirs for p in d.glob("plate_map_round*.csv")
+                           if (m := re.fullmatch(r"plate_map_round(\d+)\.csv", p.name))})
+        if not laid_out:
+            raise SpectraError(f"{self.folder}: no plate_map_round*.csv found (looked in {[str(d) for d in self.dirs]})")
+        # a round counts once bo_bridge merge has produced its per-well results; the next round is usually laid out before
+        self.rounds = [r for r in laid_out if self._optional(f"results_round{r}_wells.csv")]
+        self.pending_rounds = [r for r in laid_out if r not in self.rounds]
         if not self.rounds:
-            raise SpectraError(f"{self.folder}: no plate_map_round*.csv found")
-        self.plate_maps = {r: read_plate_map(self.folder / f"plate_map_round{r}.csv") for r in self.rounds}
+            raise SpectraError(f"{self.folder}: rounds {laid_out} are laid out but none has results_roundN_wells.csv yet "
+                               "(run analysis reduce and bo_bridge.py merge first)")
+        self.plate_maps = {r: read_plate_map(self._optional(f"plate_map_round{r}.csv")) for r in self.rounds}
         self.wells = self._read_wells()
-        self.dataset = self._with_kind(pd.read_csv(self.folder / "bo_dataset.csv"))
-        shared = self.folder / "bo_dataset_shared.csv"
-        self.shared = self._with_kind(pd.read_csv(shared)) if shared.exists() else None
+        dataset = self._optional("bo_dataset.csv")
+        if dataset is None:
+            raise SpectraError(f"bo_dataset.csv missing in {self.folder}: run bo_bridge.py merge first")
+        self.dataset = self._with_kind(pd.read_csv(dataset))
+        shared = self._optional("bo_dataset_shared.csv")
+        self.shared = self._with_kind(pd.read_csv(shared)) if shared else None
         self.solutes = list(dict.fromkeys(self.dataset["solute"]))
         self.solvents = solvent_names(self.dataset)
         self.green_solvents = [s for s in self.solvents if s != REFERENCE_SOLVENT]
@@ -72,8 +85,8 @@ class Run:
 
     # ----- per-round optional files -----------------------------------------------------------
     def _optional(self, name):
-        path = self.folder / name
-        return path if path.exists() else None
+        """The first existing copy of `name` in the folder or its ratios/ and uvvis/ subfolders, else None."""
+        return next((d / name for d in self.dirs if (d / name).exists()), None)
 
     def wavelengths(self, r):
         path = self._optional(f"wavelengths_round{r}.csv")
@@ -130,10 +143,7 @@ class Run:
     def _read_wells(self) -> pd.DataFrame:
         frames = []
         for r in self.rounds:
-            path = self.folder / f"results_round{r}_wells.csv"
-            if not path.exists():
-                raise SpectraError(f"{path} missing: run bo_bridge.py merge for round {r} first")
-            frames.append(pd.read_csv(path))
+            frames.append(pd.read_csv(self._optional(f"results_round{r}_wells.csv")))
         wells = pd.concat(frames, ignore_index=True)
         wells["kind"] = [condition_kind(c, r) for c, r in zip(wells["condition_id"], wells["round"])]
         return wells

@@ -26,9 +26,46 @@ and the test suite checks that it does.
     - File for each subsequent round
   - `uvvis/`: Results from each round
     - Results are uploaded here as CSVs
-4. Bash script that runs the BO and outputs the files for the next round of experiments in `ratios/`.
+4. Bash script that runs the BO and outputs the files for the next round of experiments in `ratios/`:
+   **`run_bo.sh`**, see below.
+5. Bash script to set up the environment needed to use this repo.
 
-We expect to receive the `csvs/` folder from the lab at the end of the day. 
+We expect to receive the `csvs/` folder from the lab at the end of the day.
+
+## `run_bo.sh`: one call per round
+
+```bash
+production/run_bo.sh csvs            # from anywhere; activates the sdlhack environment if needed
+```
+
+The script looks at what is in `csvs/` and does the next thing:
+
+| State of `csvs/` | What the script does |
+|---|---|
+| empty | round 0 seed design (`SDL_BO init`), robot files and QC plate for round 0 into `ratios/` |
+| round N laid out, no exports in `uvvis/` | stops and lists the exact file names it is waiting for |
+| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest` → `bo_bridge layout` and `analysis qc-layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
+| round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
+
+It never overwrites a finished round, so it is safe to re-run. `--seed N` changes the BO's random fallbacks,
+`--no-figures` skips the QC and report figures.
+
+**What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2):
+
+| File | Content |
+|---|---|
+| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate: `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
+| `reader_roundN_qc.csv` | the same for the QC plate |
+| `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2 and `qc`: minutes from end of shaking to the read |
+
+**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) and `ot_input_roundN_qc.csv`
+(1 QC plate, run separately; weigh `loading × nominal mass` of each solute into its calibration wells as listed in
+`qc_plate_map_roundN.csv`). `plate_map_roundN.csv` says what is in every well.
+
+Everything the analysis derives (`endpoint_roundN_*.csv`, `wavelengths_roundN.csv`, `results_roundN_wells.csv`,
+`bo_dataset.csv`, `bo_dataset_shared.csv`, `figures/`) lands in `csvs/` itself; `analysis qc` and `report` read the
+whole `csvs/` tree. **After round 0**, read `csvs/wavelengths_round0.csv`: its `measurable` column says which solutes
+the UV readout can follow (see "Interpretation notes").
 
 ## What is in `config.toml` (as of 2026-10-20)
 

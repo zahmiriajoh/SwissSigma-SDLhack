@@ -39,7 +39,10 @@ python -m analysis report --run runs/prod
 ```
 
 Keep every round of a campaign in **one folder** (the `--outdir` of `layout`, `reduce` and `merge`): `qc` and `report`
-find the rounds from the `plate_map_roundN.csv` files there and write to `<folder>/figures/`. Rounds, plates and
+find the rounds from the `plate_map_roundN.csv` files there and write to `<folder>/figures/`. The production layout
+(`csvs/` with `ratios/` for robot inputs and `uvvis/` for reader exports, driven by `production/run_bo.sh`) works too:
+files are looked up in the folder and those two subfolders, and a round counts once its `results_roundN_wells.csv`
+exists, so a round that is laid out but not yet measured is skipped. Rounds, plates and
 condition counters are numbered from the values in `production/config.toml` (zero in production); solute and solvent
 names come from the plate map, so the same commands run on the older 1-based toy campaigns.
 
