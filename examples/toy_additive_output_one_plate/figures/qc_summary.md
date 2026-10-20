@@ -30,24 +30,6 @@ Does the DMF control, the denominator of every relative value, stay constant acr
 
 ![qc_Q2_controls](qc_Q2_controls.png)
 
-## Q3 blank wells and plate attack
-
-How much absorbance comes from the solvent and the plate rather than the solute, does it grow with ester/ether content or read delay, and does it add up linearly so that the per-well blank is valid?
-
-- b_<solvent>: blank absorbance of the pure solvent at that solute's wavelength (additive fit over all blank wells).
-- Low R^2 or large residuals mean the blank is not additive in composition, i.e. plate attack or solvent interaction.
-- Read-delay panel appears only when plate_log_roundN.csv files exist.
-
-| solute | b_DMF | b_2MeTHF | b_EtOAc | b_DMC | b_CPME | b_MeCN | b_iPrOAc | resid_std | r2 |
-|---|---|---|---|---|---|---|---|---|---|
-| S1 | 0.130 | 0.137 | 0.135 | 0.133 | 0.136 | 0.133 | 0.131 | 0.004 | 0.132 |
-| S2 | 0.098 | 0.096 | 0.096 | 0.097 | 0.096 | 0.098 | 0.092 | 0.003 | 0.092 |
-| S3 | 0.081 | 0.086 | 0.083 | 0.083 | 0.083 | 0.083 | 0.077 | 0.003 | 0.178 |
-| S4 | 0.068 | 0.068 | 0.064 | 0.069 | 0.065 | 0.065 | 0.065 | 0.005 | 0.095 |
-
-
-![qc_Q3_blank](qc_Q3_blank.png)
-
 ## Q4 spectral QC
 
 Are any wells saturated, scattering (undissolved solid) or absorbing at the wrong wavelength? Each would inflate or bias that well's solubility without any extra solute dissolving.
@@ -76,14 +58,6 @@ Which conditions are measurable at all, and is the noise constant (reader) or pr
 
 - No replicate plates, so there is no within-condition spread to plot; detection limits only.
 
-| solute | detection_limit_abs | frac_below_lod |
-|---|---|---|
-| S1 | 0.012 | 0.000 |
-| S2 | 0.010 | 0.000 |
-| S3 | 0.010 | 0.000 |
-| S4 | 0.014 | 0.000 |
-
-
 ## Q6 cross-round re-tests
 
 Does a mixture measured again in a later round, on new solid and a new plate, give the same answer? This is the only check that rounds can be pooled.
@@ -100,9 +74,3 @@ Does a mixture measured again in a later round, on new solid and a new plate, gi
 
 
 ![qc_Q6_retests](qc_Q6_retests.png)
-
-## Q7 calibration
-
-Is absorbance proportional to the amount of solute, in which solvents does the solute stop dissolving at the working loading, and is the DMF control fully dissolved?
-
-- No QC plate (qc_plate_map_roundN.csv + reader_roundN_qc.csv) found.
