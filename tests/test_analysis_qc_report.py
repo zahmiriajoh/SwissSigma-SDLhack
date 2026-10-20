@@ -75,6 +75,8 @@ def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     assert "a mixture beats every single solvent" in summary  # the toy chemistry rewards balanced mixtures
     syn = synergy_table(toy_run)
     assert (syn.groupby("solute")["synergy"].mean() > 0).all()
+    assert {"synergy_err", "z", "significant"} <= set(syn.columns) and syn["significant"].any()
+    assert (syn.loc[syn["significant"], "z"].abs() > 2).all()
     obj = toy_run.pooled_objective()
     assert obj["obj_min_rel"].max() > obj.loc[obj["n_solvents"] == 1, "obj_min_rel"].max()
     for name in ("R1_per_solute", "R2_objective", "R3_progress", "R4_ternary", "R4_binaries", "R5_synergy", "R6_solutes", "R7_dataset"):

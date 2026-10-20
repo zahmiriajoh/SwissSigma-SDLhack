@@ -12,11 +12,13 @@ Expected files in the folder, per round N (missing optional ones are skipped by 
 import re
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from .spectra import SpectraError, read_plate_map, read_spectra, synthetic_blank
 
 KINDS = ["control", "seed", "exploit", "explore", "retest"]
+NOISE_FLOOR = 0.01  # per-well relative noise assumed when a campaign has neither replicate plates nor re-tests
 _KIND_TAGS = {"dmfref": "control", "grid": "seed", "seed": "seed", "exploit": "exploit", "explore": "explore"}
 
 
@@ -129,15 +131,45 @@ class Run:
         """Dataset rows that are not DMF controls."""
         return self.dataset[self.dataset["is_reference"] == 0]
 
-    def pooled(self) -> pd.DataFrame:
-        """One row per solute x mixture, pooled over rounds: rel (mean), rel_err (larger of within- and between-round spread), n."""
+    def well_noise(self) -> dict:
+        """Per solute: the per-well noise of a relative value, pooled over all conditions (root mean square of rel_std).
+        Falls back to the spread of re-tested mixtures across rounds, then to NOISE_FLOOR, when no plate replicates exist."""
         s = self.samples()
+        out = {}
+        for solute, g in s.groupby("solute"):
+            reps = g.loc[g["n_obs"] > 1, "rel_std"].dropna()
+            if len(reps):
+                out[solute] = float(np.sqrt((reps ** 2).mean()))
+                continue
+            retest = g.groupby("mixture")["rel_mean"].std().dropna()
+            out[solute] = float(np.sqrt((retest ** 2).mean())) if len(retest) else NOISE_FLOOR
+        return out
+
+    def control_drift(self) -> dict:
+        """Per solute: relative std of the DMF-control mean across rounds (0 with one round). Every value of a round is
+        divided by its control, so this is how far a round's normalisation can be off relative to the other rounds."""
+        ctrl = self.wells[self.wells["role"] == "control"].groupby(["solute", "round"])["abs_corrected"].mean()
+        return {sol: float(g.std() / g.mean()) if len(g) > 1 else 0.0 for sol, g in ctrl.groupby(level=0)}
+
+    def pooled(self) -> pd.DataFrame:
+        """One row per solute x mixture, pooled over rounds.
+
+        rel = mean of the per-round rel_mean. rel_err is a standard error: the larger of the within-round SE
+        (pooled per-well noise / sqrt(n_obs)) and the between-round spread, combined in quadrature with the normalisation
+        error rel x max(control drift between rounds, control SE within a round).
+        """
+        s = self.samples().copy()
+        noise, drift = self.well_noise(), self.control_drift()
+        ref = self.dataset[self.dataset["is_reference"] == 1].set_index(["round", "solute"])["n_obs"]
+        s["se_within"] = [noise[sol] / np.sqrt(n) for sol, n in zip(s["solute"], s["n_obs"])]
+        s["se_norm"] = [rel * max(drift[sol], noise[sol] / np.sqrt(ref.get((r, sol), 1)))
+                        for rel, sol, r in zip(s["rel_mean"], s["solute"], s["round"])]
         g = s.groupby(["solute", "mixture"], sort=False)
-        out = g.agg(rel=("rel_mean", "mean"), within=("rel_std", "mean"), between=("rel_mean", "std"),
+        out = g.agg(rel=("rel_mean", "mean"), within=("se_within", "mean"), between=("rel_mean", "std"), norm=("se_norm", "mean"),
                     n=("n_obs", "sum"), n_solvents=("n_solvents", "first"), rounds=("round", lambda x: sorted(set(x))))
         fr = g[frac_columns(s)].first()
-        out["rel_err"] = out[["within", "between"]].fillna(0).max(axis=1)
-        return pd.concat([out.drop(columns=["within", "between"]), fr], axis=1).reset_index()
+        out["rel_err"] = np.sqrt(out[["within", "between"]].fillna(0).max(axis=1) ** 2 + out["norm"] ** 2)
+        return pd.concat([out.drop(columns=["within", "between", "norm"]), fr], axis=1).reset_index()
 
     def pooled_objective(self) -> pd.DataFrame:
         """One row per mixture measured on every solute: rel_<solute>, obj_min_rel, its error, n_solvents, fractions."""

@@ -72,8 +72,14 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 7. **Calibration metrics:** with two loading levels an R² is meaningless, so Q7 reports the slope from the lowest loading
    (most likely fully dissolved), the top-to-bottom linearity ratio (1.0 = proportional, well below 1 = solubility-limited)
    and the largest loading within 5 % of that line. `dmf_control_recovery` = sample-plate DMF control / DMF slope.
-8. **Pooling across rounds:** a mixture measured in several rounds (re-tests) is averaged; its error is the larger of
-   the within-round `rel_std` and the between-round spread. The "beats" tests use z > 2 on that error.
+8. **Pooling across rounds and the error model** (`Run.pooled`): a mixture measured in several rounds (re-tests) is
+   averaged. Its error is a standard error built from a **pooled** per-solute per-well noise (root mean square of
+   `rel_std` over all conditions; a 3-well std of one condition is far too uncertain to divide by), so within-round
+   SE = noise / sqrt(n_obs), taken as the larger of that and the between-round spread, and combined in quadrature with
+   the normalisation error rel × (relative drift of the DMF-control mean between rounds, or the control's SE if larger),
+   because every value of a round is divided by that round's control. Campaigns without replicate plates fall back to
+   the re-test spread, then to a 1 % noise floor. The "beats" tests in R1 and R2 and the synergy significance in R5 use
+   z > 2 on that error (synergy's error also includes the pure solvents' errors scaled by their fractions).
 9. **Condition kind** is parsed from `condition_id` (`seed`/`grid`, `exploit`, `explore`; an id from an earlier round = `retest`).
 10. **Plate log format:** `plate_log_roundN.csv` with columns `plate` (1, 2, 3, qc) and `read_delay_min`. Q3 plots the plate
     median against it. Add more columns freely; only these two are read.

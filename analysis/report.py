@@ -265,18 +265,25 @@ def r4_landscape(run, outdir, with_gp=True, seed=0):
 # ----- R5 synergy ----------------------------------------------------------------------------------------
 
 def synergy_table(run) -> pd.DataFrame:
-    """Per solute x mixture: rel minus the fraction-weighted rel of its pure solvents (linear mixing rule)."""
+    """Per solute x mixture: rel minus the fraction-weighted rel of its pure solvents (linear mixing rule), its error,
+    z = synergy / error and `significant` (|z| > Z_BETTER)."""
     p = run.pooled()
     sv = run.green_solvents
-    pure = {(r["solute"], _support(r, sv)[0]): r["rel"] for _, r in p[p["n_solvents"] == 1].iterrows()}
+    pure = {(r["solute"], _support(r, sv)[0]): (r["rel"], r["rel_err"]) for _, r in p[p["n_solvents"] == 1].iterrows()}
     rows = []
     for _, r in p[p["n_solvents"] > 1].iterrows():
         sup = _support(r, sv)
         if all((r["solute"], s) in pure for s in sup):
-            linear = sum(r[f"frac_{s}"] * pure[(r["solute"], s)] for s in sup)
+            linear = sum(r[f"frac_{s}"] * pure[(r["solute"], s)][0] for s in sup)
+            err = np.sqrt(r["rel_err"] ** 2 + sum((r[f"frac_{s}"] * pure[(r["solute"], s)][1]) ** 2 for s in sup) + 1e-12)
             rows.append({"solute": r["solute"], "mixture": r["mixture"], "support": sup, "n_solvents": r["n_solvents"],
-                         "balance": 1 - sum(r[f"frac_{s}"] ** 2 for s in sup), "rel": r["rel"], "linear": linear, "synergy": r["rel"] - linear})
-    return pd.DataFrame(rows)
+                         "balance": 1 - sum(r[f"frac_{s}"] ** 2 for s in sup), "rel": r["rel"], "linear": linear,
+                         "synergy": r["rel"] - linear, "synergy_err": err})
+    syn = pd.DataFrame(rows)
+    if len(syn):
+        syn["z"] = syn["synergy"] / syn["synergy_err"]
+        syn["significant"] = syn["z"].abs() > Z_BETTER
+    return syn
 
 
 def r5_synergy(run, outdir):
@@ -290,13 +297,18 @@ def r5_synergy(run, outdir):
     for solute in run.solutes:
         g = syn[syn["solute"] == solute]
         for n, marker in ((2, "o"), (3, "^")):
-            gg = g[g["n_solvents"] == n]
-            ax.plot(gg["balance"], gg["synergy"], marker, color=colors[solute], ms=4, alpha=0.7, label=f"{solute}, {n} solvents")
+            for sig, fill in ((True, colors[solute]), (False, "none")):  # filled = significant, open = within noise
+                gg = g[(g["n_solvents"] == n) & (g["significant"] == sig)]
+                ax.plot(gg["balance"], gg["synergy"], marker, color=colors[solute], mfc=fill, ms=4, alpha=0.8, label=f"{solute}, {n} solvents")
     ax.axhline(0, color="k", lw=0.8)
     ax.set_xlabel("Mixture balance, 1 - sum of squared fractions", fontsize=9)
     ax.set_ylabel("Synergy: measured minus linear mixing", fontsize=9)
-    ax.set_title("Per mixture and solute", fontsize=10)
-    ax.legend(fontsize=6, frameon=False, ncol=2)
+    ax.set_title(f"Per mixture and solute (filled = |z| > {Z_BETTER:g})", fontsize=10)
+    handles, labels = ax.get_legend_handles_labels()
+    seen = {}
+    for label, handle in zip(labels, handles):  # one entry per solute and size, showing the filled (significant) marker
+        seen.setdefault(label, handle)
+    ax.legend(seen.values(), seen.keys(), fontsize=6, frameon=False, ncol=2)
     m = np.full((len(sv), len(sv)), np.nan)
     for i, j in combinations(range(len(sv)), 2):
         vals = syn[[sv[i] in s and sv[j] in s for s in syn["support"]]]["synergy"]
@@ -310,9 +322,18 @@ def r5_synergy(run, outdir):
         ax.tick_params(labelsize=8)
     fig.suptitle("Synergy relative to the linear mixing rule", fontsize=11)
     fig.tight_layout()
-    table = syn.groupby("solute").agg(n_mixtures=("synergy", "size"), mean_synergy=("synergy", "mean"), max_synergy=("synergy", "max"),
+    table = syn.groupby("solute").agg(n_mixtures=("synergy", "size"), n_significant=("significant", "sum"),
+                                      n_significant_positive=("z", lambda z: int((z > Z_BETTER).sum())),
+                                      mean_synergy=("synergy", "mean"), max_synergy=("synergy", "max"),
+                                      max_z=("z", lambda z: float(z.loc[syn.loc[z.index, "synergy"].idxmax()])),
                                       most_synergistic=("synergy", lambda s: syn.loc[s.idxmax(), "mixture"])).reset_index()
-    notes = ["Synergy > 0: the mixture dissolves more than the fraction-weighted average of its pure solvents would predict."]
+    typical = float(syn["synergy_err"].median())
+    notes = ["Synergy > 0: the mixture dissolves more than the fraction-weighted average of its pure solvents would predict.",
+             f"Significant when |z| = |synergy| / its error > {Z_BETTER:g}; the error combines the mixture's and its pure solvents' pooled errors. "
+             f"Typical threshold here: {Z_BETTER * typical:.3f} in relative solubility (median error {typical:.3f}).",
+             f"By chance about 5 % of mixtures ({0.05 * len(syn) / max(len(run.solutes), 1):.0f} per solute) pass |z| > {Z_BETTER:g}. "
+             "Mixtures sharing a pure solvent share its single measurement, so a cluster of same-sign 'significant' synergies "
+             "around one solvent may just mean that solvent's pure value is off; re-measuring the pure solvents settles it."]
     return table, notes, [save(fig, outdir / "report_R5_synergy.png")]
 
 
