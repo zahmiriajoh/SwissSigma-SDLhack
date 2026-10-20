@@ -51,7 +51,7 @@ DMC is the best solvent for every solute) are tracked in the repo, with every in
 | Folder | Rounds × plates | Look at |
 |---|---|---|
 | `examples/toy_additive_output/` | 3 × 3 | `figures/qc_summary.md` (Q1–Q7 with figures), `figures/report_summary.md` (R1–R7 with figures) |
-| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the trough cap binds) |
+| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the 25 mL DMC trough runs out before the picks can get richer) |
 
 Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
 `reader_roundN_plate{P}.csv` (+ blank) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
