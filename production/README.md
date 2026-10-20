@@ -44,7 +44,7 @@ The script looks at what is in `csvs/` and does the next thing:
 |---|---|
 | empty | round 0 seed design (`SDL_BO init`), robot files for round 0 into `ratios/` |
 | round N laid out, no exports in `uvvis/` | stops and lists the exact file names it is waiting for |
-| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
+| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest --branch` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
 | round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
 
 It never overwrites a finished round, so it is safe to re-run. `--seed N` changes the BO's random fallbacks,
@@ -57,7 +57,7 @@ It never overwrites a finished round, so it is safe to re-run. `--seed N` change
 | `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate: `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
-**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (no QC or blank plate is run for now). `plate_map_roundN.csv` says what is in every well.
+**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (no QC or blank plate is run for now). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.
 
 Everything the analysis derives (`endpoint_roundN_*.csv`, `wavelengths_roundN.csv`, `results_roundN_wells.csv`,
 `bo_dataset.csv`, `bo_dataset_shared.csv`, `figures/`) lands in `csvs/` itself; `analysis qc` and `report` read the
@@ -72,6 +72,7 @@ the UV readout can follow (see "Interpretation notes").
 | `well` | 300 µL per well, 5 µL minimum component, up to 3 solvents | the control well is 300 µL of pure DMF |
 | `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | no QC or blank plate for now |
 | `reference` | DMF | pure control in every solute block, never mixed |
+| `arms` | phthalimide: Phthalimide; others: Glutarimide, Boc-hydroxyproline, Succinimide | after the shared round-0 seed design the campaign splits into these independent trajectories, each optimising the minimum over its solutes with its own GPs; every solute is in exactly one arm (`SDL_BO/README.md`, "Arms") |
 | `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; add `wavelength_nm` once the absorption maximum is known (absent = pick from data) |
 | `solvents` | DMF (A1), acetone (B1), EtOH (C1), i-PrOH (D1), water (E1), i-PrOAc (F1), t-BuOAc (G1) | `name` without hyphens is the CSV identifier, `label` the display name; H1 stays the diluent |
 

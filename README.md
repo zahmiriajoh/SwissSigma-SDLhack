@@ -37,7 +37,7 @@ python bo_bridge.py layout                  ──► ot_input_round0.csv (robot
 OT-2 run (3 sample plates)                  ──► plate reader ──► reader_round0_plate{0,1,2}.csv
 python -m analysis reduce                   ──► endpoint_round0_plate{0,1,2}.csv (one absorbance per well)
 python bo_bridge.py merge                   ──► bo_dataset.csv
-python -m SDL_BO suggest                    ──► suggestions_round1.csv   ... repeat
+python -m SDL_BO suggest --branch           ──► suggestions_round1.csv (a solute column: one arm per solute group)   ... repeat
 python -m analysis qc / report              ──► figures + qc_summary.md / report_summary.md (any time, all rounds so far)
 ```
 
@@ -73,7 +73,7 @@ run). Regenerate the synergy run with
 - **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
 - **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
 - **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), so A1 is `round0_plate0_solute0_cond0`; well names stay `A1`–`H12`.
-- **Objective:** absorbance relative to the DMF control per solute; a mixture's score is its worst solute's ratio.
+- **Objective:** absorbance relative to the DMF control per solute. Round 0 is one shared design on all four solutes; from round 1 on the campaign splits into two independent arms (`[[arms]]` in the config): **phthalimide** alone, and the **minimum of glutarimide, Boc-hydroxyproline and succinimide**. Each arm has its own GPs trained on the seed round and its own wells, and its own plate blocks.
 
 **How the trough volume constrains BO.** Each solvent has one trough on the 8-trough reservoir (organiser labware, 30 mL
 nominal); the protocol fills it with 25 mL and keeps 1 mL as dead volume, so 24 mL per solvent per round. Every condition
