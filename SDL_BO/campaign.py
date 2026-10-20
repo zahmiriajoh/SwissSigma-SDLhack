@@ -1,7 +1,9 @@
 """Designing each round as a bo_bridge suggestions CSV: one row per condition, run on every solute.
 
-    round 1:   the 6 pure green solvents + space-filling mixtures          (N_CONDITIONS rows)
-    round 2+:  N_RETESTS re-tests + N_EXPLOIT exploit + N_EXPLORE explore  (N_CONDITIONS rows)
+    first round:  the pure green solvents + space-filling mixtures             (N_CONDITIONS rows)
+    later rounds: N_RETESTS re-tests + N_EXPLOIT exploit + N_EXPLORE explore  (N_CONDITIONS rows)
+
+Rounds and condition counters start at production.config's FIRST_ROUND / FIRST_CONDITION (0): R0_seed00, R1_exploit00.
 
 `bo_bridge.py layout` adds the DMF control well itself, so no control row is written. With bo_bridge's default
 layout (4 solutes x 24 wells, 1 DMF control each) 23 conditions fit per round, each on 3 identical plates.
@@ -29,15 +31,15 @@ def suggestion_rows(green_ul, condition_ids) -> pd.DataFrame:
 
 
 def _ids(round_number, tag, n) -> list:
-    return [f"R{round_number}_{tag}{i:02d}" for i in range(1, n + 1)]
+    return [f"R{round_number}_{tag}{i:02d}" for i in range(space.FIRST_CONDITION, space.FIRST_CONDITION + n)]
 
 
 def _round_budget(n_solutes=space.N_SOLUTES) -> Budget:
     return Budget(np.full(len(space.GREEN_SOLVENTS), space.solvent_budget_ul(n_solutes)))
 
 
-def seed_design(n_conditions=N_CONDITIONS, round_number=1, n_solutes=space.N_SOLUTES) -> pd.DataFrame:
-    """Round 1: the pure solvents, then greedy-maximin mixtures (each farthest from all chosen) within the solvent
+def seed_design(n_conditions=N_CONDITIONS, round_number=space.FIRST_ROUND, n_solutes=space.N_SOLUTES) -> pd.DataFrame:
+    """First round: the pure solvents, then greedy-maximin mixtures (each farthest from all chosen) within the solvent
     budget. Deterministic."""
     every_mixture = space.enumerate_mixtures()
     n_used = (every_mixture > 0).sum(axis=1)

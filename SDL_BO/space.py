@@ -1,36 +1,32 @@
 """The search space: which solvents exist and which mixtures may be proposed.
 
-Mirrors `OT protocols/bo_bridge.py` (ALL_SOLVENTS, TOTAL_UL, MIN_UL, MAX_SOLVENTS_PER_MIX): the robot
-dispenses integer microlitres summing to TOTAL_UL, every used solvent at least MIN_UL. A mixture is
-stored as integer uL of each green solvent, which avoids float trouble when comparing mixtures.
+Reads `production/config.toml` (via production.config), the same source `OT protocols/bo_bridge.py` reads: the robot
+dispenses integer microlitres summing to TOTAL_UL, every used solvent at least MIN_UL. A mixture is stored as
+integer uL of each green solvent, which avoids float trouble when comparing mixtures.
 
-    uL  [150, 150, 0, 0, 0, 0]  <->  fractions  [0.5, 0.5, 0, 0, 0, 0]  (50% 2MeTHF + 50% EtOAc)
+    uL  [150, 150, 0, 0, 0, 0]  <->  fractions  [0.5, 0.5, 0, 0, 0, 0]  (50% of the first two green solvents)
 
-Candidates are proposed in STEP_UL steps, so bo_bridge dispenses them exactly as proposed. DMF is the
-solvent to replace: bo_bridge adds it as a pure control well, and it is never a model input.
+Candidates are proposed in STEP_UL steps, so bo_bridge dispenses them exactly as proposed. The reference solvent
+(DMF) is the one to replace: bo_bridge adds it as a pure control well, and it is never a model input.
 """
 from itertools import combinations
 
 import numpy as np
 
-ALL_SOLVENTS = ["DMF", "2MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc"]
-REFERENCE_SOLVENT = "DMF"
-GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]  # the model's 6 inputs
+from production.config import (ALL_SOLVENTS, FIRST_CONDITION, FIRST_ROUND, MAX_SOLVENTS_PER_MIXTURE, MIN_UL,  # noqa: F401
+                               N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL)
+
+GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]  # the model's inputs
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]  # bo_bridge column names
 GREEN_FRACTION_COLUMNS = [f"frac_{s}" for s in GREEN_SOLVENTS]
+N_SOLUTES = len(SOLUTES)
 
-TOTAL_UL = 300  # solvent per well
-MIN_UL = 5      # smallest dispensable component
-STEP_UL = 5     # resolution of proposed mixtures (>= MIN_UL, divides TOTAL_UL)
-MAX_SOLVENTS_PER_MIXTURE = 3
+STEP_UL = 5  # resolution of proposed mixtures (>= MIN_UL, divides TOTAL_UL)
 assert STEP_UL >= MIN_UL and TOTAL_UL % STEP_UL == 0
 
-# Reservoir limits (bo_bridge: TROUGH_USABLE_UL, N_PLATES, SOLUTES): one trough per solvent feeds every plate and
-# solute block, so the conditions of a round may together use at most TROUGH_USABLE_UL / (N_PLATES * n_solutes)
-# of each solvent. BUDGET_MARGIN leaves room for bo_bridge's rounding to whole uL.
-TROUGH_USABLE_UL = 25000 - 1000
-N_PLATES = 3
-N_SOLUTES = 4
+# Reservoir limit: one trough per solvent feeds every plate and solute block, so the conditions of a round may together
+# use at most TROUGH_USABLE_UL / (N_PLATES * n_solutes) of each solvent. BUDGET_MARGIN leaves room for bo_bridge's
+# rounding to whole uL.
 BUDGET_MARGIN = 0.98
 
 
@@ -50,7 +46,7 @@ def _split_into_positive_parts(n_parts: int, total: int):
 
 
 def enumerate_mixtures(step_ul=None) -> np.ndarray:
-    """Every proposable mixture (pure solvents included) as integer uL (n_mixtures, 6); rows sum to TOTAL_UL."""
+    """Every proposable mixture (pure solvents included) as integer uL (n_mixtures, n_green); rows sum to TOTAL_UL."""
     step_ul = step_ul or STEP_UL  # read at call time so tests can coarsen the grid
     n_solvents, n_steps = len(GREEN_SOLVENTS), TOTAL_UL // step_ul
     mixtures = []

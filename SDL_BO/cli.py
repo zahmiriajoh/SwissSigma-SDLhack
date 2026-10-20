@@ -1,12 +1,13 @@
 """Command line interface:  python -m SDL_BO <command> [options]
 
-    init      write the round-1 suggestions CSV (for `bo_bridge.py layout`)
+    init      write the first round's suggestions CSV (for `bo_bridge.py layout`)
     suggest   read bo_dataset.csv (from `bo_bridge.py merge`), write the next round's suggestions CSV
     report    print a summary of bo_dataset.csv
 """
 import argparse
 from pathlib import Path
 
+from . import space
 from .campaign import seed_design, suggest_next_round
 from .dataset import DatasetError
 from .report import make_report
@@ -17,8 +18,8 @@ def _build_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    init = commands.add_parser("init", help="write the round-1 suggestions")
-    init.add_argument("--out", default="suggestions_round1.csv")
+    init = commands.add_parser("init", help="write the first round's suggestions")
+    init.add_argument("--out", default=f"suggestions_round{space.FIRST_ROUND}.csv")
     init.add_argument("--force", action="store_true", help="overwrite --out if it exists")
 
     suggest = commands.add_parser("suggest", help="design the next round from bo_dataset.csv")

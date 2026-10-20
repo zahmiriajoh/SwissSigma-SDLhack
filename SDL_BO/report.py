@@ -9,7 +9,7 @@ N_PARETO_ROWS_SHOWN = 10
 
 
 def describe_mixture(mixture_key) -> str:
-    """Human-readable composition, e.g. '50% 2MeTHF + 50% EtOAc'."""
+    """Human-readable composition, e.g. '50% EtOH + 50% water'."""
     return " + ".join(f"{ul * 100 / space.TOTAL_UL:g}% {solvent}"
                       for solvent, ul in zip(space.GREEN_SOLVENTS, mixture_key) if ul > 0)
 
