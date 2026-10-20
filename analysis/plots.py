@@ -85,14 +85,15 @@ def ternary_frame(ax, labels, fontsize=8):
 
 
 def annotated_matrix(ax, matrix, labels, cmap, fmt="{:.2f}", fontsize=7, vmin=None, vmax=None):
-    """Square heat map with the value written in every cell (text colour flips on dark cells)."""
+    """Square heat map with the value written in every cell; text is white on dark cells and black on light ones,
+    judged by the cell colour's luminance so diverging maps (dark at both ends) work too."""
     m = np.asarray(matrix, float)
     im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax)
-    norm = im.norm
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             if not np.isnan(m[i, j]):
-                dark = norm(m[i, j]) < 0.5
+                r, g, b, _ = im.cmap(im.norm(m[i, j]))
+                dark = 0.299 * r + 0.587 * g + 0.114 * b < 0.5
                 ax.text(j, i, fmt.format(m[i, j]), ha="center", va="center", fontsize=fontsize, color="white" if dark else "black")
     ax.set_xticks(range(len(labels)), labels, fontsize=fontsize, rotation=30, ha="right")
     ax.set_yticks(range(len(labels)), labels, fontsize=fontsize)
