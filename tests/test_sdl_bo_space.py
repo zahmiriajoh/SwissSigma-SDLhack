@@ -37,7 +37,12 @@ def test_ul_fraction_round_trip():
     assert space.mixture_key(ul[0]) == (150, 150, 0, 0, 0, 0)
 
 
-def test_solvent_budget_matches_one_trough_per_solvent():
+def test_production_has_no_solvent_cap():
+    assert space.solvent_budget_ul() == float("inf")
+
+
+def test_solvent_budget_matches_one_trough_per_solvent(monkeypatch):
+    monkeypatch.setattr(space, "LIMIT_SOLVENT_TO_TROUGH", True)  # the cap is off in production; this is what `true` means
     assert space.solvent_budget_ul() == pytest.approx(0.98 * 24000 / (3 * 4))
     assert space.solvent_budget_ul(n_solutes=2) == pytest.approx(2 * space.solvent_budget_ul())
 

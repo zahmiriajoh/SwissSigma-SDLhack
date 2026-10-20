@@ -103,3 +103,14 @@ def test_bo_bridge_grid_and_layout_respect_forbidden_pairs(tmp_path):
         bad.to_csv(tmp_path / "bad.csv", index=False)
         result = run_bridge("layout", "--round", R0, "--suggestions", tmp_path / "bad.csv", "--outdir", tmp_path / "bad")
         assert result.returncode != 0 and "forbidden" in result.stdout + result.stderr
+
+
+def test_layout_warns_but_succeeds_when_a_solvent_exceeds_its_trough(tmp_path):
+    """Production has no solvent cap (limit_solvent_to_trough = false): layout says to add troughs instead of failing."""
+    assert not config.LIMIT_SOLVENT_TO_TROUGH
+    suggestions = tmp_path / "suggestions.csv"
+    rows = [{"condition_id": f"R0_x{i:02d}", **{f"frac_{s}": float(s == "acetone") for s in config.GREEN_SOLVENTS}} for i in range(23)]
+    pd.DataFrame(rows).to_csv(suggestions, index=False)  # 23 conditions of pure acetone: far more than one trough
+    result = run_bridge("layout", "--round", R0, "--suggestions", suggestions, "--outdir", tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "TOO MUCH" in result.stdout and "WARNING" in result.stdout and (tmp_path / f"ot_input_round{R0}.csv").exists()

@@ -70,19 +70,20 @@ run). Regenerate the synergy run with
 - **Solutes:** Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide (plate-block order).
 - **Solvents:** acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc as mixture components (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`); DMF only as the pure reference control.
 - **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 shared conditions, run on 3 identical plates per round.
-- **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
+- **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps. It does **not** limit a round to one trough per solvent (see "Solvent trough volume" below).
 - **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
 - **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), so A1 is `round0_plate0_solute0_cond0`; well names stay `A1`–`H12`.
 - **Objective:** absorbance relative to the DMF control per solute. Round 0 is one shared design on all four solutes; from round 1 on the campaign splits into two independent arms (`[[arms]]` in the config): **phthalimide** alone, and the **minimum of glutarimide, Boc-hydroxyproline and succinimide**. Each arm has its own GPs trained on the seed round and its own wells, and its own plate blocks.
 
-**How the trough volume constrains BO.** Each solvent has one trough on the 8-trough reservoir (organiser labware, 30 mL
-nominal); the protocol fills it with 25 mL and keeps 1 mL as dead volume, so 24 mL per solvent per round. Every condition
-is pipetted 4 solutes × 3 plates = 12 times, so the 23 conditions of a round can together use at most about 1960 µL of
-any one solvent, a mean fraction of 0.28 per well. BO cannot therefore fill a round with mixtures rich in one solvent,
-even when it already knows that solvent is best: in the 3-plate toy run the picks average 0.30 DMC while the one-plate run,
-with the same trough serving 4 wells per condition, reaches 0.96. The 25 mL fill and the one-trough-per-solvent assignment
-are draft choices (`trough_fill_ul` and the trough list in `production/config.toml`), not scientific decisions; the
-protocol allows a solvent to use more than one trough, and H1 (diluent) is currently unused.
+**Solvent trough volume (no cap, user decision 2026-10-20).** Each solvent has one trough on the 8-trough reservoir (organiser
+labware, 30 mL nominal); the protocol fills it with 25 mL and keeps 1 mL as dead volume, so 24 mL per solvent. Every
+condition is pipetted into 3 plates and each solute block it is in, so a round whose conditions together hold more than
+about 1960 µL of one solvent (a mean fraction of 0.28 per well) needs more than one trough. SDL_BO no longer holds its
+picks to that limit (`limit_solvent_to_trough = false` in `production/config.toml`; `true` restores it, with each solute
+block owning a quarter of the trough). **Consequence:** `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and
+the OT-2 protocol refuses to run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to
+`SOLVENT_TROUGHS` in the protocol and in the config and loaded. In the fake branched run, one solvent exceeded its trough in
+round 3, by 1.9 mL.
 
 ## Pending decisions and open questions
 
@@ -93,7 +94,7 @@ Open before the first real round; the details and current placeholders live in t
   and whether the figures also go into slides.
 - **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
   polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
-- **Solvent trough volume** (see "How the trough volume constrains BO" above): give the solvent BO favours a second trough, e.g. the unused H1, or accept that no round can lean heavily on one solvent.
+- **Solvent trough volume** (see "Solvent trough volume" above): the BO is no longer capped, so a round may need a second trough for a favoured solvent (e.g. the unused H1) in the protocol and config; decide who adds it.
 - **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
   Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
   readout may not work for them. With no blanks run for now (to be added back later), nothing is subtracted, and

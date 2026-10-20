@@ -10,7 +10,7 @@ import pytest
 
 import fake_plate_reader as fpr
 from conftest import REPO
-from production.config import ARMS, GREEN_SOLVENTS, N_PLATES, SOLUTES, TROUGH_USABLE_UL, is_allowed
+from production.config import ARMS, GREEN_SOLVENTS, N_PLATES, SOLUTES, is_allowed
 
 FRACTIONS = [f"frac_{s}" for s in GREEN_SOLVENTS]
 N_CONDITIONS = 23
@@ -65,13 +65,11 @@ def test_each_arms_new_conditions_carry_its_name(campaign):
             assert len(fresh) >= 20 and all(c.startswith(f"R{r}_{arm}_") for c in fresh)
 
 
-def test_every_round_respects_the_hardware(campaign):
+def test_no_round_has_a_forbidden_pair(campaign):
     for r in (0, 1, 2):
         plate_map, _ = conditions(campaign, r)
         samples = plate_map[plate_map["role"] == "sample"]
         assert all(is_allowed([s for s, f in zip(GREEN_SOLVENTS, row[FRACTIONS]) if f > 1e-9]) for _, row in samples.iterrows())
-        used_ml = plate_map[[c for c in plate_map.columns if c.startswith("vol_")]].sum() * N_PLATES
-        assert (used_ml <= TROUGH_USABLE_UL).all()
 
 
 def test_each_arm_learns_only_from_its_own_wells(campaign):

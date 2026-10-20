@@ -62,6 +62,7 @@ N_PLATES = _cfg["plates"]["per_round"]
 TROUGH_FILL_UL = _cfg["plates"]["trough_fill_ul"]
 TROUGH_DEAD_UL = _cfg["plates"]["trough_dead_ul"]
 TROUGH_USABLE_UL = TROUGH_FILL_UL - TROUGH_DEAD_UL
+LIMIT_SOLVENT_TO_TROUGH = _cfg["plates"].get("limit_solvent_to_trough", True)  # BO's per-round solvent cap, see SDL_BO/space.py
 
 REFERENCE_SOLVENT = _cfg["reference"]["solvent"]
 ALL_SOLVENTS = [s["name"] for s in _cfg["solvents"]]                     # reference first, as in bo_bridge

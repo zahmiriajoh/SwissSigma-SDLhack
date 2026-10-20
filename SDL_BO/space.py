@@ -14,7 +14,7 @@ from itertools import combinations
 import numpy as np
 
 from production.config import (ALL_SOLVENTS, FIRST_CONDITION, FIRST_ROUND, MAX_SOLVENTS_PER_MIXTURE, MIN_UL,  # noqa: F401
-                               N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL, is_allowed)
+                               LIMIT_SOLVENT_TO_TROUGH, N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL, is_allowed)
 
 GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]  # the model's inputs
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]  # bo_bridge column names
@@ -26,12 +26,14 @@ assert STEP_UL >= MIN_UL and TOTAL_UL % STEP_UL == 0
 
 # Reservoir limit: one trough per solvent feeds every plate and solute block, so the conditions of a round may together
 # use at most TROUGH_USABLE_UL / (N_PLATES * n_solutes) of each solvent. BUDGET_MARGIN leaves room for bo_bridge's
-# rounding to whole uL.
+# rounding to whole uL. Off in production (`limit_solvent_to_trough = false`): the budget is then infinite.
 BUDGET_MARGIN = 0.98
 
 
 def solvent_budget_ul(n_solutes=N_SOLUTES) -> float:
-    """Largest total single-well volume of one solvent over all conditions of a round that still fits its trough."""
+    """Largest total single-well volume of one solvent over all conditions of a round that still fits its trough (inf: no limit)."""
+    if not LIMIT_SOLVENT_TO_TROUGH:
+        return float("inf")
     return BUDGET_MARGIN * TROUGH_USABLE_UL / (N_PLATES * n_solutes)
 
 

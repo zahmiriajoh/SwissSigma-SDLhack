@@ -46,7 +46,7 @@ R1_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 - 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
 - Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
 - Mixtures containing a forbidden (immiscible) pair from `production/config.toml` (water with i-PrOAc or t-BuOAc) are never enumerated, so neither the seed design nor any pick contains one.
-- Per round, the conditions use at most 1960 µL of any one solvent in a single well set, so 3 plates × 4 solutes fit one 25 mL trough (24 mL usable, 2 % margin). Re-tests, exploit and explore picks are chosen within this budget; if fewer fit, fewer rows are written (bo_bridge leaves wells empty).
+- **No solvent cap in production** (`limit_solvent_to_trough = false` in `production/config.toml`): picks are not limited by one trough per solvent, so `bo_bridge.py layout` may report a solvent that needs a spare trough (it warns and still writes the files). With `true`, the conditions use at most 1960 µL of any one solvent in a single well set (3 plates × 4 solutes fit one 25 mL trough: 24 mL usable, 2 % margin), and fewer rows are written if fewer fit.
 - `condition_id`: `R<round>_seed01`, `R<round>_exploit01`, `R<round>_explore01`; in an arm `R<round>_<arm>_exploit01` etc. (rounds start at 0 and mixture counters at 1, as in `production/config.toml`; condition 0 is the DMF control); a re-test keeps the id it was first run under.
 
 **Input, `bo_dataset.csv`** (from `bo_bridge.py merge`): one row per round × solute × condition with `round, solute,
@@ -71,8 +71,8 @@ glutarimide, Boc-hydroxyproline and succinimide). Round 0 is the shared seed des
 - the output lists each arm's conditions once per solute of the arm in a `solute` column, which `bo_bridge.py layout` already
   understands, so the phthalimide block and the other three blocks get different conditions on the same plates;
 - ids carry the arm (`R1_others_exploit01`) so the arms' conditions never collide; a re-test keeps the id it was first run under;
-- the trough budget is split by plate blocks, one quarter of each solvent's trough per solute, so every arm's conditions
-  stay within the same 1960 µL per solvent as before;
+- with the cap on, the trough budget is split by plate blocks, one quarter of each solvent's trough per solute, so every arm's
+  conditions stay within the same 1960 µL per solvent as before; with it off (production) the arms are not limited;
 - if every solute of an arm is flagged not measurable, they are scored anyway, with a warning.
 
 ## Use from Python

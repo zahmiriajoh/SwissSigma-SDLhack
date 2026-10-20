@@ -47,8 +47,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 from production.config import (  # noqa: E402
-    ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, MAX_SOLVENTS_PER_MIX, MIN_UL, N_PLATES,
-    REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
+    ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, LIMIT_SOLVENT_TO_TROUGH, MAX_SOLVENTS_PER_MIX,
+    MIN_UL, N_PLATES, REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
 )
 
 CONTROLS_PER_SOLUTE = 1   # reference-solvent wells per solute per plate
@@ -319,8 +319,11 @@ def cmd_layout(args):
         flag = "" if need <= have else "  <-- TOO MUCH: add the spare trough in the protocol + here"
         ok &= need <= have
         print(f"  {x:<7} trough {','.join(SOLVENT_TROUGHS[x]):<6} needs {need / 1000:5.2f} mL{flag}")
-    if not ok:
+    if not ok and LIMIT_SOLVENT_TO_TROUGH:
         sys.exit(1)
+    if not ok:  # the BO is not limited to one trough (production/config.toml): the lab loads spare troughs instead
+        print("\nWARNING: a solvent above needs more than one trough holds (limit_solvent_to_trough = false). Add spare troughs to "
+              "SOLVENT_TROUGHS in the protocol and in production/config.toml, and load them, before running this round.")
 
 
 # ---------------------------------------------------------------------------

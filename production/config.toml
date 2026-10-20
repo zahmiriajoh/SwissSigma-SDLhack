@@ -19,6 +19,9 @@ max_solvents_per_mixture = 3
 per_round = 3                  # identical sample plates per round (no QC or blank plate for now)
 trough_fill_ul = 25000         # loaded into every used reservoir trough
 trough_dead_ul = 1000          # left behind in the trough
+limit_solvent_to_trough = false  # false (user decision, 2026-10-20): the BO may ask for more of a solvent than one trough holds.
+                               # bo_bridge layout's fill sheet then says how much to load; add spare troughs to SOLVENT_TROUGHS (protocol + here)
+                               # before the run. true = the BO keeps every round within one trough per solvent.
 
 [reference]
 solvent = "DMF"                # pure control in every solute block; never mixed, never a BO input
