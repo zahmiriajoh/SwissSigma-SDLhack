@@ -250,6 +250,11 @@ def q4_spectral(run, outdir, abs_max=ABS_MAX_DEFAULT, nm_range=DEFAULT_NM_RANGE)
 def q5_precision(run, outdir):
     _, model = blank_model(run)
     s = run.samples()
+    if not (s["abs_std"] > 0).any():
+        lod = {sol: 3 * m["resid_std"] for sol, m in model.items()}
+        table = pd.DataFrame([{"solute": sol, "detection_limit_abs": v,
+                               "frac_below_lod": float((s.loc[s["solute"] == sol, "abs_mean"] < v).mean())} for sol, v in lod.items()])
+        return table, ["No replicate plates, so there is no within-condition spread to plot; detection limits only."], []
     colors = colors_for(run.solutes)
     fig, ax = plt.subplots(figsize=(5.5, 4))
     rows = []
@@ -296,7 +301,7 @@ def q6_retests(run, outdir, cv_table=None):
                     mfc="none" if k else colors[solute], label=f"{solute} R{r}")
         d = (g["rel_mean"] - g["original"]).abs()
         cv_s = cv_by_solute.get(solute)
-        rows.append({"solute": solute, "n_retests": len(g), "mean_abs_diff": float(d.mean()), "plate_cv": cv_s,
+        rows.append({"solute": solute, "n_retests": len(g), "mean_abs_diff": float(d.mean()), "plate_cv": cv_s if cv_s is not None else np.nan,
                      "frac_within_2cv": float((d <= 2 * cv_s * g["original"]).mean()) if cv_s else np.nan})
     identity_line(ax)
     if cv:
