@@ -3,10 +3,15 @@ slot assignments below if you move labware in the protocol, then re-run:
 
     python tools/draw_deck_map.py
 """
+import importlib.util
 import os
 import sys
+from pathlib import Path
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "maps", "deck_map.svg")
+_spec = importlib.util.spec_from_file_location("production_config", Path(__file__).resolve().parents[2] / "production" / "config.py")
+cfg = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(cfg)
 # matplotlib "bone" (greys) + "twilight" (accents)
 INK, DARK, MID, LIGHT, PALE, BG = "#16161e", "#42425d", "#707b90", "#b9d2d2", "#dde9e9", "#eff4f4"
 TW = ["#e2d9e2", "#a6bfca", "#6d90c0", "#5f58b0", "#531e7c", "#64194b", "#9f3c50", "#c0755e", "#d0b39e"]
@@ -50,7 +55,9 @@ def tips(slot, size, rack):
 
 def reservoir(slot):
     bx, by, w, h = frame(slot, "#ffffff", DARK)
-    names = ["DMF", "2-MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc", "diluent"]
+    # trough A1..H1 from production/config.toml; any trough without a solvent is the diluent
+    by_trough = {t[0]: cfg.SOLVENT_LABELS[name] for name, t in cfg.SOLVENT_TROUGHS.items()}
+    names = [by_trough.get(f"{r}1", "diluent") for r in "ABCDEFGH"]
     cols = [TW[2], TW[3], TW[4], TW[5], TW[6], TW[7], TW[8], LIGHT]
     bh = (h - 10) / 8
     for i in range(8):
@@ -87,18 +94,18 @@ tips("8", "300", "opentrons_96_tiprack_300ul")
 tips("9", "20", "opentrons_96_tiprack_20ul")
 reservoir("5")
 for i, s in enumerate(["1", "2", "3"]):
-    plate(s, i + 1)
+    plate(s, i)
 
 ly = Y0 + 4 * (SH + GAP) + 26
 add(f'<text x="{X0}" y="{ly}" font-size="13.5" font-weight="bold" fill="{INK}">Run order</text>')
 steps = [
-    "1  Fill all plates in one pass: each solvent once, same well on plates 1–3 back to back (P20 below 20 µL, P300 from 20 µL)",
+    "1  Fill all plates in one pass: same well on plates 0–2 back to back (P20 below 20 µL, P300 from 20 µL)",
     "2  Pause: seal all plates by hand",
-    "3  For plate 1, 2, 3: move onto the heater-shaker (prompted) → shake → back to its slot → read on UV-Vis",
+    "3  For plate 0, 1, 2: move onto the heater-shaker (prompted) → shake → back to its slot → read on UV-Vis",
 ]
 for i, t in enumerate(steps):
     add(f'<text x="{X0}" y="{ly+24+i*20}" font-size="12" fill="{INK}">{t}</text>')
-add(f'<text x="{X0}" y="{ly+24+3*20+8}" font-size="11" fill="{MID}">Free: 4, 6, 7, 11 (keep 7 and 11, next to the heater-shaker, free of tall labware). Plates 2–3 optional (Identical plates setting).</text>')
+add(f'<text x="{X0}" y="{ly+24+3*20+8}" font-size="11" fill="{MID}">Free: 4, 6, 7, 11 (keep 7 and 11, next to the heater-shaker, free of tall labware). Plates 1–2 optional.</text>')
 add('</svg>')
 open(OUT, "w").write("\n".join(out))
 print("ok", W, H)
