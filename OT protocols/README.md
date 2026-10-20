@@ -19,6 +19,8 @@ Default layout; solutes, solvents, troughs, volumes and numbering come from
 - **BO conditions:** the other **23 wells** of each block are **BO conditions**, each a
   mixture of 1–3 of the 6 green solvents: acetone, EtOH, i-PrOH, water, i-PrOAc and t-BuOAc
   (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`).
+  Pairs listed under `[[forbidden_pairs]]` in the config (water with either ester, immiscible) are
+  skipped by `grid` and rejected by `layout`.
 - **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`), condition
   counters (`R0_grid00`) and replicates. Well names stay `A1`–`H12`.
 

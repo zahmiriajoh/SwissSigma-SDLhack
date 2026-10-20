@@ -72,6 +72,7 @@ run). The additive runs predate the QC plate, so their Q7 calibration section is
 - **Solvents:** acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc as mixture components (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`); DMF only as the pure reference control.
 - **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 shared conditions, run on 3 identical plates per round.
 - **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
+- **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
 - **Numbering:** rounds, plates and condition counters start at 0 (`round0`, `plate0`, `R0_seed00`); well names stay `A1`–`H12`.
 - **Objective:** absorbance relative to the DMF control per solute; a mixture's score is its worst solute's ratio.
 
@@ -94,8 +95,7 @@ Open before the first real round; the details and current placeholders live in t
 - **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
   polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
 - **Solvent trough volume** (see "How the trough volume constrains BO" above): give the solvent BO favours a second trough, e.g. the unused H1, or accept that no round can lean heavily on one solvent.
-- **Solvent set** ([`production/README.md`](production/README.md), "Interpretation notes"): water is immiscible with i-PrOAc and
-  t-BuOAc, so the grid proposes water/ester mixtures that will phase-separate unless those pairs are forbidden; glutarimide,
-  succinimide and Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm,
-  so the absorbance readout may not work for them.
+- **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
+  Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
+  readout may not work for them.
 - **Protocol notes** (`data/261018_protocol/`, not yet in git): run naming convention and where plate-reader exports are stored.
