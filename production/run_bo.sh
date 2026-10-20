@@ -39,13 +39,15 @@ RATIOS="$CSV_DIR/ratios"; UVVIS="$CSV_DIR/uvvis"; FIG="$CSV_DIR/figures"
 mkdir -p "$RATIOS" "$UVVIS"
 cd "$REPO"
 
-# The sdlhack environment: use it if it is not already active.
-if ! python -c "import SDL_BO, analysis, production.config" 2>/dev/null; then
-  if command -v mamba >/dev/null; then eval "$(mamba shell hook --shell bash 2>/dev/null || conda shell.bash hook)"; mamba activate sdlhack
-  elif command -v conda >/dev/null; then eval "$(conda shell.bash hook)"; conda activate sdlhack
-  fi
-  python -c "import SDL_BO, analysis, production.config" || { echo "activate the sdlhack environment first (mamba env create -f environment.yml)"; exit 1; }
+# Python: the repo's uv environment (bash setup.sh), or whatever python already has the packages.
+if command -v uv >/dev/null 2>&1 && [[ -f "$REPO/uv.lock" ]]; then
+  PY="uv run --quiet python"
+elif python -c "import SDL_BO, analysis, production.config" 2>/dev/null; then
+  PY="python"
+else
+  echo "no usable Python environment: run  bash setup.sh  in $REPO first" >&2; exit 1
 fi
+python() { $PY "$@"; }  # every 'python' below goes through uv
 
 BRIDGE="$REPO/OT protocols/bo_bridge.py"
 read -r FIRST_ROUND N_PLATES FIRST_PLATE < <(python -c "from production.config import FIRST_ROUND, N_PLATES, FIRST_PLATE; print(FIRST_ROUND, N_PLATES, FIRST_PLATE)")
