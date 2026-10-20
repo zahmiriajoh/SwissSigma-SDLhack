@@ -21,6 +21,16 @@ balanced mixtures, capped at 1. DMF gives full dissolution. Calibration wells di
 of the nominal mass, so their series bend over in poor solvents. Optional knobs (used by `make_toy_run.py`, off by
 default): per-solute band heights, plate attack growing with the read delay, a reader ceiling of 3.5.
 
+## Source of variations in the generated fake values
+
+**How the numbers are made.** For each well on each plate, `fake_plate_reader.spectrum` computes a deterministic spectrum from the well's composition and solute: a baseline rising into the UV, plus a Gaussian band whose height is the fake "dissolved fraction" times the solute's band height, plus, in the synergy run only, a plate-attack term that grows with that plate's read delay. It then adds rng.normal(0, 0.004) at every wavelength, drawn fresh for every well, plate and round from one seeded generator. The blank or QC plate gets its own draws.
+
+**Where the replicate spread comes from.** The dissolved fraction never varies: the same composition gives the same band on plate 1, 2 and 3 and in every round. So the plate-to-plate CV of about half a percent is purely reader noise. Each endpoint value is a single wavelength point, so its noise is 0.004 raw, roughly 0.0057 after subtracting a noisy blank, over a signal near 1.2 at the control.
+
+**Where the cross-round variation comes from.** Three things. The DMF control has only three wells per round, so its mean carries about 0.3% noise, and because every value in a round is divided by it, the whole round shifts together. That is the drift Q2 shows and the reason the error model needed the normalisation term. In the synergy run, each plate's read delay is drawn at random, so the attack term differs slightly between plates and rounds. And re-tested mixtures are simply re-measured with new noise.
+
+**What is not modelled.** No pipetting volume error, no variation in weighed solid mass, no dissolution kinetics or incomplete equilibration, no well-position or edge effects, no evaporation. The fake data is therefore an optimistic floor: real plate-to-plate CVs will be larger, and the QC checks have only been exercised against reader noise. If you want a more realistic noise floor to test against, I'd add optional knobs for volume error per dispense and mass error per well to fake_plate_reader, defaulting to zero so sdl_merge's tests keep passing.
+
 ## Running the analysis on these files
 
 From the repo root in the `sdlhack` environment:
