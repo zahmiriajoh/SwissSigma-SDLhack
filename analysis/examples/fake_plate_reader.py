@@ -14,7 +14,10 @@ WAVELENGTHS = np.arange(200, 801)  # nm, 1 nm steps
 PEAK_NM = {"S1": 275, "S2": 320, "S3": 350, "S4": 410}  # band centre per solute
 WIDTH_NM = {"S1": 18, "S2": 22, "S3": 25, "S4": 35}
 BAND_HEIGHT = 1.2  # peak absorbance of a fully dissolved solute
+BAND_HEIGHTS = {}  # per-solute override of BAND_HEIGHT, e.g. {"S1": 2.6} to saturate, {"S4": 0.06} to sit near the noise
+ATTACK_PER_MIN = {}  # solvent -> absorbance gained per minute of contact at 300 nm (polystyrene attack); default none
 NOISE = 0.004
+READER_MAX = 3.5  # the reader cannot report more than this absorbance
 SYNERGY = 0.4  # bonus for balanced mixtures: 0 for a pure solvent, up to SYNERGY * 2/3 for an equal ternary
 
 # Made-up dissolving power (0-1) of each solvent for each solute; DMF dissolves everything.
@@ -43,21 +46,62 @@ def baseline(wavelength_nm):
 
 def band_height(row, solids=True) -> float:
     """Peak absorbance of one plate-map well; 0 for a solvent-only (blank) plate."""
-    return BAND_HEIGHT * dissolved_fraction(row[FRACTION_COLUMNS], row["solute"]) if solids else 0.0
+    height = BAND_HEIGHTS.get(row["solute"], BAND_HEIGHT)
+    return height * dissolved_fraction(row[FRACTION_COLUMNS], row["solute"]) if solids else 0.0
 
 
-def spectrum(row, rng, solids=True) -> np.ndarray:
+def attack(fractions, delay_min, wavelength_nm):
+    """Plate attack: solvent-weighted absorbance growing with contact time, rising into the UV like the baseline."""
+    rate = sum(f * ATTACK_PER_MIN.get(s, 0.0) for f, s in zip(fractions, ALL_SOLVENTS))
+    return rate * delay_min * (np.asarray(wavelength_nm, dtype=float) / 300.0) ** -4
+
+
+def _band(solute, height):
+    peak, width = PEAK_NM[solute], WIDTH_NM[solute]
+    return height * np.exp(-0.5 * ((WAVELENGTHS - peak) / width) ** 2)
+
+
+def spectrum(row, rng, solids=True, delay_min=0.0) -> np.ndarray:
     """Absorbance at every wavelength for one well."""
-    peak, width = PEAK_NM[row["solute"]], WIDTH_NM[row["solute"]]
-    band = band_height(row, solids) * np.exp(-0.5 * ((WAVELENGTHS - peak) / width) ** 2)
-    return baseline(WAVELENGTHS) + band + rng.normal(0, NOISE, WAVELENGTHS.size)
+    fractions = row[FRACTION_COLUMNS].to_numpy(dtype=float)
+    return np.minimum(baseline(WAVELENGTHS) + _band(row["solute"], band_height(row, solids)) + attack(fractions, delay_min, WAVELENGTHS)
+                      + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
 
 
-def spectra_export(plate_map, rng, solids=True) -> pd.DataFrame:
-    """Full-spectrum export as a long table (well, wavelength_nm, absorbance), readable by bo_bridge merge."""
-    frames = [pd.DataFrame({"well": well, "wavelength_nm": WAVELENGTHS, "absorbance": spectrum(row, rng, solids)})
-              for well, row in plate_map.iterrows()]
+def _long(spectra_by_well) -> pd.DataFrame:
+    frames = [pd.DataFrame({"well": well, "wavelength_nm": WAVELENGTHS, "absorbance": a}) for well, a in spectra_by_well]
     return pd.concat(frames, ignore_index=True).round({"absorbance": 4})
+
+
+def spectra_export(plate_map, rng, solids=True, delay_min=0.0) -> pd.DataFrame:
+    """Full-spectrum export as a long table (well, wavelength_nm, absorbance), readable by bo_bridge merge."""
+    return _long((well, spectrum(row, rng, solids, delay_min)) for well, row in plate_map.iterrows())
+
+
+def fixed_wavelength_export(spectra_long, wavelengths_nm) -> pd.DataFrame:
+    """Keep only the given wavelengths of a full-spectrum export, as a reader set to fixed wavelengths would give."""
+    return spectra_long[spectra_long["wavelength_nm"].isin(list(wavelengths_nm))].reset_index(drop=True)
+
+
+def qc_spectrum(row, rng, delay_min=0.0) -> np.ndarray:
+    """One QC-plate well: blank = solvent background only; calibration = the loaded mass, capped by solubility in that pure solvent."""
+    fractions = np.array([row.get(f"frac_{s}", 0.0) for s in ALL_SOLVENTS], dtype=float)
+    band = 0.0
+    if row["role"] == "calibration":
+        solubility = dissolved_fraction(fractions, row["solute"])  # as a fraction of the nominal mass
+        band = _band(row["solute"], BAND_HEIGHTS.get(row["solute"], BAND_HEIGHT) * min(float(row["loading"]), solubility))
+    return np.minimum(baseline(WAVELENGTHS) + band + attack(fractions, delay_min, WAVELENGTHS) + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
+
+
+def qc_export(qc_map, rng, delay_min=0.0) -> pd.DataFrame:
+    """Full-spectrum export of a QC plate (analysis.qc_layout.qc_plate_map)."""
+    return _long((well, qc_spectrum(row, rng, delay_min)) for well, row in qc_map.iterrows())
+
+
+def plate_log(plate_labels, rng, mean_min=8.0, spread_min=4.0) -> pd.DataFrame:
+    """Fake lab log: minutes between the end of shaking and the read, per plate."""
+    delays = np.clip(rng.normal(mean_min, spread_min, len(plate_labels)), 1.0, None).round(1)
+    return pd.DataFrame({"plate": plate_labels, "read_delay_min": delays})
 
 
 def endpoint_export(plate_map, rng, solids=True) -> pd.DataFrame:
