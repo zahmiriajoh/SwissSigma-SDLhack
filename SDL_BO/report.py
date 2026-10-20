@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from . import space
-from .dataset import load_dataset, ratio_columns, score_mixtures
+from .dataset import load_dataset, ratio_columns, score_mixtures, unmeasurable_solutes
 
 N_PARETO_ROWS_SHOWN = 10
 
@@ -57,9 +57,12 @@ def _pareto_lines(mixtures: pd.DataFrame) -> list:
 
 def make_report(dataset_path) -> str:
     """Summarize bo_dataset.csv as text."""
-    mixtures = score_mixtures(load_dataset(dataset_path))
+    unmeasurable = unmeasurable_solutes(dataset_path)
+    mixtures = score_mixtures(load_dataset(dataset_path), exclude=unmeasurable)
     if mixtures["score"].isna().all():
         return "No mixture has been measured on every solute yet."
     footer = ("(ratio_<solute> = absorbance relative to the DMF control of the same round; "
               "score = the worst solute's ratio; 1.0 = DMF parity)")
+    if unmeasurable:
+        footer += f"\nNot scored, flagged not measurable by analysis reduce: {', '.join(unmeasurable)}"
     return "\n".join([_best_line(mixtures, "Best mixture"), *_pure_solvent_lines(mixtures), *_pareto_lines(mixtures), footer])

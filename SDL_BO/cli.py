@@ -46,6 +46,8 @@ def _run_suggest(args) -> None:
     suggestions.to_csv(out, index=False)
     print(f"wrote {out}: round {info['round']}, {len(suggestions)} conditions, "
           f"incumbent score {info['incumbent_score']:.3f}, kernels={info['kernels']}")
+    if info["unmeasurable"]:
+        print(f"not scored (analysis reduce flagged them not measurable): {', '.join(info['unmeasurable'])}")
 
 
 def _run_report(args) -> None:

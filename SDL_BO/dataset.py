@@ -9,6 +9,7 @@ all replicate wells and plates. bo_bridge computes it, so this package never see
 A score of 1.0 means "as good as DMF for every solute".
 """
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -117,13 +118,28 @@ def ratio_table(df: pd.DataFrame) -> pd.DataFrame:
     return wide.join(df.groupby(["round", "condition_id"])["mixture_key"].first())
 
 
-def score_mixtures(df: pd.DataFrame) -> pd.DataFrame:
-    """One row per mixture_key: mean ratio_<solute> over its condition rows, `score` (their minimum; NaN if a
-    solute never saw the mixture) and `n` condition rows."""
+def unmeasurable_solutes(dataset_path) -> list:
+    """Solutes flagged `measurable == False` in any wavelengths_round*.csv next to the dataset (written by
+    `analysis reduce`): their rel values are noise, so they are kept in the data but left out of the score.
+    The same conservative union `analysis report` uses."""
+    flagged = set()
+    for path in sorted(Path(dataset_path).parent.glob("wavelengths_round*.csv")):
+        report = pd.read_csv(path, index_col=0)
+        if "measurable" in report.columns:
+            flagged |= set(report.index[~report["measurable"].astype(bool)])
+    return sorted(flagged)
+
+
+def score_mixtures(df: pd.DataFrame, exclude=()) -> pd.DataFrame:
+    """One row per mixture_key: mean ratio_<solute> over its condition rows, `score` (their minimum over the solutes
+    not in `exclude`; NaN if one of those never saw the mixture) and `n` condition rows."""
     table = ratio_table(df)
     by_mixture = table.groupby("mixture_key")
     mixtures = by_mixture[ratio_columns(table)].mean()
-    mixtures["score"] = mixtures[ratio_columns(table)].min(axis=1, skipna=False)
+    scored = [c for c in ratio_columns(table) if c[len(RATIO_PREFIX):] not in set(exclude)]
+    if not scored:
+        raise DatasetError(f"every solute is excluded from the score ({sorted(exclude)}); nothing to optimise")
+    mixtures["score"] = mixtures[scored].min(axis=1, skipna=False)
     mixtures["n"] = by_mixture.size()
     return mixtures
 

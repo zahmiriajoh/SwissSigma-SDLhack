@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from . import space
-from .dataset import load_dataset, next_round_number, score_mixtures, solutes
+from .dataset import load_dataset, next_round_number, score_mixtures, solutes, unmeasurable_solutes
 from .model import Budget, fit_best_gp, pick_exploit_batch, pick_explore_batch
 
 N_CONDITIONS = 23  # conditions per solute in the default bo_bridge layout
@@ -92,7 +92,8 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
     """Design the next round from bo_dataset.csv; returns (suggestions DataFrame, info dict)."""
     dataset = load_dataset(dataset_path)
     round_number = next_round_number(dataset)
-    mixtures = score_mixtures(dataset)
+    unmeasurable = unmeasurable_solutes(dataset_path)  # scored on the measurable solutes only, as analysis report does
+    mixtures = score_mixtures(dataset, exclude=unmeasurable)
     if mixtures["score"].isna().all():
         raise ValueError("no mixture has been measured on every solute, so there is no score to improve on")
     fitted = fit_per_solute(dataset, seed)
@@ -122,5 +123,6 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
         "cv_rmse": {s: m.cv_rmse_by_kernel for s, m in fitted.items()},
         "n_training_rows": len(dataset),
         "incumbent_score": float(mixtures["score"].max()),
+        "unmeasurable": unmeasurable,
     }
     return suggestions, info
