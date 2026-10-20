@@ -68,6 +68,15 @@ analyses it.
 - **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
 - **Objective:** absorbance relative to the DMF control per solute; a mixture's score is its worst solute's ratio.
 
+**How the trough volume constrains BO.** Each solvent has one trough on the 8-trough reservoir (organiser labware, 30 mL
+nominal); the protocol fills it with 25 mL and keeps 1 mL as dead volume, so 24 mL per solvent per round. Every condition
+is pipetted 4 solutes × 3 plates = 12 times, so the 23 conditions of a round can together use at most about 1960 µL of
+any one solvent, a mean fraction of 0.28 per well. BO cannot therefore fill a round with mixtures rich in one solvent,
+even when it already knows that solvent is best: in the 3-plate toy run the picks average 0.30 DMC while the one-plate run,
+with the same trough serving 4 wells per condition, reaches 0.96. The 25 mL fill and the one-trough-per-solvent assignment
+are draft choices in `OT protocols/sdl_solubility_ot2.py`, not scientific decisions; the protocol allows a solvent to use
+more than one trough, and H1 (diluent) is currently unused.
+
 ## Pending decisions and open questions
 
 Open before the first real round; the details and current placeholders live in the linked documents.
@@ -77,4 +86,5 @@ Open before the first real round; the details and current placeholders live in t
   and whether the figures also go into slides.
 - **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
   polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
+- **Solvent trough volume** (see "How the trough volume constrains BO" above): give the solvent BO favours a second trough, e.g. the unused H1, or accept that no round can lean heavily on one solvent.
 - **Protocol notes** (`data/261018_protocol/`, not yet in git): run naming convention and where plate-reader exports are stored.
