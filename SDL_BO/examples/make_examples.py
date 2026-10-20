@@ -21,7 +21,7 @@ from fake_plate_reader import endpoint_export, read_plate_map  # noqa: E402
 
 from SDL_BO.campaign import seed_design, suggest_next_round  # noqa: E402
 
-N_PLATES = 3
+N_PLATES = 3  # identical plates per round; the toy pipeline example sets this to 1
 
 
 def bridge(*args) -> str:
@@ -32,21 +32,26 @@ def bridge(*args) -> str:
     return result.stdout
 
 
-def run_round(round_number, suggestions_path, workdir, dataset_path, rng) -> None:
-    """layout -> fake plates (+ blank) -> merge, all inside `workdir`."""
-    bridge("layout", "--round", round_number, "--suggestions", suggestions_path, "--outdir", workdir)
-    plate_map = read_plate_map(workdir / f"plate_map_round{round_number}.csv")
+def endpoint_readers(plate_map, round_number, workdir, rng):
+    """Fake "already reduced" plate-reader files: (plate paths, blank path), one absorbance per well."""
     readers = []
     for i in range(1, N_PLATES + 1):
         readers.append(workdir / f"reader_round{round_number}_plate{i}.csv")
         endpoint_export(plate_map, rng).to_csv(readers[-1], index=False)
     blank = workdir / f"reader_round{round_number}_blank.csv"
     endpoint_export(plate_map, rng, solids=False).to_csv(blank, index=False)
-    bridge("merge", "--plate-map", workdir / f"plate_map_round{round_number}.csv",
-           "--reader", *readers, "--blank", blank, "--dataset", dataset_path)
+    return readers, blank
 
 
-def run_campaign(n_rounds, out_dir, workdir, seed=0) -> Path:
+def run_round(round_number, suggestions_path, workdir, dataset_path, rng, make_readers=endpoint_readers) -> None:
+    """layout -> measure the plates (`make_readers`) -> merge, all inside `workdir`."""
+    plate_map_path = workdir / f"plate_map_round{round_number}.csv"
+    bridge("layout", "--round", round_number, "--suggestions", suggestions_path, "--outdir", workdir, "--plates", N_PLATES)
+    readers, blank = make_readers(read_plate_map(plate_map_path), round_number, workdir, rng)
+    bridge("merge", "--plate-map", plate_map_path, "--reader", *readers, "--blank", blank, "--dataset", dataset_path)
+
+
+def run_campaign(n_rounds, out_dir, workdir, seed=0, make_readers=endpoint_readers) -> Path:
     """Write suggestions_round1..N+1 and bo_dataset.csv into `out_dir`; returns the dataset path."""
     out_dir, workdir = Path(out_dir), Path(workdir)
     dataset = out_dir / "bo_dataset.csv"
@@ -55,7 +60,7 @@ def run_campaign(n_rounds, out_dir, workdir, seed=0) -> Path:
     suggestions = out_dir / "suggestions_round1.csv"
     seed_design().to_csv(suggestions, index=False)
     for round_number in range(1, n_rounds + 1):
-        run_round(round_number, suggestions, workdir, dataset, rng)
+        run_round(round_number, suggestions, workdir, dataset, rng, make_readers)
         suggestions = out_dir / f"suggestions_round{round_number + 1}.csv"
         next_rows, info = suggest_next_round(dataset, seed=seed)
         next_rows.to_csv(suggestions, index=False)
