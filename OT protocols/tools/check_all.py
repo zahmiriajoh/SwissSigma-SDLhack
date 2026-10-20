@@ -8,6 +8,8 @@ Scratch files go to a temporary folder.
 """
 import csv, os, random, re, subprocess, sys, tempfile
 P = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(P))
+from production.config import GREEN_SOLVENTS, is_allowed  # noqa: E402
 T = tempfile.mkdtemp(prefix="sdl_check_")
 SIM = sys.argv[1] if len(sys.argv) > 1 else "opentrons_simulate"
 B = os.path.join(P, "bo_bridge.py")
@@ -84,10 +86,13 @@ check("merge round 0", rc == 0, out.strip().splitlines()[1] if rc == 0 else out[
 # round 1: BO output mixing per-solute and shared rows
 with open(os.path.join(T, "s1.csv"), "w") as f:
     f.write("solute,frac_acetone,frac_EtOH,frac_iPrOH,frac_water,frac_iPrOAc,frac_tBuOAc\n")
-    random.seed(9)
+    random.seed(10)  # a seed whose random design fits the troughs
     for s in ("Glutarimide", "Boc-hydroxyproline", "Phthalimide", "Succinimide"):
         for _ in range(18):
-            k = random.choice([1, 2, 3]); idx = random.sample(range(6), k); w = [random.random() for _ in idx]
+            while True:
+                k = random.choice([1, 2, 3]); idx = random.sample(range(6), k)
+                if is_allowed([GREEN_SOLVENTS[i] for i in idx]): break
+            w = [random.random() for _ in idx]
             fr = [0.0] * 6
             for i, x in zip(idx, w): fr[i] = x / sum(w)
             f.write(s + "," + ",".join(f"{x:.3f}" for x in fr) + "\n")

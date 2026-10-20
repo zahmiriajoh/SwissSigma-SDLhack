@@ -48,7 +48,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 from production.config import (  # noqa: E402
     ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, MAX_SOLVENTS_PER_MIX, MIN_UL, N_PLATES,
-    REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL,
+    REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
 )
 
 CONTROLS_PER_SOLUTE = 1   # reference-solvent wells per solute per plate
@@ -187,8 +187,8 @@ def cmd_grid(args):
     n = args.n or n_cond
     rng = random.Random(args.seed)
     designs = [{s: 1.0} for s in GREEN_SOLVENTS]  # pure solvents = single-solvent baselines
-    binaries = [{a: 0.5, b: 0.5} for a, b in itertools.combinations(GREEN_SOLVENTS, 2)]
-    ternaries = [{a: 1 / 3, b: 1 / 3, c: 1 / 3} for a, b, c in itertools.combinations(GREEN_SOLVENTS, 3)]
+    binaries = [{a: 0.5, b: 0.5} for a, b in itertools.combinations(GREEN_SOLVENTS, 2) if is_allowed((a, b))]
+    ternaries = [{a: 1 / 3, b: 1 / 3, c: 1 / 3} for a, b, c in itertools.combinations(GREEN_SOLVENTS, 3) if is_allowed((a, b, c))]
     rng.shuffle(binaries)
     rng.shuffle(ternaries)
     # mostly binaries, a few ternaries, so the round spans the simplex
@@ -241,6 +241,8 @@ def read_suggestions(path, solutes, round_):
         fracs = {s: v / total for s, v in fracs.items()}
         if len(fracs) > MAX_SOLVENTS_PER_MIX:
             print(f"  warning: line {i} mixes {len(fracs)} solvents (> {MAX_SOLVENTS_PER_MIX})")
+        if not is_allowed(fracs):
+            sys.exit(f"{path} line {i}: {sorted(fracs)} contains a forbidden (immiscible) solvent pair, see production/config.toml")
         solute = rec.get("solute", "")
         if solute and solute not in out:
             sys.exit(f"{path} line {i}: unknown solute '{solute}'; known: {solutes}")

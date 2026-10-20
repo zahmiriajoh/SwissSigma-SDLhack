@@ -14,7 +14,7 @@ from itertools import combinations
 import numpy as np
 
 from production.config import (ALL_SOLVENTS, FIRST_CONDITION, FIRST_ROUND, MAX_SOLVENTS_PER_MIXTURE, MIN_UL,  # noqa: F401
-                               N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL)
+                               N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL, is_allowed)
 
 GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]  # the model's inputs
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]  # bo_bridge column names
@@ -46,12 +46,15 @@ def _split_into_positive_parts(n_parts: int, total: int):
 
 
 def enumerate_mixtures(step_ul=None) -> np.ndarray:
-    """Every proposable mixture (pure solvents included) as integer uL (n_mixtures, n_green); rows sum to TOTAL_UL."""
+    """Every proposable mixture (pure solvents included) as integer uL (n_mixtures, n_green); rows sum to TOTAL_UL.
+    Combinations containing a forbidden (immiscible) pair from the config are left out."""
     step_ul = step_ul or STEP_UL  # read at call time so tests can coarsen the grid
     n_solvents, n_steps = len(GREEN_SOLVENTS), TOTAL_UL // step_ul
     mixtures = []
     for n_used in range(1, MAX_SOLVENTS_PER_MIXTURE + 1):
         for indices in combinations(range(n_solvents), n_used):
+            if not is_allowed([GREEN_SOLVENTS[i] for i in indices]):
+                continue
             for parts in _split_into_positive_parts(n_used, n_steps):
                 row = np.zeros(n_solvents, dtype=int)
                 row[list(indices)] = np.array(parts) * step_ul
