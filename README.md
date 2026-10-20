@@ -23,7 +23,7 @@ python examples/toy_additive_pipeline.py   # whole loop on fake additive chemist
 | `analysis/` | `python -m analysis qc-layout / reduce / qc / report`: QC plate per round (blanks + calibration series), plate-reader spectra → one absorbance per well per plate in the format `bo_bridge.py merge` takes, experiment-quality figures (`qc_summary.md`) and study-aim figures (`report_summary.md`). |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
-| `examples/` | `toy_additive_pipeline.py`: runs the whole loop with fake additive solubility and checks BO homes in on the best pure solvent. Its outputs (every CSV of every round) are kept in `examples/toy_additive_output/` as debugging material. |
+| `examples/` | `toy_additive_pipeline.py`: runs the whole loop with fake additive solubility and checks BO homes in on the best pure solvent. Its outputs (every CSV of every round, plus `analysis qc` / `report` figures and summaries in `figures/`) are tracked in `examples/toy_additive_output/` and `examples/toy_additive_output_one_plate/` as debugging material. |
 | `analysis/examples/` | Fake plate reader; synthetic round-1 exports (3 plates, blank, QC plate) for the example plate map; `make_toy_run.py` builds a fake multi-round campaign folder for `analysis qc / report` without SDL_BO. |
 | `data/Opentrons_Example_Files/` | Reference protocols and labware provided by the organisers (read-only). |
 | `data/project_proposal/` | Project proposal (read-only). |

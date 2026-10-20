@@ -14,8 +14,9 @@ spends the whole DOMINANT budget on the DOMINANT-richest untested mixtures. `--o
 Run from the repo root in the `sdlhack` environment (~1 min per round on the 5 uL grid, ~10 s with --coarse):
     python examples/toy_additive_pipeline.py [--rounds 3] [--coarse] [--one-plate] [--dominant DMC] [--outdir DIR]
 Every file of every round (suggestions, robot CSV, plate map, spectra, endpoint exports, wavelengths, per-well
-results, bo_dataset) is kept in --outdir (default examples/toy_additive_output/, git-ignored) for debugging the
-other modules against. --coarse has few mixtures near a vertex, so its exploit picks drift away after a round or two.
+results, bo_dataset) is kept in --outdir (default examples/toy_additive_output/, tracked in git together with the
+`analysis qc` / `report` outputs in its figures/ subfolder; rerun both after regenerating) for debugging the other
+modules against. --coarse has few mixtures near a vertex, so its exploit picks drift away after a round or two.
 Exit code 0 if the expectations hold, 1 otherwise.
 """
 import argparse
