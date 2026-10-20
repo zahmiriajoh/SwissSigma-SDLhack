@@ -13,6 +13,23 @@ Standard library only (`tomllib`, Python 3.11+), so `OT protocols/bo_bridge.py` 
 protocol itself runs on the robot and cannot import the repo: its `SOLVENT_TROUGHS` must be edited by hand to match,
 and the test suite checks that it does.
 
+## Folder structure
+
+0. Deck map and plate map
+1. Protocol script for one round
+  - Upload this to Opentron
+  - This reads the seed file in `ratios/`.
+2. BO script(s) 
+3. `csvs/` folder - CSV files
+  - `ratios/`: Input files for Opentron
+    - Seed file (first round)
+    - File for each subsequent round
+  - `uvvis/`: Results from each round
+    - Results are uploaded here as CSVs
+4. Bash script that runs the BO and outputs the files for the next round of experiments in `ratios/`.
+
+We expect to receive the `csvs/` folder from the lab at the end of the day. 
+
 ## What is in `config.toml` (as of 2026-10-20)
 
 | Section | Values | Notes |
