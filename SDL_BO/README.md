@@ -40,7 +40,7 @@ python -m SDL_BO report  --dataset runs/bo_dataset.csv
 
 ```csv
 condition_id,frac_acetone,frac_EtOH,frac_iPrOH,frac_water,frac_iPrOAc,frac_tBuOAc
-R1_exploit00,0.2833,0.0,0.35,0.0,0.3667,0.0
+R1_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 ```
 
 - 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.

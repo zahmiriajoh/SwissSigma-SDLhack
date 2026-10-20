@@ -21,8 +21,8 @@ Default layout; solutes, solvents, troughs, volumes and numbering come from
   (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`).
   Pairs listed under `[[forbidden_pairs]]` in the config (water with either ester, immiscible) are
   skipped by `grid` and rejected by `layout`.
-- **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`), condition
-  counters (`R0_grid00`) and replicates. Well names stay `A1`–`H12`.
+- **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`) and replicates. The DMF control is
+  condition 0 and the mixtures count from 1 (`R0_grid01`). Well names stay `A1`–`H12`.
 
 Change the layout with flags on `grid` and `layout` (or the constants at the top of `bo_bridge.py`):
 
