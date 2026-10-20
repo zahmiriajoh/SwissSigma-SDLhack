@@ -117,9 +117,9 @@ else
 fi
 
 # ----- BO: next round ------------------------------------------------------------------------------------------
-echo "== Round $NEXT: Bayesian optimisation (SDL_BO suggest)"
-python -m SDL_BO suggest --dataset "$CSV_DIR/bo_dataset.csv" --out "$RATIOS/suggestions_round${NEXT}.csv" --seed "$SEED"
-python -m SDL_BO report --dataset "$CSV_DIR/bo_dataset.csv"
+echo "== Round $NEXT: Bayesian optimisation, one trajectory per arm of config.toml (SDL_BO suggest --branch)"
+python -m SDL_BO suggest --branch --dataset "$CSV_DIR/bo_dataset.csv" --out "$RATIOS/suggestions_round${NEXT}.csv" --seed "$SEED"
+python -m SDL_BO report --branch --dataset "$CSV_DIR/bo_dataset.csv"
 layout_round "$NEXT"
 
 # ----- figures so far --------------------------------------------------------------------------------------------

@@ -32,6 +32,7 @@ def test_condition_kind_parsing():
     assert condition_kind("R0_grid05", 0) == "seed" and condition_kind("R1_seed05", 1) == "seed"
     assert condition_kind("R1_exploit03", 1) == "exploit" and condition_kind("R2_explore00", 2) == "explore"
     assert condition_kind("R0_seed03", 2) == "retest"
+    assert condition_kind("R1_others_exploit03", 1) == "exploit" and condition_kind("R1_phthalimide_explore01", 1) == "explore"
 
 
 def test_qc_summary_recovers_the_fake_data(toy_run, tmp_path):

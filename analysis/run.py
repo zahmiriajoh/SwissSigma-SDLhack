@@ -27,8 +27,8 @@ _KIND_TAGS = {"dmfref": "control", "grid": "seed", "seed": "seed", "exploit": "e
 
 
 def condition_kind(condition_id, round_) -> str:
-    """'R2_exploit03' in round 2 -> 'exploit'; an id first used in an earlier round -> 'retest'."""
-    m = re.fullmatch(r"R(\d+)_([A-Za-z]+?)(?:ref)?\d*", str(condition_id))
+    """'R2_exploit03' (or 'R2_others_exploit03', an arm's id) in round 2 -> 'exploit'; an id first used earlier -> 'retest'."""
+    m = re.fullmatch(r"R(\d+)_(?:[A-Za-z]+_)?([A-Za-z]+?)(?:ref)?\d*", str(condition_id))
     if m is None:
         return "seed"
     if m.group(2).lower() == "dmf":
