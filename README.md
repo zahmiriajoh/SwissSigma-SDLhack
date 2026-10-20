@@ -62,6 +62,7 @@ Analysis implementation choices are listed in full in [`analysis/PLAN.md`](analy
 | **Plate reader export format** | `analysis reduce` parser (PLAN decision 13) | long table or wide matrix, chosen from invented files; run the first real export through `reduce` |
 | **QC plate layout and loadings** | `analysis qc-layout` (PLAN decision 1); scientists weigh `loading × nominal mass` into the calibration wells | 7 solvents × 4 solutes × loadings 0.5 and 1.0, 40 blanks |
 | **Plate log** | read-delay panel in `analysis qc` (PLAN decision 10) | `plate_log_roundN.csv` with `plate`, `read_delay_min`, filled in by hand |
+| **Solvent trough budget** | one 25 mL trough per solvent caps each solvent at ~1960 µL per round in SDL_BO (`space.solvent_budget_ul`), so no round can be dominated by one solvent; the toy run converges only in one-plate mode | the spare trough H1 is unassigned in `bo_bridge.py`; decide whether to give it to the solvent BO favours |
 | **Polystyrene readout plates** | esters, ethers and DMF attack them; blank wells and the Q3 check measure the effect but cannot remove it | see "Known limitations" in `OT protocols/README.md` |
 | **Run time** | the 1.5–2 h fill estimate is from the simulator | water dry run on the OT-2 or the Flex analog still to be done |
 | **Slides** | whether the figures also go into a slide deck | not decided; ask when the write-up starts |
