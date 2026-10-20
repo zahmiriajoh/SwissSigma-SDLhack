@@ -196,16 +196,16 @@ To limit and measure the effect:
 ## Checking changes
 
 Simulated with `opentrons_simulate` (opentrons 8.8.2, apiLevel 2.27, OT-2). Newer opentrons
-packages refuse to simulate OT-2 protocols, so install `opentrons==8.8.2` (Python 3.12).
+packages refuse to simulate OT-2 protocols; the repo's uv environment (`../setup.sh`) pins `opentrons==8.8.2` (Python 3.12).
 ```bash
-opentrons_simulate -L labware sdl_solubility_ot2.py
+uv run opentrons_simulate -L labware sdl_solubility_ot2.py
 ```
 
 `tools/check_all.py` runs the full set: every protocol setting, the expected-error cases,
 a two-round BO loop with fake plate-reader data, and a check that the Flex timing analog
 (`../OTFlex analog/`) runs exactly the same liquid handling (31 checks).
 ```bash
-python tools/check_all.py
+uv run python tools/check_all.py
 ```
 
 `tools/draw_deck_map.py` redraws `maps/deck_map.svg`. It's a static drawing, so update its
