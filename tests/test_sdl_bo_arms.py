@@ -85,3 +85,21 @@ def test_all_unmeasurable_solutes_are_scored_anyway(tmp_path, coarse_grid):
     assert info["unmeasurable"] == []
     _, info = campaign.suggest_next_round(path, seed=0, arm=PHTH, arm_solutes=ARMS[PHTH])  # a flagged solute elsewhere does not matter
     assert info["unmeasurable"] == []
+
+
+def test_a_flagged_solute_does_not_steer_the_picks(tmp_path, coarse_grid):
+    """With one of the others flagged, the arm designs exactly as if that solute had never been measured."""
+    df = pd.read_csv(EXAMPLE)
+    flagged, kept = ARMS[OTHERS][0], ARMS[OTHERS][1:]
+    flag_file = pd.DataFrame({"measurable": [False]}, index=pd.Index([flagged], name="solute"))
+    with_flag = tmp_path / "with_flag"
+    with_flag.mkdir()
+    flag_file.to_csv(with_flag / "wavelengths_round0.csv")
+    noisy = df.copy()
+    noisy.loc[noisy.solute == flagged, "rel_mean"] = 0.01  # a noise-level solute that would drag every minimum down
+    a, info = campaign.suggest_next_round(write_dataset(with_flag, noisy), seed=0, arm=OTHERS, arm_solutes=ARMS[OTHERS])
+    without = tmp_path / "without"
+    without.mkdir()
+    b, _ = campaign.suggest_next_round(write_dataset(without, df[df.solute.isin(kept)]), seed=0, arm=OTHERS, arm_solutes=kept)
+    pd.testing.assert_frame_equal(a, b)
+    assert info["unmeasurable"] == [flagged]

@@ -112,10 +112,10 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
     if mixtures["score"].isna().all():
         raise ValueError("no mixture has been measured on every solute, so there is no score to improve on")
     fitted = fit_per_solute(dataset, seed)
-    gps = [fitted[s].gp for s in solutes(dataset)]
+    gps = [fitted[s].gp for s in solutes(dataset) if s not in unmeasurable]  # the picks and the incumbent use the same solutes
     rng = np.random.default_rng(seed + round_number)
 
-    budget = _round_budget(space.N_SOLUTES if arm else len(gps))
+    budget = _round_budget(space.N_SOLUTES if arm else len(solutes(dataset)))
     retests = _retest_rows(dataset, mixtures, n_retests, budget)
     untested = _untested_mixtures(set(dataset["mixture_key"]))
     candidates = space.to_fractions(untested)
