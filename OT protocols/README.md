@@ -90,7 +90,10 @@ in both files.
 can be either a long table with a `Well` column (`A1`/`A01`, plus an optional wavelength
 column; pick one with `--wavelength`, or set `SOLUTE_WAVELENGTH_NM` for a different
 wavelength per solute), or an 8×12 grid with a row letter in the first cell. To subtract
-solvent background, read a plate with the same layout but no solids and pass it as `--blank`.
+solvent background pass a blank export as `--blank`: either a solvent-only plate with the same
+layout, or the per-well blank that `python -m analysis reduce` builds from the QC plate's
+pure-solvent wells (`endpoint_roundN_blank.csv`; see `../analysis/README.md`). `analysis reduce`
+also turns full-spectrum exports into the single-value files this command takes.
 
 ## What the robot does
 
@@ -167,9 +170,12 @@ polystyrene, and the polypropylene plates have U- or V-bottom wells and are not
 UV-transparent.
 
 To limit and measure the effect:
-- **Blank plate:** run one solvent-only plate (same `ot_input` CSV, no solids) and pass
-  its reading to `merge --blank`. The blank wells see the same solvent and contact time,
-  so subtracting them removes reproducible plate damage along with solvent absorbance.
+- **Blank wells:** the QC plate (`python -m analysis qc-layout`, one extra 1-plate run per
+  round) holds solvent-only wells; `analysis reduce` combines them into a per-well blank for
+  `merge --blank`, and `analysis qc` checks whether ester- and ether-rich blanks read high
+  and whether they grow with the read delay. A full solvent-only copy of the sample plate
+  (same `ot_input` CSV, no solids) also works as `--blank` and sees exactly the same solvent
+  and contact time per well.
 - **Consistent timing:** read each plate soon after shaking, and keep the timing the same
   every round.
 - **Check plates by eye:** look for cloudy or warped wells before reading, and note any.

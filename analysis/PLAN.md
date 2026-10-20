@@ -84,3 +84,9 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 12. **GP landscape** fits SDL_BO's per-solute GPs on `bo_dataset.csv` and plots the minimum over solutes of the posterior
     means (the objective's posterior mean, approximately) and the mean posterior std, over 2.5 % grids of the three
     most-sampled solvent trios. `--no-gp` skips it.
+13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): two shapes are accepted, a long table with columns
+    `well`, `wavelength_nm` and one numeric absorbance column (any name), or a wide matrix with `wavelength_nm` as the first
+    column and one column per well; well names may be `A1` or `A01`. Both were chosen from invented files. **The first
+    real export must be run through `analysis reduce` before the first round**; if the instrument writes another shape
+    (one block per wavelength, extra header rows, a different wavelength column name) the parser needs a small
+    addition. The accepted formats are documented in `README.md` ("File formats").

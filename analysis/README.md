@@ -73,9 +73,11 @@ plates and the blank alike, so `bo_bridge.py merge --blank` does the one and onl
 
 ## File formats
 
-**Reader exports** (input): a long table with columns `well`, `wavelength_nm`, `absorbance`, or a wide matrix with
-`wavelength_nm` in the first column and one column per well. Well names may be `A1` or `A01`. Full spectra or a few
-fixed wavelengths both work; include a reading near 700 nm in fixed mode so the scattering check has data.
+**Reader exports** (input): a long table with columns `well`, `wavelength_nm`, `absorbance` (any numeric column
+name), or a wide matrix with `wavelength_nm` in the first column and one column per well. Well names may be `A1` or
+`A01`. Full spectra or a few fixed wavelengths both work; include a reading near 700 nm in fixed mode so the scattering
+check has data. These shapes were chosen before any real export existed: run the instrument's first file through
+`reduce` before the first round (PLAN.md, decision 13).
 
 **QC plate map** (`qc-layout`): `well, round, role (calibration | blank), solvent, solute, loading, condition_id,
 frac_<solvent>, vol_<solvent>_ul`. Calibration wells carry `loading` × the nominal solid mass in one pure solvent;
