@@ -89,3 +89,17 @@ def test_one_closed_loop_round_end_to_end(tmp_path, coarse_grid):
     assert result.returncode == 0, result.stdout + result.stderr
     assert dataset.next_round_number(dataset.load_dataset(dataset_path)) == R0 + 1
 
+
+
+def test_bo_bridge_grid_and_layout_respect_forbidden_pairs(tmp_path):
+    result = run_bridge("grid", "--round", R0, "-o", tmp_path / "grid.csv")
+    assert result.returncode == 0, result.stdout + result.stderr
+    grid = pd.read_csv(tmp_path / "grid.csv")
+    used = grid[space.GREEN_FRACTION_COLUMNS].gt(0)
+    assert all(config.is_allowed([c[len("frac_"):] for c in used.columns[row]]) for row in used.to_numpy())
+    if config.FORBIDDEN_PAIRS:
+        a, b = sorted(next(iter(config.FORBIDDEN_PAIRS)))
+        bad = pd.DataFrame({"condition_id": ["bad"], f"frac_{a}": [0.5], f"frac_{b}": [0.5]})
+        bad.to_csv(tmp_path / "bad.csv", index=False)
+        result = run_bridge("layout", "--round", R0, "--suggestions", tmp_path / "bad.csv", "--outdir", tmp_path / "bad")
+        assert result.returncode != 0 and "forbidden" in result.stdout + result.stderr
