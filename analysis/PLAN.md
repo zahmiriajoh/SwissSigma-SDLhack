@@ -109,7 +109,9 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     (600-800 nm spread) is marked `measurable = False`, and the console says so. Endpoint files carry `blank_abs` and a
     `flag` column (`saturated` above `--abs-max`, `opaque` above `--blank-max`) that bo_bridge merge ignores.
     Consequences: measurements stay valid in every well at the cost of sensitivity; a solute that cannot be measured is
-    declared unmeasurable up front rather than reported as insoluble. **Run one QC plate before round 0** and read
+    declared unmeasurable up front rather than reported as insoluble, and a solute flagged in **any** round is excluded
+    from the worst-solute objective by both `analysis report` (`Run.measurable_solutes`) and SDL_BO's scoring
+    (`SDL_BO.dataset.unmeasurable_solutes`), while staying in the data and fits. **Run one QC plate before round 0** and read
     `wavelengths_round0.csv`: it says which solutes the UV readout can follow at all. Prefer full-spectrum exports; with
     fixed wavelengths, choose them from that QC-plate run (band maximum where allowed, else the first usable wavelength
     above the cut-off, plus 700 nm).

@@ -57,7 +57,9 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
   `analysis reduce` reads every solute only inside the wavelength window where **every** solvent is transparent
   (blank below 1.0 absorbance), on the band's shoulder if its maximum is hidden, and declares a solute
   **not measurable** when its DMF-control signal there is within 3 x the noise (`wavelengths_roundN.csv`, column
-  `measurable`; PLAN decision 15). Measurements therefore stay valid in every well, at the cost of sensitivity.
+  `measurable`; PLAN decision 15). A solute flagged in any round is dropped from the worst-solute objective both in
+  `analysis report` and in SDL_BO's scoring (still measured, fitted and listed, just not scored), so noise cannot steer
+  the campaign. Measurements therefore stay valid in every well, at the cost of sensitivity.
   **Before round 0, run one QC plate alone** (`analysis qc-layout`, then `reduce` on it): the wavelength report tells
   you which solutes the UV readout can follow at all, while there is still time to change solutes, readout or plate.
   Prefer full-spectrum exports; if the reader must use fixed wavelengths, take them from that QC-plate run.
