@@ -371,6 +371,24 @@ def r7_dataset(run, outdir):
 
 # ----- driver ------------------------------------------------------------------------------------------------
 
+QUESTIONS = {  # what each analysis is for, printed under its heading in report_summary.md
+    "R1": "For each solute on its own, does any green-solvent mixture dissolve more than the best single green solvent, "
+          "and how close does it come to DMF?",
+    "R2": "Is there one mixture that dissolves all solutes well at once, i.e. whose worst solute still beats the best "
+          "single solvent's worst solute? This is the proposal's success criterion.",
+    "R3": "Is the Bayesian optimisation learning: does the best objective improve round on round, and do its exploit picks "
+          "outperform its explore picks and the seed grid?",
+    "R4": "Where in composition space do the good mixtures lie, and what does the model believe about the regions it has "
+          "not measured?",
+    "R5": "Do mixtures dissolve more than the fraction-weighted average of their pure solvents would predict, "
+          "i.e. is there genuine synergy, and between which solvent pairs?",
+    "R6": "Do the solutes prefer the same solvents, or is dissolving all of them a trade-off? "
+          "Low correlation explains why the worst-solute objective is hard.",
+    "R7": "The dataset deliverable: every condition measured on every solute, across rounds, as one picture and the files "
+          "behind it.",
+}
+
+
 def run_report(run, outdir, with_gp=True, seed=0):
     outdir.mkdir(parents=True, exist_ok=True)
     summary = Summary(f"Report: {run.folder.name} (rounds {', '.join(map(str, run.rounds))})")
@@ -382,5 +400,5 @@ def run_report(run, outdir, with_gp=True, seed=0):
              ("R6 agreement between solutes", r6_solute_agreement(run, outdir)),
              ("R7 dataset", r7_dataset(run, outdir))]
     for title, (table, notes, figs) in parts:
-        summary.section(title, notes, table, figs)
+        summary.section(title, notes, table, figs, QUESTIONS[title.split()[0]])
     return summary.write(outdir / "report_summary.md")

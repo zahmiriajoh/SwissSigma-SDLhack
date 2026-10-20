@@ -20,8 +20,10 @@ class Summary:
     def __init__(self, title):
         self.parts = [f"# {title}\n"]
 
-    def section(self, title, notes=(), table=None, figures=()):
+    def section(self, title, notes=(), table=None, figures=(), question=None):
         self.parts.append(f"## {title}\n")
+        if question:
+            self.parts.append(f"{question}\n")
         self.parts += [f"- {n}" for n in notes]
         if table is not None and len(table):
             self.parts.append("\n" + md_table(table) + "\n")

@@ -2,6 +2,8 @@
 
 ## R1 mixtures vs single solvents, per solute
 
+For each solute on its own, does any green-solvent mixture dissolve more than the best single green solvent, and how close does it come to DMF?
+
 - z = difference over the combined error (within-plate and between-round spread); a mixture beats the best pure solvent when z > 2.
 
 | solute | best_mixture | rel_mixture | best_pure | rel_pure | ratio | z | mixture_beats_pure |
@@ -15,6 +17,8 @@
 ![report_R1_per_solute](report_R1_per_solute.png)
 
 ## R2 the 'dissolves everything' objective
+
+Is there one mixture that dissolves all solutes well at once, i.e. whose worst solute still beats the best single solvent's worst solute? This is the proposal's success criterion.
 
 - Best overall: 1 DMC (0.897); best pure solvent: 1 DMC (0.897); z = 0.0 -> no mixture is clearly better than the best single solvent.
 
@@ -36,6 +40,8 @@
 
 ## R3 BO progress
 
+Is the Bayesian optimisation learning: does the best objective improve round on round, and do its exploit picks outperform its explore picks and the seed grid?
+
 - Exploit picks should sit above explore picks once the model has learnt something; re-tests show cross-round repeatability.
 
 | round | kind | n | mean | best |
@@ -52,6 +58,8 @@
 ![report_R3_progress](report_R3_progress.png)
 
 ## R4 composition landscape
+
+Where in composition space do the good mixtures lie, and what does the model believe about the regions it has not measured?
 
 - Ternaries: colour = worst-solute relative solubility; larger points are 3-solvent mixtures. GP panels show the model the BO used.
 
@@ -70,6 +78,8 @@
 
 ## R5 synergy
 
+Do mixtures dissolve more than the fraction-weighted average of their pure solvents would predict, i.e. is there genuine synergy, and between which solvent pairs?
+
 - Synergy > 0: the mixture dissolves more than the fraction-weighted average of its pure solvents would predict.
 
 | solute | n_mixtures | mean_synergy | max_synergy | most_synergistic |
@@ -84,6 +94,8 @@
 
 ## R6 agreement between solutes
 
+Do the solutes prefer the same solvents, or is dissolving all of them a trade-off? Low correlation explains why the worst-solute objective is hard.
+
 - Low or negative correlation means the solutes want different solvents: the worst-solute objective is then a real trade-off.
 
 | solute | S1 | S2 | S3 | S4 |
@@ -97,6 +109,8 @@
 ![report_R6_solutes](report_R6_solutes.png)
 
 ## R7 dataset
+
+The dataset deliverable: every condition measured on every solute, across rounds, as one picture and the files behind it.
 
 - 69 condition rows over 3 round(s), 4 solutes.
 - Deliverable files in the run folder: `bo_dataset.csv`, `bo_dataset_shared.csv`, `plate_map_round1.csv`, `plate_map_round2.csv`, `plate_map_round3.csv`, `results_round1_wells.csv`, `results_round2_wells.csv`, `results_round3_wells.csv`; QC numbers in `qc_summary.md`.

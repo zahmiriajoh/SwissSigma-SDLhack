@@ -380,6 +380,24 @@ def q7_calibration(run, outdir):
 
 # ----- driver ---------------------------------------------------------------------------------------
 
+QUESTIONS = {  # what each check is for, printed under its heading in qc_summary.md
+    "Q1": "How well do the identical plates of a round agree, and is any plate systematically off? "
+          "The spread sets the noise floor: a mixture must beat the best single solvent by more than this to count.",
+    "Q2": "Does the DMF control, the denominator of every relative value, stay constant across plates and rounds? "
+          "Drift would rescale a whole round and make rounds incomparable.",
+    "Q3": "How much absorbance comes from the solvent and the plate rather than the solute, does it grow with ester/ether "
+          "content or read delay, and does it add up linearly so that the per-well blank is valid?",
+    "Q4": "Are any wells saturated, scattering (undissolved solid) or absorbing at the wrong wavelength? "
+          "Each would inflate or bias that well's solubility without any extra solute dissolving.",
+    "Q5": "Which conditions are measurable at all, and is the noise constant (reader) or proportional to the signal "
+          "(pipetting and dissolution)?",
+    "Q6": "Does a mixture measured again in a later round, on new solid and a new plate, give the same answer? "
+          "This is the only check that rounds can be pooled.",
+    "Q7": "Is absorbance proportional to the amount of solute, in which solvents does the solute stop dissolving at the "
+          "working loading, and is the DMF control fully dissolved?",
+}
+
+
 def run_qc(run, outdir, abs_max=ABS_MAX_DEFAULT):
     outdir.mkdir(parents=True, exist_ok=True)
     summary = Summary(f"QC summary: {run.folder.name} (rounds {', '.join(map(str, run.rounds))})")
@@ -389,5 +407,5 @@ def run_qc(run, outdir, abs_max=ABS_MAX_DEFAULT):
               ("Q4 spectral QC", q4_spectral(run, outdir, abs_max)), ("Q5 precision against signal", q5_precision(run, outdir)),
               ("Q6 cross-round re-tests", q6_retests(run, outdir, q1[0])), ("Q7 calibration", q7_calibration(run, outdir))]
     for title, (table, notes, figs) in checks:
-        summary.section(title, notes, table, figs)
+        summary.section(title, notes, table, figs, QUESTIONS[title.split()[0]])
     return summary.write(outdir / "qc_summary.md")
