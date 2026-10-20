@@ -1,36 +1,58 @@
-"""The seams: bo_bridge.py <-> SDL_BO <-> fake plate reader. bo_bridge is run as the real script."""
+"""The seams: production/config.toml <-> bo_bridge.py <-> OT-2 protocol <-> SDL_BO <-> fake plate reader. bo_bridge is run as
+the real script."""
+import ast
+
 import pandas as pd
 import pytest
 
 from SDL_BO import campaign, dataset, space
-from conftest import DEBUG_DIR, OT_EXAMPLES, load_bo_bridge, run_bridge
+from conftest import DEBUG_DIR, OT_EXAMPLES, PROTOCOLS, load_bo_bridge, run_bridge
+from production import config
+
+R0, P = config.FIRST_ROUND, config.FIRST_PLATE
 
 
-def test_sdl_bo_constants_mirror_bo_bridge():
+def protocol_constant(path, name):
+    """Literal value of a module-level constant in a protocol file, without importing opentrons."""
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.Assign) and node.targets[0].id == name:
+            return ast.literal_eval(node.value)
+    raise AssertionError(f"{name} not found in {path}")
+
+
+def test_bo_bridge_and_sdl_bo_follow_the_config():
     bridge = load_bo_bridge()
-    assert space.ALL_SOLVENTS == bridge.ALL_SOLVENTS
-    assert space.REFERENCE_SOLVENT == bridge.REFERENCE_SOLVENT
+    assert space.ALL_SOLVENTS == bridge.ALL_SOLVENTS == config.ALL_SOLVENTS
+    assert space.REFERENCE_SOLVENT == bridge.REFERENCE_SOLVENT == config.REFERENCE_SOLVENT
     assert space.TOTAL_UL == bridge.TOTAL_UL and space.MIN_UL == bridge.MIN_UL
     assert space.MAX_SOLVENTS_PER_MIXTURE == bridge.MAX_SOLVENTS_PER_MIX
     assert space.TROUGH_USABLE_UL == bridge.TROUGH_USABLE_UL and space.N_PLATES == bridge.N_PLATES
-    assert space.N_SOLUTES == len(bridge.SOLUTES)
+    assert space.N_SOLUTES == len(bridge.SOLUTES) == len(config.SOLUTES)
     assert campaign.N_CONDITIONS == (len(bridge.PLATE_WELLS) // len(bridge.SOLUTES) - bridge.CONTROLS_PER_SOLUTE)
     assert space.FRACTION_COLUMNS == bridge.FRAC_COLS
 
 
-def test_fake_plate_reader_names_mirror_bo_bridge():
+@pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.name)
+def test_protocols_mirror_the_config_troughs(protocol):
+    troughs = protocol_constant(protocol, "SOLVENT_TROUGHS")
+    assert {k: v for k, v in troughs.items() if k != "diluent"} == config.SOLVENT_TROUGHS
+    assert protocol_constant(protocol, "TROUGH_FILL_UL") == config.TROUGH_FILL_UL
+    assert protocol_constant(protocol, "TROUGH_DEAD_UL") == config.TROUGH_DEAD_UL
+
+
+def test_fake_plate_reader_names_follow_the_config():
     import fake_plate_reader as fpr
-    bridge = load_bo_bridge()
-    assert fpr.ALL_SOLVENTS == bridge.ALL_SOLVENTS and list(fpr.PEAK_NM) == bridge.SOLUTES
+    assert fpr.ALL_SOLVENTS == config.ALL_SOLVENTS and list(fpr.PEAK_NM) == config.SOLUTES
 
 
 def test_bo_bridge_layout_accepts_seed_design(tmp_path):
-    suggestions = tmp_path / "suggestions_round1.csv"
+    suggestions = tmp_path / f"suggestions_round{R0}.csv"
     campaign.seed_design().to_csv(suggestions, index=False)
-    result = run_bridge("layout", "--round", 1, "--suggestions", suggestions, "--outdir", tmp_path)
+    result = run_bridge("layout", "--round", R0, "--suggestions", suggestions, "--outdir", tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "snapped" not in result.stdout  # 5 uL grid: nothing gets rounded
-    plate_map = pd.read_csv(tmp_path / "plate_map_round1.csv")
+    plate_map = pd.read_csv(tmp_path / f"plate_map_round{R0}.csv")
+    assert plate_map["condition_id"].iloc[1] == f"R{R0}_seed{config.FIRST_CONDITION:02d}" and plate_map["replicate"].min() == config.FIRST_CONDITION
     assert len(plate_map) == 96
     per_solute = plate_map.groupby("solute")["role"].value_counts().unstack()
     assert (per_solute["control"] == 1).all() and (per_solute["sample"] == campaign.N_CONDITIONS).all()
@@ -39,28 +61,31 @@ def test_bo_bridge_layout_accepts_seed_design(tmp_path):
 
 
 def test_bo_bridge_merge_reads_debug_spectra_and_sdl_bo_reads_the_result(tmp_path):
-    readers = [DEBUG_DIR / f"reader_round1_plate{i}.csv" for i in (1, 2, 3)]
+    import fake_plate_reader as fpr
+    first_solute = config.SOLUTES[0]
+    readers = [DEBUG_DIR / f"reader_round{R0}_plate{i}.csv" for i in range(P, P + 3)]
     dataset_path = tmp_path / "bo_dataset.csv"
-    result = run_bridge("merge", "--plate-map", OT_EXAMPLES / "plate_map_round1.csv", "--reader", *readers,
-                        "--blank", DEBUG_DIR / "reader_round1_blank.csv", "--wavelength", 275,
+    result = run_bridge("merge", "--plate-map", OT_EXAMPLES / f"plate_map_round{R0}.csv", "--reader", *readers,
+                        "--blank", DEBUG_DIR / f"reader_round{R0}_blank.csv", "--wavelength", fpr.PEAK_NM[first_solute],
                         "--dataset", dataset_path, "--wells-out", tmp_path / "wells.csv")
     assert result.returncode == 0, result.stdout + result.stderr
     raw = pd.read_csv(dataset_path)
     assert len(raw) == 96 and (raw["n_obs"] == 3).all()  # 4 solutes x 24 conditions, 3 plates pooled
-    with pytest.warns(UserWarning, match="negative rel_mean"):  # other solutes read off-band at 275 nm
+    assert set(pd.read_csv(tmp_path / "wells.csv")["plate"]) == set(range(P, P + 3))
+    with pytest.warns(UserWarning, match="negative rel_mean"):  # other solutes read off-band
         df = dataset.load_dataset(dataset_path)
-    s1 = df[df.solute == "S1"]  # 275 nm is S1's band, so S1 is the meaningful block here
-    assert len(s1) == campaign.N_CONDITIONS and s1["rel_mean"].between(0, 1.2).all()
+    block = df[df.solute == first_solute]  # read at its own band, so this is the meaningful block
+    assert len(block) == campaign.N_CONDITIONS and block["rel_mean"].between(0, 1.2).all()
 
 
 def test_one_closed_loop_round_end_to_end(tmp_path, coarse_grid):
     from make_examples import run_campaign
     dataset_path = run_campaign(1, tmp_path, tmp_path, seed=0)
-    assert (tmp_path / "suggestions_round2.csv").exists()
-    next_rows = pd.read_csv(tmp_path / "suggestions_round2.csv")
+    next_path = tmp_path / f"suggestions_round{R0 + 1}.csv"
+    next_rows = pd.read_csv(next_path)
     assert len(next_rows) == campaign.N_CONDITIONS
-    result = run_bridge("layout", "--round", 2, "--suggestions", tmp_path / "suggestions_round2.csv",
-                        "--outdir", tmp_path / "round2")
+    assert next_rows["condition_id"].str.match(rf"R{R0 + 1}_(exploit|explore)\d\d|R{R0}_seed\d\d").all()
+    result = run_bridge("layout", "--round", R0 + 1, "--suggestions", next_path, "--outdir", tmp_path / "next")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert dataset.next_round_number(dataset.load_dataset(dataset_path)) == 2
+    assert dataset.next_round_number(dataset.load_dataset(dataset_path)) == R0 + 1
 

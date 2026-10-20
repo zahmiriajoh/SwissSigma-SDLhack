@@ -5,16 +5,20 @@ import pytest
 from SDL_BO import dataset, space
 from conftest import SDL_BO_EXAMPLES
 
+REF = f"frac_{space.REFERENCE_SOLVENT}"
+G = space.GREEN_FRACTION_COLUMNS  # G[0], G[1], ... = the green solvents' frac_ columns
+SOLUTE_A, SOLUTE_B = space.SOLUTES[:2]
 
-def make_rows(round_=1, **overrides):
-    """Minimal bo_dataset.csv rows: a DMF reference and one 50/50 mixture, for every solute."""
+
+def make_rows(round_=space.FIRST_ROUND, **overrides):
+    """Minimal bo_dataset.csv rows: a DMF reference and one 50/50 mixture, for two solutes."""
     zero = {c: 0.0 for c in space.FRACTION_COLUMNS}
     rows = []
-    for solute in ("S1", "S2"):
-        ref = dict(round=round_, solute=solute, condition_id="R1_DMFref", is_reference=1, rel_mean=1.0, **zero)
-        ref["frac_DMF"] = 1.0
-        mix = dict(round=round_, solute=solute, condition_id="R1_seed01", is_reference=0, rel_mean=0.5, **zero)
-        mix.update({"frac_2MeTHF": 0.5, "frac_EtOAc": 0.5, **overrides})
+    for solute in (SOLUTE_A, SOLUTE_B):
+        ref = dict(round=round_, solute=solute, condition_id="R0_DMFref", is_reference=1, rel_mean=1.0, **zero)
+        ref[REF] = 1.0
+        mix = dict(round=round_, solute=solute, condition_id="R0_seed00", is_reference=0, rel_mean=0.5, **zero)
+        mix.update({G[0]: 0.5, G[1]: 0.5, **overrides})
         rows += [ref, mix]
     return pd.DataFrame(rows)
 
@@ -29,32 +33,32 @@ def test_load_example_dataset_drops_references_and_adds_keys():
     df = dataset.load_dataset(SDL_BO_EXAMPLES / "bo_dataset.csv")
     assert (df["is_reference"] == 0).all()
     assert df["mixture_key"].map(sum).eq(space.TOTAL_UL).all()
-    assert dataset.solutes(df) == ["S1", "S2", "S3", "S4"]
-    assert dataset.next_round_number(df) == 4
+    assert dataset.solutes(df) == sorted(space.SOLUTES)
+    assert dataset.next_round_number(df) == space.FIRST_ROUND + 3
 
 
 def test_score_is_worst_solute_and_nan_when_incomplete(tmp_path):
     rows = make_rows()
-    rows.loc[(rows.solute == "S2") & (rows.is_reference == 0), "rel_mean"] = 0.2
-    extra = rows[(rows.solute == "S1") & (rows.is_reference == 0)].copy()  # a condition S2 never saw
-    extra["condition_id"], extra["frac_2MeTHF"], extra["frac_EtOAc"] = "R1_seed02", 1.0, 0.0
+    rows.loc[(rows.solute == SOLUTE_B) & (rows.is_reference == 0), "rel_mean"] = 0.2
+    extra = rows[(rows.solute == SOLUTE_A) & (rows.is_reference == 0)].copy()  # a condition the other solute never saw
+    extra["condition_id"], extra[G[0]], extra[G[1]] = "R0_seed01", 1.0, 0.0
     scored = dataset.score_mixtures(dataset.load_dataset(write(tmp_path, pd.concat([rows, extra]))))
     assert scored.loc[[(150, 150, 0, 0, 0, 0)], "score"].item() == pytest.approx(0.2)
     assert np.isnan(scored.loc[[(300, 0, 0, 0, 0, 0)], "score"].item())
 
 
 def test_repeats_across_rounds_are_averaged(tmp_path):
-    r2 = make_rows(round_=2, rel_mean=0.7)
+    r2 = make_rows(round_=space.FIRST_ROUND + 1, rel_mean=0.7)
     df = dataset.load_dataset(write(tmp_path, pd.concat([make_rows(), r2])))
     scored = dataset.score_mixtures(df)
     assert scored["n"].item() == 2 and scored["score"].item() == pytest.approx(0.6)
 
 
 @pytest.mark.parametrize("bad, message", [
-    (dict(frac_EtOAc=0.6), "sum to 1"),
-    (dict(frac_EtOAc=0.0, frac_DMF=0.5), "reference rows"),
-    (dict(frac_2MeTHF=0.501, frac_EtOAc=0.499), "whole uL"),
-    (dict(frac_2MeTHF=0.25, frac_EtOAc=0.25, frac_DMC=0.25, frac_CPME=0.25), "at most 3"),
+    ({G[1]: 0.6}, "sum to 1"),
+    ({G[1]: 0.0, REF: 0.5}, "reference rows"),
+    ({G[0]: 0.501, G[1]: 0.499}, "whole uL"),
+    ({G[0]: 0.25, G[1]: 0.25, G[2]: 0.25, G[3]: 0.25}, "at most 3"),
 ])
 def test_malformed_rows_are_refused(tmp_path, bad, message):
     with pytest.raises(dataset.DatasetError, match=message):

@@ -2,19 +2,21 @@ import numpy as np
 
 import fake_plate_reader as fpr
 from conftest import OT_EXAMPLES
+from production import config
 
 
 def test_names_and_dissolution_model():
-    assert fpr.ALL_SOLVENTS == ["DMF", "2MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc"]
+    assert fpr.ALL_SOLVENTS == config.ALL_SOLVENTS and list(fpr.PEAK_NM) == config.SOLUTES
+    solute = config.SOLUTES[0]
     dmf = [1, 0, 0, 0, 0, 0, 0]
-    assert fpr.dissolved_fraction(dmf, "S1") == 1.0
-    pure = fpr.dissolved_fraction([0, 1, 0, 0, 0, 0, 0], "S1")
-    binary = fpr.dissolved_fraction([0, .5, 0, .5, 0, 0, 0], "S1")
+    assert fpr.dissolved_fraction(dmf, solute) == 1.0
+    pure = fpr.dissolved_fraction([0, 1, 0, 0, 0, 0, 0], solute)
+    binary = fpr.dissolved_fraction([0, .5, 0, .5, 0, 0, 0], solute)
     assert binary > pure  # the synergy bonus rewards mixtures
 
 
 def test_exports_follow_bo_bridge_reader_formats():
-    plate_map = fpr.read_plate_map(OT_EXAMPLES / "plate_map_round1.csv")
+    plate_map = fpr.read_plate_map(OT_EXAMPLES / f"plate_map_round{config.FIRST_ROUND}.csv")
     rng = np.random.default_rng(0)
     spectra = fpr.spectra_export(plate_map, rng)
     assert list(spectra.columns) == ["well", "wavelength_nm", "absorbance"]
