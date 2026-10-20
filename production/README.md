@@ -35,7 +35,7 @@ We expect to receive the `csvs/` folder from the lab at the end of the day.
 ## `run_bo.sh`: one call per round
 
 ```bash
-bash production/run_bo.sh csvs       # from anywhere, after  bash setup.sh  once; uses the repo's uv environment
+bash production/run_bo.sh production/csvs       # from anywhere, after  bash setup.sh  once; uses the repo's uv environment
 ```
 
 The script looks at what is in `csvs/` and does the next thing:
