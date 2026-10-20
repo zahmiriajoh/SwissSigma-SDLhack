@@ -12,6 +12,7 @@ from analysis.qc_layout import qc_plate_map, robot_csv
 from analysis.report import run_report, synergy_table
 from analysis.run import Run, condition_kind
 from analysis.spectra import read_plate_map, read_spectra, synthetic_blank
+from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
 
 sys.path.insert(0, str(DEBUG_DIR))
 from make_toy_run import BAND_HEIGHTS  # noqa: E402
@@ -27,28 +28,28 @@ def toy_run(tmp_path_factory):
 
 
 def test_condition_kind_parsing():
-    assert condition_kind("R1_DMFref", 1) == "control"
-    assert condition_kind("R1_grid05", 1) == "seed" and condition_kind("R1_seed05", 1) == "seed"
-    assert condition_kind("R2_exploit03", 2) == "exploit" and condition_kind("R2_explore01", 2) == "explore"
-    assert condition_kind("R1_seed03", 3) == "retest"
+    assert condition_kind("R0_DMFref", 0) == "control"
+    assert condition_kind("R0_grid05", 0) == "seed" and condition_kind("R1_seed05", 1) == "seed"
+    assert condition_kind("R1_exploit03", 1) == "exploit" and condition_kind("R2_explore00", 2) == "explore"
+    assert condition_kind("R0_seed03", 2) == "retest"
 
 
 def test_qc_layout_fills_the_plate_with_calibration_and_blanks():
-    pm = read_plate_map(OT_EXAMPLES / "plate_map_round1.csv")
+    pm = read_plate_map(OT_EXAMPLES / f"plate_map_round{FIRST_ROUND}.csv")
     qc = qc_plate_map(pm)
     assert len(qc) == 96 and qc["role"].value_counts().to_dict() == {"calibration": 56, "blank": 40}
     vol = qc[[c for c in qc.columns if c.startswith("vol_")]].sum(axis=1)
     assert (vol == 300).all()  # every well gets the full volume
     pure_blanks = qc[(qc["role"] == "blank") & (qc["solvent"] != "")]
-    assert sorted(pure_blanks["solvent"]) == sorted(["DMF", "2MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc"])
+    assert sorted(pure_blanks["solvent"]) == sorted(["DMF", "acetone", "EtOH", "iPrOH", "water", "iPrOAc", "tBuOAc"])
     robot = robot_csv(qc)
     assert list(robot.columns[:3]) == ["well", "solute", "condition_id"] and (robot["solute"] != "").all()
 
 
 def test_synthetic_blank_reproduces_pure_solvent_wells():
-    pm = read_plate_map(OT_EXAMPLES / "plate_map_round1.csv")
-    qc_map = pd.read_csv(DEBUG_DIR / "qc_plate_map_round1.csv", index_col="well")
-    qc = read_spectra(DEBUG_DIR / "reader_round1_qc.csv")
+    pm = read_plate_map(OT_EXAMPLES / f"plate_map_round{FIRST_ROUND}.csv")
+    qc_map = pd.read_csv(DEBUG_DIR / f"qc_plate_map_round{FIRST_ROUND}.csv", index_col="well")
+    qc = read_spectra(DEBUG_DIR / f"reader_round{FIRST_ROUND}_qc.csv")
     blank = synthetic_blank(qc, qc_map, pm)
     assert list(blank.columns) == list(pm.index)
     dmf_blank_well = qc_map.index[(qc_map["role"] == "blank") & (qc_map["solvent"] == "DMF")][0]
@@ -60,13 +61,15 @@ def test_qc_summary_recovers_the_fake_data(toy_run, tmp_path):
     summary = run_qc(toy_run, outdir).read_text()
     for q in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"):
         assert f"## {q}" in summary
-    assert (outdir / "qc_Q7_calibration_round1.png").exists() and (outdir / "qc_Q4_peakshift_round1.png").exists()
-    # S1 saturates (band 2.6 > 2.5) only in its DMF control well A1; S4 is near the noise
-    assert "P1:A1" in summary and "P1:A2" not in summary
-    wl = toy_run.wavelengths(1)
-    assert abs(wl["S1"] - 275) <= 2 and abs(wl["S4"] - 410) <= 5
+    r0, p0 = FIRST_ROUND, FIRST_PLATE
+    assert (outdir / f"qc_Q7_calibration_round{r0}.png").exists() and (outdir / f"qc_Q4_peakshift_round{r0}.png").exists()
+    # the first solute saturates (band 2.6 > 2.5) only in its DMF control well A1; the last is near the noise
+    assert f"P{p0}:A1" in summary and f"P{p0}:A2" not in summary
+    wl = toy_run.wavelengths(r0)
+    assert abs(wl[SOLUTES[0]] - 275) <= 2 and abs(wl[SOLUTES[3]] - 410) <= 5
     # the plate log gives the read-delay panel its data
-    assert toy_run.plate_log() is not None and set(toy_run.plate_log()["plate"].astype(str)) >= {"1", "2", "3", "qc"}
+    plates = {str(p) for p in range(p0, p0 + 3)} | {"qc"}
+    assert toy_run.plate_log() is not None and set(toy_run.plate_log()["plate"].astype(str)) >= plates
 
 
 def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
@@ -81,11 +84,11 @@ def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     assert obj["obj_min_rel"].max() > obj.loc[obj["n_solvents"] == 1, "obj_min_rel"].max()
     for name in ("R1_per_solute", "R2_objective", "R3_progress", "R4_ternary", "R4_binaries", "R5_synergy", "R6_solutes", "R7_dataset"):
         assert (outdir / f"report_{name}.png").exists()
-    assert BAND_HEIGHTS["S1"] > 2.5  # the toy really does span the reader's range
+    assert BAND_HEIGHTS[SOLUTES[0]] > 2.5  # the toy really does span the reader's range
 
 
 def test_cli_qc_layout(tmp_path):
-    result = subprocess.run([sys.executable, "-m", "analysis", "qc-layout", "--plate-map", OT_EXAMPLES / "plate_map_round1.csv",
+    result = subprocess.run([sys.executable, "-m", "analysis", "qc-layout", "--plate-map", OT_EXAMPLES / f"plate_map_round{FIRST_ROUND}.csv",
                              "--outdir", tmp_path], capture_output=True, text=True, cwd=REPO)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert (tmp_path / "qc_plate_map_round1.csv").exists() and (tmp_path / "ot_input_round1_qc.csv").exists()
+    assert (tmp_path / f"qc_plate_map_round{FIRST_ROUND}.csv").exists() and (tmp_path / f"ot_input_round{FIRST_ROUND}_qc.csv").exists()

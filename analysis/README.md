@@ -29,17 +29,19 @@ analysis qc / report (any time, all rounds so far)
 ```
 
 ```bash
-python -m analysis qc-layout --plate-map runs/r1/plate_map_round1.csv
-python -m analysis reduce --plate-map runs/r1/plate_map_round1.csv --reader runs/r1/reader_round1_plate{1,2,3}.csv \
-    --qc-reader runs/r1/reader_round1_qc.csv --qc-map runs/r1/qc_plate_map_round1.csv --plots
-python "OT protocols/bo_bridge.py" merge --plate-map runs/r1/plate_map_round1.csv \
-    --reader runs/r1/endpoint_round1_plate{1,2,3}.csv --blank runs/r1/endpoint_round1_blank.csv --dataset runs/r1/bo_dataset.csv
-python -m analysis qc --run runs/r1
-python -m analysis report --run runs/r1
+python -m analysis qc-layout --plate-map runs/prod/plate_map_round0.csv
+python -m analysis reduce --plate-map runs/prod/plate_map_round0.csv --reader runs/prod/reader_round0_plate{0,1,2}.csv \
+    --qc-reader runs/prod/reader_round0_qc.csv --qc-map runs/prod/qc_plate_map_round0.csv --plots
+python "OT protocols/bo_bridge.py" merge --plate-map runs/prod/plate_map_round0.csv \
+    --reader runs/prod/endpoint_round0_plate{0,1,2}.csv --blank runs/prod/endpoint_round0_blank.csv --dataset runs/prod/bo_dataset.csv
+python -m analysis qc --run runs/prod
+python -m analysis report --run runs/prod
 ```
 
 Keep every round of a campaign in **one folder** (the `--outdir` of `layout`, `reduce` and `merge`): `qc` and `report`
-find the rounds from the `plate_map_roundN.csv` files there and write to `<folder>/figures/`.
+find the rounds from the `plate_map_roundN.csv` files there and write to `<folder>/figures/`. Rounds, plates and
+condition counters are numbered from the values in `production/config.toml` (zero in production); solute and solvent
+names come from the plate map, so the same commands run on the older 1-based toy campaigns.
 
 ### `reduce` options
 
@@ -49,7 +51,7 @@ find the rounds from the `plate_map_roundN.csv` files there and write to `<folde
 | `--qc-reader`, `--qc-map` | none | QC plate export and map: each sample well's blank is the volume-weighted sum of the pure-solvent blank wells |
 | `--blank` | none | alternative: export of a solvent-only copy of the sample plate |
 | `--outdir` | next to the plate map | where the outputs go |
-| `--wavelength S1=275 ...` | picked | fix a solute's wavelength instead of picking it |
+| `--wavelength Glutarimide=275 ...` | picked | fix a solute's wavelength instead of picking it |
 | `--nm-range MIN MAX` | 230 800 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |

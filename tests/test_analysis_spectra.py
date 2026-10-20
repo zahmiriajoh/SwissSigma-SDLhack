@@ -6,22 +6,24 @@ import pandas as pd
 import pytest
 
 from conftest import DEBUG_DIR, OT_EXAMPLES, REPO
-from production.config import FIRST_PLATE
+from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
 from analysis.spectra import SpectraError, read_plate_map, read_spectra, reduce_round
 
 EXAMPLES = DEBUG_DIR
-PLATE_MAP = OT_EXAMPLES / "plate_map_round1.csv"
-TRUE_PEAKS = {"S1": 275, "S2": 320, "S3": 350, "S4": 410}  # fake_plate_reader.PEAK_NM
+R = FIRST_ROUND
+PLATES = range(FIRST_PLATE, FIRST_PLATE + 3)
+PLATE_MAP = OT_EXAMPLES / f"plate_map_round{R}.csv"
+TRUE_PEAKS = dict(zip(SOLUTES, [275, 350, 295, 410]))  # fake_plate_reader.PEAK_NM
 
 
 @pytest.fixture(scope="module")
 def plates():
-    return [read_spectra(EXAMPLES / f"reader_round1_plate{i}.csv") for i in (1, 2, 3)]
+    return [read_spectra(EXAMPLES / f"reader_round{R}_plate{i}.csv") for i in PLATES]
 
 
 @pytest.fixture(scope="module")
 def blank():
-    return read_spectra(EXAMPLES / "reader_round1_blank.csv")
+    return read_spectra(EXAMPLES / f"reader_round{R}_blank.csv")
 
 
 @pytest.fixture(scope="module")
@@ -45,8 +47,8 @@ def test_picked_wavelengths_hit_the_fake_peaks(plates, blank, plate_map):
 
 
 def test_override_wins_and_missing_control_is_an_error(plates, plate_map):
-    wavelengths, _, _ = reduce_round(plate_map, plates[:1], overrides={"S2": 300})
-    assert wavelengths["S2"] == 300
+    wavelengths, _, _ = reduce_round(plate_map, plates[:1], overrides={SOLUTES[1]: 300})
+    assert wavelengths[SOLUTES[1]] == 300
     no_controls = plate_map[plate_map["role"] != "control"]
     with pytest.raises(SpectraError, match="no DMF control"):
         reduce_round(no_controls, plates[:1])
@@ -64,13 +66,12 @@ def test_cli_output_feeds_bo_bridge_merge(tmp_path):
         return result.stdout
 
     out = run("-m", "analysis", "reduce", "--plate-map", PLATE_MAP,
-              "--reader", *(EXAMPLES / f"reader_round1_plate{i}.csv" for i in (1, 2, 3)),
-              "--blank", EXAMPLES / "reader_round1_blank.csv", "--outdir", tmp_path)
-    assert "S1 275" in out
-    plates = range(FIRST_PLATE, FIRST_PLATE + 3)
+              "--reader", *(EXAMPLES / f"reader_round{R}_plate{i}.csv" for i in PLATES),
+              "--blank", EXAMPLES / f"reader_round{R}_blank.csv", "--outdir", tmp_path)
+    assert f"{SOLUTES[0]} 275" in out
     run(REPO / "OT protocols" / "bo_bridge.py", "merge", "--plate-map", PLATE_MAP,
-        "--reader", *(tmp_path / f"endpoint_round1_plate{i}.csv" for i in plates),
-        "--blank", tmp_path / "endpoint_round1_blank.csv",
+        "--reader", *(tmp_path / f"endpoint_round{R}_plate{i}.csv" for i in PLATES),
+        "--blank", tmp_path / f"endpoint_round{R}_blank.csv",
         "--dataset", tmp_path / "bo_dataset.csv", "--wells-out", tmp_path / "wells.csv")
     dataset = pd.read_csv(tmp_path / "bo_dataset.csv")
     controls = dataset[dataset["is_reference"] == 1]

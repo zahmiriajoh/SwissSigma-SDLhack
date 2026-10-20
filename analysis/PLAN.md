@@ -84,7 +84,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 10. **Plate log format:** `plate_log_roundN.csv` with columns `plate` (1, 2, 3, qc) and `read_delay_min`. Q3 plots the plate
     median against it. Add more columns freely; only these two are read.
 11. **Toy data** (`analysis/examples/make_toy_run.py`): no SDL_BO, random seeded suggestions in SDL_BO's id scheme and
-    within the trough budget, band heights 2.6 / 1.2 / 0.5 / 0.06 (S1 saturates, S4 sits near the noise), plate attack by
+    within the trough budget, band heights 2.6 / 1.2 / 0.5 / 0.06 in production solute order (the first saturates, the last sits near the noise), plate attack by
     esters, ethers and DMF growing with the read delay. `examples/toy_additive_pipeline.py` (sdl_merge) remains the
     full-pipeline run with the real BO.
 12. **GP landscape** fits SDL_BO's per-solute GPs on `bo_dataset.csv` and plots the minimum over solutes of the posterior
