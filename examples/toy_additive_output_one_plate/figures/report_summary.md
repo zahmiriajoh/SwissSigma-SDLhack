@@ -8,10 +8,10 @@ For each solute on its own, does any green-solvent mixture dissolve more than th
 
 | solute | best_mixture | rel_mixture | best_pure | rel_pure | ratio | z | mixture_beats_pure |
 |---|---|---|---|---|---|---|---|
-| S1 | 0.983 DMC + 0.0167 MeCN | 0.892 | 1 DMC | 0.898 | 0.993 | -2.357 | False |
-| S2 | 0.983 DMC + 0.0167 CPME | 0.901 | 1 DMC | 0.904 | 0.996 | -0.818 | False |
-| S3 | 0.0167 EtOAc + 0.983 DMC | 0.915 | 1 DMC | 0.901 | 1.015 | 1.844 | False |
-| S4 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.899 | 1.000 | 0.019 | False |
+| S1 | 0.983 DMC + 0.0167 MeCN | 0.892 | 1 DMC | 0.898 | 0.993 | -0.309 | False |
+| S2 | 0.983 DMC + 0.0167 CPME | 0.901 | 1 DMC | 0.904 | 0.996 | -0.466 | False |
+| S3 | 0.0167 EtOAc + 0.983 DMC | 0.915 | 1 DMC | 0.901 | 1.015 | 0.875 | False |
+| S4 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.899 | 1.000 | 0.013 | False |
 
 
 ![report_R1_per_solute](report_R1_per_solute.png)
@@ -24,16 +24,16 @@ Is there one mixture that dissolves all solutes well at once, i.e. whose worst s
 
 | rank | mixture | obj_min_rel | obj_err | worst_solute | n_solvents | first_round |
 |---|---|---|---|---|---|---|
-| 1 | 1 DMC | 0.898 | 0.003 | S1 | 1 | 1 |
-| 2 | 0.983 DMC + 0.0167 MeCN | 0.891 | 0.000 | S4 | 2 | 2 |
-| 3 | 0.983 DMC + 0.0167 iPrOAc | 0.886 | 0.000 | S2 | 2 | 2 |
-| 4 | 0.983 DMC + 0.0167 CPME | 0.886 | 0.000 | S1 | 2 | 2 |
-| 5 | 0.0167 EtOAc + 0.983 DMC | 0.885 | 0.000 | S1 | 2 | 2 |
-| 6 | 0.0167 2MeTHF + 0.983 DMC | 0.882 | 0.000 | S1 | 2 | 2 |
-| 7 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 MeCN | 0.881 | 0.000 | S3 | 3 | 2 |
-| 8 | 0.0167 2MeTHF + 0.0167 EtOAc + 0.967 DMC | 0.880 | 0.000 | S2 | 3 | 2 |
-| 9 | 0.0167 EtOAc + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.000 | S1 | 3 | 2 |
-| 10 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.000 | S2 | 3 | 2 |
+| 1 | 1 DMC | 0.898 | 0.014 | S1 | 1 | 1 |
+| 2 | 0.983 DMC + 0.0167 MeCN | 0.891 | 0.014 | S4 | 2 | 2 |
+| 3 | 0.983 DMC + 0.0167 iPrOAc | 0.886 | 0.005 | S2 | 2 | 2 |
+| 4 | 0.983 DMC + 0.0167 CPME | 0.886 | 0.014 | S1 | 2 | 2 |
+| 5 | 0.0167 EtOAc + 0.983 DMC | 0.885 | 0.014 | S1 | 2 | 2 |
+| 6 | 0.0167 2MeTHF + 0.983 DMC | 0.882 | 0.014 | S1 | 2 | 2 |
+| 7 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 MeCN | 0.881 | 0.011 | S3 | 3 | 2 |
+| 8 | 0.0167 2MeTHF + 0.0167 EtOAc + 0.967 DMC | 0.880 | 0.005 | S2 | 3 | 2 |
+| 9 | 0.0167 EtOAc + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.014 | S1 | 3 | 2 |
+| 10 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.005 | S2 | 3 | 2 |
 
 
 ![report_R2_objective](report_R2_objective.png)
@@ -78,13 +78,15 @@ Where in composition space do the good mixtures lie, and what does the model bel
 Do mixtures dissolve more than the fraction-weighted average of their pure solvents would predict, i.e. is there genuine synergy, and between which solvent pairs?
 
 - Synergy > 0: the mixture dissolves more than the fraction-weighted average of its pure solvents would predict.
+- Significant when |z| = |synergy| / its error > 2; the error combines the mixture's and its pure solvents' pooled errors. Typical threshold here: 0.028 in relative solubility (median error 0.014).
+- By chance about 5 % of mixtures (2 per solute) pass |z| > 2. Mixtures sharing a pure solvent share its single measurement, so a cluster of same-sign 'significant' synergies around one solvent may just mean that solvent's pure value is off; re-measuring the pure solvents settles it.
 
-| solute | n_mixtures | mean_synergy | max_synergy | most_synergistic |
-|---|---|---|---|---|
-| S1 | 37 | -0.004 | 0.009 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 MeCN |
-| S2 | 37 | 0.001 | 0.013 | 0.4 2MeTHF + 0.5 EtOAc + 0.1 iPrOAc |
-| S3 | 37 | 0.002 | 0.019 | 0.0167 EtOAc + 0.983 DMC |
-| S4 | 37 | 0.003 | 0.019 | 0.15 2MeTHF + 0.1 MeCN + 0.75 iPrOAc |
+| solute | n_mixtures | n_significant | n_significant_positive | mean_synergy | max_synergy | max_z | most_synergistic |
+|---|---|---|---|---|---|---|---|
+| S1 | 37 | 0 | 0 | -0.004 | 0.009 | 0.485 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 MeCN |
+| S2 | 37 | 1 | 1 | 0.001 | 0.013 | 2.446 | 0.4 2MeTHF + 0.5 EtOAc + 0.1 iPrOAc |
+| S3 | 37 | 0 | 0 | 0.002 | 0.019 | 1.202 | 0.0167 EtOAc + 0.983 DMC |
+| S4 | 37 | 0 | 0 | 0.003 | 0.019 | 1.241 | 0.15 2MeTHF + 0.1 MeCN + 0.75 iPrOAc |
 
 
 ![report_R5_synergy](report_R5_synergy.png)

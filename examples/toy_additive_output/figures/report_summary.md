@@ -8,10 +8,10 @@ For each solute on its own, does any green-solvent mixture dissolve more than th
 
 | solute | best_mixture | rel_mixture | best_pure | rel_pure | ratio | z | mixture_beats_pure |
 |---|---|---|---|---|---|---|---|
-| S1 | 0.983 DMC + 0.0167 iPrOAc | 0.896 | 1 DMC | 0.897 | 0.998 | -0.420 | False |
-| S2 | 0.983 DMC + 0.0167 MeCN | 0.897 | 1 DMC | 0.900 | 0.997 | -0.344 | False |
-| S3 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.902 | 0.997 | -0.661 | False |
-| S4 | 0.0167 2MeTHF + 0.983 DMC | 0.905 | 1 DMC | 0.903 | 1.003 | 0.240 | False |
+| S1 | 0.983 DMC + 0.0167 iPrOAc | 0.896 | 1 DMC | 0.897 | 0.998 | -0.300 | False |
+| S2 | 0.983 DMC + 0.0167 MeCN | 0.897 | 1 DMC | 0.900 | 0.997 | -0.262 | False |
+| S3 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.902 | 0.997 | -0.484 | False |
+| S4 | 0.0167 2MeTHF + 0.983 DMC | 0.905 | 1 DMC | 0.903 | 1.003 | 0.231 | False |
 
 
 ![report_R1_per_solute](report_R1_per_solute.png)
@@ -24,15 +24,15 @@ Is there one mixture that dissolves all solutes well at once, i.e. whose worst s
 
 | rank | mixture | obj_min_rel | obj_err | worst_solute | n_solvents | first_round |
 |---|---|---|---|---|---|---|
-| 1 | 1 DMC | 0.897 | 0.004 | S1 | 1 | 1 |
-| 2 | 0.983 DMC + 0.0167 iPrOAc | 0.890 | 0.002 | S2 | 2 | 2 |
-| 3 | 0.983 DMC + 0.0167 MeCN | 0.889 | 0.002 | S1 | 2 | 2 |
-| 4 | 0.0167 2MeTHF + 0.983 DMC | 0.886 | 0.002 | S1 | 2 | 3 |
+| 1 | 1 DMC | 0.897 | 0.005 | S1 | 1 | 1 |
+| 2 | 0.983 DMC + 0.0167 iPrOAc | 0.890 | 0.006 | S2 | 2 | 2 |
+| 3 | 0.983 DMC + 0.0167 MeCN | 0.889 | 0.003 | S1 | 2 | 2 |
+| 4 | 0.0167 2MeTHF + 0.983 DMC | 0.886 | 0.003 | S1 | 2 | 3 |
 | 5 | 0.983 DMC + 0.0167 CPME | 0.883 | 0.005 | S4 | 2 | 2 |
 | 6 | 0.0167 EtOAc + 0.983 DMC | 0.883 | 0.003 | S1 | 2 | 2 |
 | 7 | 0.0167 EtOAc + 0.967 DMC + 0.0167 MeCN | 0.882 | 0.004 | S3 | 3 | 3 |
-| 8 | 0.0167 EtOAc + 0.967 DMC + 0.0167 iPrOAc | 0.876 | 0.003 | S2 | 3 | 3 |
-| 9 | 0.217 EtOAc + 0.65 DMC + 0.133 MeCN | 0.739 | 0.002 | S3 | 3 | 3 |
+| 8 | 0.0167 EtOAc + 0.967 DMC + 0.0167 iPrOAc | 0.876 | 0.006 | S2 | 3 | 3 |
+| 9 | 0.217 EtOAc + 0.65 DMC + 0.133 MeCN | 0.739 | 0.003 | S3 | 3 | 3 |
 | 10 | 0.333 EtOAc + 0.667 DMC | 0.712 | 0.011 | S1 | 2 | 1 |
 
 
@@ -81,13 +81,15 @@ Where in composition space do the good mixtures lie, and what does the model bel
 Do mixtures dissolve more than the fraction-weighted average of their pure solvents would predict, i.e. is there genuine synergy, and between which solvent pairs?
 
 - Synergy > 0: the mixture dissolves more than the fraction-weighted average of its pure solvents would predict.
+- Significant when |z| = |synergy| / its error > 2; the error combines the mixture's and its pure solvents' pooled errors. Typical threshold here: 0.007 in relative solubility (median error 0.004).
+- By chance about 5 % of mixtures (3 per solute) pass |z| > 2. Mixtures sharing a pure solvent share its single measurement, so a cluster of same-sign 'significant' synergies around one solvent may just mean that solvent's pure value is off; re-measuring the pure solvents settles it.
 
-| solute | n_mixtures | mean_synergy | max_synergy | most_synergistic |
-|---|---|---|---|---|
-| S1 | 57 | -0.000 | 0.009 | 0.667 2MeTHF + 0.333 DMC |
-| S2 | 57 | -0.003 | 0.008 | 0.5 DMC + 0.5 MeCN |
-| S3 | 57 | -0.004 | 0.004 | 0.0167 2MeTHF + 0.983 DMC |
-| S4 | 57 | -0.001 | 0.011 | 0.5 DMC + 0.5 iPrOAc |
+| solute | n_mixtures | n_significant | n_significant_positive | mean_synergy | max_synergy | max_z | most_synergistic |
+|---|---|---|---|---|---|---|---|
+| S1 | 57 | 6 | 2 | -0.000 | 0.009 | 3.036 | 0.667 2MeTHF + 0.333 DMC |
+| S2 | 57 | 6 | 1 | -0.003 | 0.008 | 1.049 | 0.5 DMC + 0.5 MeCN |
+| S3 | 57 | 13 | 0 | -0.004 | 0.004 | 0.828 | 0.0167 2MeTHF + 0.983 DMC |
+| S4 | 57 | 0 | 0 | -0.001 | 0.011 | 1.804 | 0.5 DMC + 0.5 iPrOAc |
 
 
 ![report_R5_synergy](report_R5_synergy.png)
