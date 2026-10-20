@@ -48,6 +48,29 @@ def plate(slot, n):
     wells(bx, by, w, h, 3.0, "#ffffff", MID)
     label(slot, f"Readout plate {n} (solids)", "sarstedt_96_wellplate_390ul_flat")
 
+def blank_plate(slot):
+    """96-well plate with one well of each pure solvent: well X1 = trough X1, no solids."""
+    bx, by, w, h = frame(slot, "#ffffff", DARK)
+    pad = 9
+    dx, dy = (w - 2 * pad) / 11, (h - 2 * pad) / 7
+    by_trough = {t[0]: cfg.SOLVENT_LABELS[name] for name, t in cfg.SOLVENT_TROUGHS.items()}
+    rows = [r for r in "ABCDEFGH" if f"{r}1" in by_trough]
+    cols = [TW[2], TW[3], TW[4], TW[5], TW[6], TW[7], TW[8], LIGHT]
+    for i in range(12):
+        for j in range(8):
+            cx, cy = bx + pad + i * dx, by + pad + j * dy
+            if i == 0 and "ABCDEFGH"[j] in rows:
+                add(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.6" fill="{cols[j]}" stroke="{INK}" stroke-width="0.8"/>')
+            else:
+                add(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.0" fill="#ffffff" stroke="{MID}" stroke-width="0.8"/>')
+    # name panel over columns 2-5 (empty wells), one line per filled row
+    add(f'<rect x="{bx+pad+dx-4:.1f}" y="{by+3}" width="{4*dx+4:.1f}" height="{7*dy+2:.1f}" rx="3" fill="#ffffff" stroke="{PALE}"/>')
+    for r in rows:
+        j = "ABCDEFGH".index(r)
+        add(f'<text x="{bx+pad+dx:.1f}" y="{by+pad+j*dy+2.6:.1f}" font-size="7.5" fill="{INK}">{r}1 {by_trough[r + "1"]}</text>')
+    label(slot, "Solvent blank plate", f"well X1 = trough X1, {cfg.TOTAL_UL} µL, no solids")
+
+
 def tips(slot, size, rack):
     bx, by, w, h = frame(slot, PALE, MID)
     wells(bx, by, w, h, 2.6 if size == "20" else 3.1, "#ffffff", MID)
@@ -93,6 +116,7 @@ heater_shaker("10")
 tips("8", "300", "opentrons_96_tiprack_300ul")
 tips("9", "20", "opentrons_96_tiprack_20ul")
 reservoir("5")
+blank_plate("6")
 for i, s in enumerate(["1", "2", "3"]):
     plate(s, i)
 
@@ -105,7 +129,7 @@ steps = [
 ]
 for i, t in enumerate(steps):
     add(f'<text x="{X0}" y="{ly+24+i*20}" font-size="12" fill="{INK}">{t}</text>')
-add(f'<text x="{X0}" y="{ly+24+3*20+8}" font-size="11" fill="{MID}">Free: 4, 6, 7, 11 (keep 7 and 11, next to the heater-shaker, free of tall labware). Plates 1–2 optional.</text>')
+add(f'<text x="{X0}" y="{ly+24+3*20+8}" font-size="11" fill="{MID}">Slot 6: blank plate, well X1 = trough X1 (setting can turn it off). Free: 4, 7, 11. Plates 1–2 optional.</text>')
 add('</svg>')
 open(OUT, "w").write("\n".join(out))
 print("ok", W, H)

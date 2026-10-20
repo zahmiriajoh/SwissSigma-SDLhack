@@ -271,6 +271,113 @@
 <text x="335.0" y="457.3" text-anchor="middle" font-size="7.5" fill="#16161e">H1 diluent</text>
 <text x="335.0" y="480" text-anchor="middle" font-size="12" font-weight="bold" fill="#16161e">Solvent reservoir<tspan font-weight="normal" fill="#707b90"> (OT-2: 5)</tspan></text>
 <text x="335.0" y="494" text-anchor="middle" font-size="9.5" fill="#707b90">axygen_8_reservoir_30000ul</text>
+<rect x="460.0" y="382" width="150" height="82" rx="6" fill="#ffffff" stroke="#42425d" stroke-width="1.5"/>
+<circle cx="469.0" cy="391.0" r="3.6" fill="#6d90c0" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="400.1" r="3.6" fill="#5f58b0" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="409.3" r="3.6" fill="#531e7c" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="418.4" r="3.6" fill="#64194b" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="427.6" r="3.6" fill="#9f3c50" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="436.7" r="3.6" fill="#c0755e" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="445.9" r="3.6" fill="#d0b39e" stroke="#16161e" stroke-width="0.8"/>
+<circle cx="469.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="481.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="493.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="505.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="517.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="529.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="541.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="553.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="565.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="577.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="589.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="391.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="400.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="409.3" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="418.4" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="427.6" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="436.7" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="445.9" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<circle cx="601.0" cy="455.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
+<rect x="477.0" y="385" width="52.0" height="66.0" rx="3" fill="#ffffff" stroke="#dde9e9"/>
+<text x="481.0" y="393.6" font-size="7.5" fill="#16161e">A1 DMF</text>
+<text x="481.0" y="402.7" font-size="7.5" fill="#16161e">B1 acetone</text>
+<text x="481.0" y="411.9" font-size="7.5" fill="#16161e">C1 EtOH</text>
+<text x="481.0" y="421.0" font-size="7.5" fill="#16161e">D1 i-PrOH</text>
+<text x="481.0" y="430.2" font-size="7.5" fill="#16161e">E1 water</text>
+<text x="481.0" y="439.3" font-size="7.5" fill="#16161e">F1 i-PrOAc</text>
+<text x="481.0" y="448.5" font-size="7.5" fill="#16161e">G1 t-BuOAc</text>
+<text x="535.0" y="480" text-anchor="middle" font-size="12" font-weight="bold" fill="#16161e">Solvent blank plate<tspan font-weight="normal" fill="#707b90"> (OT-2: 6)</tspan></text>
+<text x="535.0" y="494" text-anchor="middle" font-size="9.5" fill="#707b90">well X1 = trough X1, 300 µL, no solids</text>
 <rect x="60.0" y="520" width="150" height="82" rx="6" fill="#ffffff" stroke="#42425d" stroke-width="1.5"/>
 <circle cx="69.0" cy="529.0" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
 <circle cx="69.0" cy="538.1" r="3.0" fill="#ffffff" stroke="#707b90" stroke-width="0.8"/>
@@ -572,5 +679,5 @@
 <text x="40" y="698" font-size="12" fill="#16161e">1  Fill all plates in one pass, as on the OT-2 (P50 below 20 µL on 20 µL tips, P1000 from 20 µL on 300 µL)</text>
 <text x="40" y="718" font-size="12" fill="#16161e">2  Pause: seal all plates by hand</text>
 <text x="40" y="738" font-size="12" fill="#16161e">3  For plate 0, 1, 2: move onto the heater-shaker (prompted) → shake → back to its slot → read on UV-Vis</text>
-<text x="40" y="766" font-size="11" fill="#707b90">Free: A2, B1, C1, C3. Read the TIMER comments in the run log for fill and shake times. Plates 1–2 optional.</text>
+<text x="40" y="766" font-size="11" fill="#707b90">C3: blank plate, well X1 = trough X1. Free: A2, B1, C1. TIMER comments in the run log give fill/shake times.</text>
 </svg>
