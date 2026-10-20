@@ -28,7 +28,7 @@ metadata = {
 #   10 heater-shaker + universal flat adapter   11 -               12 trash
 #    7 -                                          8 P300 tips        9 P20 tips
 #    4 -                                          5 solvent reservoir 6 -
-#    1 readout plate 1                            2 readout plate 2  3 readout plate 3
+#    1 readout plate 0                            2 readout plate 1  3 readout plate 2
 # Slots 7 and 11 (next to the heater-shaker) are kept free of tall labware.
 
 
@@ -38,22 +38,24 @@ metadata = {
 
 # Liquid name -> trough(s) on the 8-trough reservoir (wells A1..H1). Names must match the
 # CSV columns "vol_<name>_ul". List more than one trough to give a liquid more volume.
+# Hand-kept mirror of ../production/config.toml (the robot cannot import the repo);
+# tests/test_interfaces.py checks that the two agree.
 SOLVENT_TROUGHS = {
     "DMF": ["A1"],
-    "2MeTHF": ["B1"],
-    "EtOAc": ["C1"],
-    "DMC": ["D1"],
-    "CPME": ["E1"],
-    "MeCN": ["F1"],
-    "iPrOAc": ["G1"],
+    "acetone": ["B1"],
+    "EtOH": ["C1"],
+    "iPrOH": ["D1"],
+    "water": ["E1"],
+    "iPrOAc": ["F1"],
+    "tBuOAc": ["G1"],
     "diluent": ["H1"],  # only used if the CSV has a vol_diluent_ul column
 }
-TROUGH_FILL_UL = 25000  # volume loaded into every used trough before the run
-TROUGH_DEAD_UL = 1000   # single channel: ~1 mm of liquid left in the trough
+TROUGH_FILL_UL = 25000  # volume loaded into every used trough before the run (config: trough_fill_ul)
+TROUGH_DEAD_UL = 1000   # single channel: ~1 mm of liquid left in the trough (config: trough_dead_ul)
 
 # Custom labware (labware/ folder, import into the Opentrons app)
 READOUT_PLATE = "sarstedt_96_wellplate_390ul_flat"   # file ..._flatbottom.json
-# Sarstedt 83.3924 is polystyrene, which esters, ethers and DMF attack (clouding raises
+# Sarstedt 83.3924 is polystyrene, which acetone, the esters and DMF attack (clouding raises
 # absorbance). Known limitation - see README. Swap for a quartz/glass-bottom plate if available.
 SOLVENT_RESERVOIR = "axygen_8_reservoir_30000ul"
 HS_ADAPTER = "opentrons_universal_flat_adapter"      # custom JSONs declare this stacking offset
@@ -81,15 +83,15 @@ FIXED_HEADER = ["well", "solute", "condition_id"]
 # Used only when no CSV is selected (e.g. local simulation).
 # Note: real CSV data arrives as strings, so the test data does too.
 TEST_CSV = [
-    FIXED_HEADER + ["vol_DMF_ul", "vol_2MeTHF_ul", "vol_EtOAc_ul", "vol_DMC_ul"],
-    ["A1", "S1", "R1_DMFref", "300", "0", "0", "0"],
-    ["A2", "S1", "R1_C01", "0", "300", "0", "0"],
-    ["A3", "S1", "R1_C02", "0", "150", "150", "0"],
-    ["A4", "S1", "R1_C03", "0", "100", "100", "100"],
-    ["C1", "S2", "R1_DMFref", "300", "0", "0", "0"],
-    ["C2", "S2", "R1_C01", "0", "300", "0", "0"],
-    ["C3", "S2", "R1_C02", "0", "150", "150", "0"],
-    ["C4", "S2", "R1_C04", "0", "0", "12", "288"],
+    FIXED_HEADER + ["vol_DMF_ul", "vol_acetone_ul", "vol_EtOH_ul", "vol_water_ul"],
+    ["A1", "Glutarimide", "R0_DMFref", "300", "0", "0", "0"],
+    ["A2", "Glutarimide", "R0_C00", "0", "300", "0", "0"],
+    ["A3", "Glutarimide", "R0_C01", "0", "150", "150", "0"],
+    ["A4", "Glutarimide", "R0_C02", "0", "100", "100", "100"],
+    ["C1", "Boc-hydroxyproline", "R0_DMFref", "300", "0", "0", "0"],
+    ["C2", "Boc-hydroxyproline", "R0_C00", "0", "300", "0", "0"],
+    ["C3", "Boc-hydroxyproline", "R0_C01", "0", "150", "150", "0"],
+    ["C4", "Boc-hydroxyproline", "R0_C03", "0", "0", "12", "288"],
 ]
 
 
@@ -113,9 +115,9 @@ def add_parameters(parameters: protocol_api.ParameterContext):
         description="Resume an interrupted run (plates already filled and sealed)",
         choices=[
             {"display_name": "Fill all plates", "value": "fill"},
+            {"display_name": "Shake plate 0", "value": "0"},
             {"display_name": "Shake plate 1", "value": "1"},
             {"display_name": "Shake plate 2", "value": "2"},
-            {"display_name": "Shake plate 3", "value": "3"},
         ],
         default="fill",
     )
@@ -264,8 +266,8 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     params = protocol.params
     if params.temperature_c and params.temperature_c < 37:
         raise ValueError("Heater-shaker can't hold below 37 C - use 0 for ambient")
-    first_shake = 1 if params.start_step == "fill" else int(params.start_step)
-    if first_shake > params.n_plates:
+    first_shake = 0 if params.start_step == "fill" else int(params.start_step)  # plates count from 0
+    if first_shake >= params.n_plates:
         raise ValueError(f"Start at plate {first_shake} but only {params.n_plates} plate(s)")
 
     # Load Modules:
@@ -275,7 +277,7 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     # Load Labware:
     reservoir = protocol.load_labware(SOLVENT_RESERVOIR, RESERVOIR_SLOT, "Solvent reservoir")
     plates = [
-        protocol.load_labware(READOUT_PLATE, slot, f"Readout plate {i + 1}")
+        protocol.load_labware(READOUT_PLATE, slot, f"Readout plate {i}")
         for i, slot in enumerate(PLATE_SLOTS[: params.n_plates])
     ]
 
@@ -334,7 +336,7 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
 
     # Step 2: shake each plate in turn (manual moves - the OT-2 has no gripper)
     for i, (plate, home) in enumerate(zip(plates, PLATE_SLOTS)):
-        if i + 1 < first_shake:
+        if i < first_shake:
             continue
         heater_shaker.open_labware_latch()
         protocol.move_labware(plate, hs_adapter, use_gripper=False)
@@ -353,5 +355,5 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
 
     protocol.comment(
         f"Done: {len(plates)} plate(s), {len(wells)} wells each. Read each plate, then: "
-        "python bo_bridge.py merge --reader plate1.csv plate2.csv plate3.csv ..."
+        "python bo_bridge.py merge --reader plate0.csv plate1.csv plate2.csv ..."
     )

@@ -40,7 +40,7 @@ metadata = {
 #   10 -> A1 heater-shaker + universal flat adapter   11 -> A2 -           12 -> A3 trash bin
 #    7 -> B1 -                         8 -> B2 P1000 tips   9 -> B3 P50 tips
 #    4 -> C1 -                         5 -> C2 solvent reservoir   6 -> C3 -
-#    1 -> D1 readout plate 1           2 -> D2 readout plate 2     3 -> D3 readout plate 3
+#    1 -> D1 readout plate 0           2 -> D2 readout plate 1     3 -> D3 readout plate 2
 # With the "Waste chute (D3)" trash setting, plate 3 moves to C3 instead.
 
 
@@ -50,14 +50,14 @@ metadata = {
 
 # Liquid name -> trough(s) on the 8-trough reservoir (wells A1..H1). Names must match the
 # CSV columns "vol_<name>_ul". List more than one trough to give a liquid more volume.
-SOLVENT_TROUGHS = {
+SOLVENT_TROUGHS = {  # hand-kept mirror of ../production/config.toml, as in sdl_solubility_ot2.py
     "DMF": ["A1"],
-    "2MeTHF": ["B1"],
-    "EtOAc": ["C1"],
-    "DMC": ["D1"],
-    "CPME": ["E1"],
-    "MeCN": ["F1"],
-    "iPrOAc": ["G1"],
+    "acetone": ["B1"],
+    "EtOH": ["C1"],
+    "iPrOH": ["D1"],
+    "water": ["E1"],
+    "iPrOAc": ["F1"],
+    "tBuOAc": ["G1"],
     "diluent": ["H1"],  # only used if the CSV has a vol_diluent_ul column
 }
 TROUGH_FILL_UL = 25000  # volume loaded into every used trough before the run
@@ -96,15 +96,15 @@ FIXED_HEADER = ["well", "solute", "condition_id"]
 # Used only when no CSV is selected (e.g. local simulation).
 # Note: real CSV data arrives as strings, so the test data does too.
 TEST_CSV = [
-    FIXED_HEADER + ["vol_DMF_ul", "vol_2MeTHF_ul", "vol_EtOAc_ul", "vol_DMC_ul"],
-    ["A1", "S1", "R1_DMFref", "300", "0", "0", "0"],
-    ["A2", "S1", "R1_C01", "0", "300", "0", "0"],
-    ["A3", "S1", "R1_C02", "0", "150", "150", "0"],
-    ["A4", "S1", "R1_C03", "0", "100", "100", "100"],
-    ["C1", "S2", "R1_DMFref", "300", "0", "0", "0"],
-    ["C2", "S2", "R1_C01", "0", "300", "0", "0"],
-    ["C3", "S2", "R1_C02", "0", "150", "150", "0"],
-    ["C4", "S2", "R1_C04", "0", "0", "12", "288"],
+    FIXED_HEADER + ["vol_DMF_ul", "vol_acetone_ul", "vol_EtOH_ul", "vol_water_ul"],
+    ["A1", "Glutarimide", "R0_DMFref", "300", "0", "0", "0"],
+    ["A2", "Glutarimide", "R0_C00", "0", "300", "0", "0"],
+    ["A3", "Glutarimide", "R0_C01", "0", "150", "150", "0"],
+    ["A4", "Glutarimide", "R0_C02", "0", "100", "100", "100"],
+    ["C1", "Boc-hydroxyproline", "R0_DMFref", "300", "0", "0", "0"],
+    ["C2", "Boc-hydroxyproline", "R0_C00", "0", "300", "0", "0"],
+    ["C3", "Boc-hydroxyproline", "R0_C01", "0", "150", "150", "0"],
+    ["C4", "Boc-hydroxyproline", "R0_C03", "0", "0", "12", "288"],
 ]
 
 
@@ -128,9 +128,9 @@ def add_parameters(parameters: protocol_api.ParameterContext):
         description="Resume an interrupted run (plates already filled and sealed)",
         choices=[
             {"display_name": "Fill all plates", "value": "fill"},
+            {"display_name": "Shake plate 0", "value": "0"},
             {"display_name": "Shake plate 1", "value": "1"},
             {"display_name": "Shake plate 2", "value": "2"},
-            {"display_name": "Shake plate 3", "value": "3"},
         ],
         default="fill",
     )
@@ -289,8 +289,8 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     params = protocol.params
     if params.temperature_c and params.temperature_c < 37:
         raise ValueError("Heater-shaker can't hold below 37 C - use 0 for ambient")
-    first_shake = 1 if params.start_step == "fill" else int(params.start_step)
-    if first_shake > params.n_plates:
+    first_shake = 0 if params.start_step == "fill" else int(params.start_step)  # plates count from 0
+    if first_shake >= params.n_plates:
         raise ValueError(f"Start at plate {first_shake} but only {params.n_plates} plate(s)")
 
     plate_slots = PLATE_SLOTS[params.trash]
@@ -306,7 +306,7 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     # Load Labware:
     reservoir = protocol.load_labware(SOLVENT_RESERVOIR, RESERVOIR_SLOT, "Solvent reservoir")
     plates = [
-        protocol.load_labware(READOUT_PLATE, slot, f"Readout plate {i + 1}")
+        protocol.load_labware(READOUT_PLATE, slot, f"Readout plate {i}")
         for i, slot in enumerate(plate_slots[: params.n_plates])
     ]
 
@@ -367,7 +367,7 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
 
     # Step 2: shake each plate in turn (manual moves, like the OT-2 - gripper deliberately unused)
     for i, (plate, home) in enumerate(zip(plates, plate_slots)):
-        if i + 1 < first_shake:
+        if i < first_shake:
             continue
         heater_shaker.open_labware_latch()
         protocol.move_labware(plate, hs_adapter, use_gripper=False)
@@ -388,5 +388,5 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
 
     protocol.comment(
         f"Done: {len(plates)} plate(s), {len(wells)} wells each. Read each plate, then: "
-        "python bo_bridge.py merge --reader plate1.csv plate2.csv plate3.csv ..."
+        "python bo_bridge.py merge --reader plate0.csv plate1.csv plate2.csv ..."
     )

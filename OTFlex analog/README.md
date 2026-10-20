@@ -53,7 +53,7 @@ to C3.
 
 1. Import `sarstedt_96_wellplate_390ul_flatbottom.json` and `axygen_8_reservoir_30000ul.json`
    from `../OT protocols/labware/` into the Opentrons app.
-2. Upload this protocol with `../OT protocols/examples/ot_input_round1.csv` as the CSV
+2. Upload this protocol with `../OT protocols/examples/ot_input_round0.csv` as the CSV
    (a full 96-well, 3-plate round).
 3. **Liquids:** water is fine for timing. No solids are needed; empty plates work.
 4. **Settings:**
