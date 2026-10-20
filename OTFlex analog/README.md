@@ -6,9 +6,9 @@ you can time one round of dispensing and shaking before the real run.
 
 ## What is identical
 
-The simulator confirms both protocols run the same **2,900 liquid-handling steps** on the
-round-1 plate: same volumes, wells, order, flow rates, delays, air gaps, pre-wet and blow-outs.
-That's 531 aspirations, 636 dispenses and 7 tips (`../OT protocols/tools/check_all.py`
+The simulator confirms both protocols run the same **2,961 liquid-handling steps** on the
+round-0 plate: same volumes, wells, order, flow rates, delays, air gaps, pre-wet and blow-outs.
+That's 542 aspirations, 650 dispenses and 7 tips, including the blank plate (`../OT protocols/tools/check_all.py`
 re-checks this).
 
 | OT-2 | Flex analog | How it's kept the same |
@@ -44,10 +44,11 @@ OT-2 slots mapped one-to-one onto the Flex:
 | 8 | B2 | 1000 µL tips (Flex) |
 | 9 | B3 | 50 µL tips (Flex) |
 | 5 | C2 | solvent reservoir `axygen_8_reservoir_30000ul` |
-| 1, 2, 3 | D1, D2, D3 | readout plates 1–3 |
+| 6 | C3 | solvent blank plate (well X1 = pure solvent from trough X1) |
+| 1, 2, 3 | D1, D2, D3 | readout plates 0–2 |
 
-If your Flex has the waste chute in D3, set **Trash = Waste chute (D3)**. Plate 3 then moves
-to C3.
+The trash is always the bin in A3 (your Flex's bin spans A3–A4), matching the OT-2 trash in
+slot 12.
 
 ## Running a timing test
 
@@ -57,7 +58,7 @@ to C3.
    (a full 96-well, 3-plate round).
 3. **Liquids:** water is fine for timing. No solids are needed; empty plates work.
 4. **Settings:**
-   - Trash: **Trash bin (A3)**, the default; matches your Flex's bin in A3–A4.
+   - Solvent blank plate: **on**, as in the real run (put an empty plate in C3).
    - Shake time: 20 min, to match the real run.
    Plate moves are always manual (no gripper), like the OT-2.
 5. Read the times off the run log in the Opentrons app (each command has a timestamp). The

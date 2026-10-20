@@ -109,21 +109,23 @@ also turns full-spectrum exports into the single-value files this command takes.
    volumes under 20 µL and the P300 everything from 20 µL up. Each tip aspirates enough for
    several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
-   touch their own solvent, so a full round uses about 7 tips.
-2. **Pause:** you seal all plates by hand straight away, so plates 1–2 don't evaporate while
-   plate 0 shakes.
+   touch their own solvent, so a full round uses about 7 tips. The same tips also fill the
+   **solvent blank plate** in slot 6: well X1 gets 300 µL of the pure solvent from trough X1
+   (A1 DMF … G1 t-BuOAc), with no solids. It's filled once per run and serves all 3 plates.
+2. **Pause:** you seal all plates (and the blank plate) by hand straight away, so plates 1–2
+   don't evaporate while plate 0 shakes. The blank plate isn't shaken, since it has no solids.
 3. **For plate 0, 1, 2 in turn:** the app prompts you to move the plate onto the
    heater-shaker. It shakes (default 20 min, 800 rpm), then you're prompted to put it back,
    and it can go to the UV-Vis reader.
 
-My rough estimate is 1.5–2 h of pipetting for 3 full plates (about 530 aspirations,
+My rough estimate is 1.5–2 h of pipetting for 3 full plates (about 540 aspirations,
 mostly P300), plus 3 × 20 min shaking: about 3–3.5 h per round including sealing, the last
 read and BO, so 3 rounds fit in about 10 h. These are estimates (the simulator doesn't
 report run time), so time a dry run with water first. Refill the solvent troughs between
 rounds using the fill sheet from `layout`, when you load the next solid plates.
 
-**App settings:** identical plates (1–3), start at (fill / shake plate 0–2, to resume),
-shake speed, shake time, temperature.
+**App settings:** identical plates (1–3), solvent blank plate (on/off, default on), start at
+(fill / shake plate 0–2, to resume), shake speed, shake time, temperature.
 
 ## Deck (OT-2)
 
@@ -133,7 +135,7 @@ shake speed, shake time, temperature.
 |---|---|---|---|
 | **back (10–12)** | heater-shaker + universal flat adapter (10) | – (11) | trash (12) |
 | **7–9** | – (7) | P300 tips (8) | P20 tips (9) |
-| **4–6** | – (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | – (6) |
+| **4–6** | – (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | solvent blank plate (6) |
 | **front (1–3)** | readout plate 0 | readout plate 1 | readout plate 2 |
 
 Pipettes: P300 GEN2 single on the left mount, P20 GEN2 single on the right (`PIPETTES` in
