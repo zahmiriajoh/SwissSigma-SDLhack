@@ -20,7 +20,6 @@ production/run_bo.sh csvs                  # the real campaign: one call per rou
 |---|---|
 | `production/` | **The real experiment's definition**: `config.toml` (solutes, solvents and their troughs, 300 µL wells, zero-based numbering) read by every module; `config.py` loads and validates it. Change the experiment here. `run_bo.sh csvs` runs one BO round from the lab's `csvs/` folder (robot files into `csvs/ratios/`, reader exports read from `csvs/uvvis/`). |
 | `OT protocols/` | **Source of truth for the plate layout and all CSV formats.** OT-2 protocol `sdl_solubility_ot2.py` (one round = 3 identical plates), `bo_bridge.py` (suggestions → robot CSV + plate map; plate-reader exports → `bo_dataset.csv`), custom labware, deck/plate maps, `tools/check_all.py`. |
-| `OTFlex analog/` | Same liquid handling replayed on a Flex, for timing a round before the real run. |
 | `analysis/` | `python -m analysis qc-layout / reduce / qc / report`: QC plate per round (blanks + calibration series), plate-reader spectra → one absorbance per well per plate in the format `bo_bridge.py merge` takes, experiment-quality figures (`qc_summary.md`) and study-aim figures (`report_summary.md`). |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |

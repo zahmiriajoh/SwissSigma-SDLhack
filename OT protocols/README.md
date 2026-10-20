@@ -213,8 +213,7 @@ uv run opentrons_simulate -L labware sdl_solubility_ot2.py
 ```
 
 `tools/check_all.py` runs the full set: every protocol setting, the expected-error cases,
-a two-round BO loop with fake plate-reader data, and a check that the Flex timing analog
-(`../OTFlex analog/`) runs exactly the same liquid handling (31 checks).
+and a two-round BO loop with fake plate-reader data (30 checks).
 ```bash
 uv run python tools/check_all.py
 ```
