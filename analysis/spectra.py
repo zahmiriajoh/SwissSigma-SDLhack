@@ -5,8 +5,10 @@ matrix (wavelength_nm rows, one column per well). The plate map from `bo_bridge.
 solute sits in each well. Each solute is read at its own wavelength: the peak of its blank-corrected
 DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at that wavelength.
 
-Blank handling: the solvent-only plate is used here only to find the peaks. The endpoint files keep the
+Blank handling: the solvent-only readings are used here only to find the peaks. The endpoint files keep the
 raw absorbance (plates and blank alike), so `bo_bridge.py merge --blank` does the one and only subtraction.
+The blank can be a full solvent-only copy of the sample plate, or a QC plate (qc_layout.py) whose pure-solvent
+blank wells are combined per sample well in its volume fractions (synthetic_blank).
 """
 import re
 
@@ -85,6 +87,28 @@ def check_wells(spectra, plate_map, name="reader export") -> None:
         raise SpectraError(f"{name}: no spectrum for wells {list(missing)}")
 
 
+def _is_full_spectrum(index) -> bool:
+    """True for a dense scan (many points, ~1 nm apart), False for a handful of fixed wavelengths."""
+    return len(index) >= 20 and float(pd.Series(index).diff().median()) <= 2.0
+
+
+def synthetic_blank(qc_spectra, qc_map, plate_map) -> pd.DataFrame:
+    """Blank spectrum per sample well = sum over solvents of (volume fraction x pure-solvent blank spectrum from the QC plate).
+
+    Returns a wide table (wavelength x plate-map wells) usable wherever a blank plate is, so the sample layout needs
+    no solvent-only copy. Requires one pure-solvent blank well per solvent used in the plate map.
+    """
+    blanks = qc_map[(qc_map["role"] == "blank") & (qc_map["solvent"].notna()) & (qc_map["solvent"] != "")]
+    pure = {row["solvent"]: qc_spectra[well] for well, row in blanks.iterrows() if well in qc_spectra.columns}
+    cols = [c for c in plate_map.columns if c.startswith("frac_")]
+    missing = {c[len("frac_"):] for c in cols if (plate_map[c] > 0).any()} - set(pure)
+    if missing:
+        raise SpectraError(f"QC plate has no pure-solvent blank well for {sorted(missing)}")
+    out = {well: sum(row[f"frac_{s}"] * pure[s] for s in pure if row.get(f"frac_{s}", 0) > 0)
+           for well, row in plate_map.iterrows()}
+    return pd.DataFrame(out, index=qc_spectra.index)
+
+
 def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrides=None) -> pd.Series:
     """Wavelength per solute: peak of the mean (smoothed) DMF-control spectrum over all plates, within nm_range.
 
@@ -96,7 +120,8 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
     picked = {}
     for solute, block in controls.groupby("solute"):
         spec = pd.concat([s.loc[lo:hi, block.index] for s in spectra_list], axis=1).mean(axis=1)
-        picked[solute] = float(spec.rolling(SMOOTH_NM, center=True, min_periods=1).mean().idxmax())
+        window = SMOOTH_NM if _is_full_spectrum(spec.index) else 1  # a few fixed wavelengths: no smoothing
+        picked[solute] = float(spec.rolling(window, center=True, min_periods=1).mean().idxmax())
     picked.update({s: float(nm) for s, nm in (overrides or {}).items()})
     no_wavelength = set(plate_map["solute"]) - set(picked)
     if no_wavelength:

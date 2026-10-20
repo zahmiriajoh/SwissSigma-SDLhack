@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .spectra import SpectraError, read_plate_map, read_spectra
+from .spectra import SpectraError, read_plate_map, read_spectra, synthetic_blank
 
 KINDS = ["control", "seed", "exploit", "explore", "retest"]
 _KIND_TAGS = {"dmfref": "control", "grid": "seed", "seed": "seed", "exploit": "exploit", "explore": "explore"}
@@ -84,6 +84,14 @@ class Run:
     def blank_spectra(self, r):
         path = self._optional(f"reader_round{r}_blank.csv")
         return read_spectra(path) if path else None
+
+    def blank(self, r):
+        """Blank spectra for round r: the solvent-only plate if read, else built from the QC plate's pure-solvent blanks."""
+        plate = self.blank_spectra(r)
+        if plate is not None:
+            return plate
+        qc_map, qc_spec = self.qc_map(r), self.qc_spectra(r)
+        return synthetic_blank(qc_spec, qc_map, self.plate_maps[r]) if qc_map is not None and qc_spec is not None else None
 
     def qc_map(self, r):
         path = self._optional(f"qc_plate_map_round{r}.csv")
