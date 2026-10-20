@@ -49,6 +49,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from production.config import (  # noqa: E402
     ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, MAX_SOLVENTS_PER_MIX, MIN_UL, N_PLATES,
     REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
+    sample_id,
 )
 
 CONTROLS_PER_SOLUTE = 1   # reference-solvent wells per solute per plate
@@ -284,6 +285,8 @@ def cmd_layout(args):
                 idx = args.controls_per_solute + r * len(conds) + k
                 wells.append((block[idx], s, cond_id, "sample", r + FIRST_CONDITION, vols))
     wells.sort(key=lambda w: PLATE_WELLS.index(w[0]))
+    # sample-id parts: solute block number and position within the block (cond0 = first well = DMF control)
+    block_pos = {w: (i, FIRST_CONDITION + blocks[s].index(w)) for i, s in enumerate(solutes) for w in blocks[s]}
 
     tag = f"round{args.round}"
     ot_path = os.path.join(args.outdir, f"ot_input_{tag}.csv")
@@ -298,8 +301,9 @@ def cmd_layout(args):
     )
     write_csv(
         map_path,
-        ["round", "well", "row", "col", "solute", "condition_id", "role", "replicate"] + FRAC_COLS + VOL_COLS,
-        [[args.round, w, w[0], w[1:], s, cid, role, rep]
+        ["round", "well", "row", "col", "solute", "condition_id", "role", "replicate", "solute_index", "cond"]
+        + FRAC_COLS + VOL_COLS,
+        [[args.round, w, w[0], w[1:], s, cid, role, rep, *block_pos[w]]
          + [fmt(v[x] / args.total_ul) for x in ALL_SOLVENTS] + [f"{v[x]:g}" for x in ALL_SOLVENTS]
          for w, s, cid, role, rep, v in wells],
     )
@@ -401,6 +405,13 @@ def reader_lookup(readings):
     return absorbance
 
 
+def well_sample_id(m, plate):
+    """Sample id of plate-map row m on `plate`; needs the solute_index/cond columns that layout writes."""
+    if "cond" not in m:
+        sys.exit("plate map has no solute_index/cond columns: re-run bo_bridge.py layout to add sample ids")
+    return sample_id(m["round"], plate, m["solute_index"], m["cond"])
+
+
 def cmd_merge(args):
     plate_map = read_dicts(args.plate_map)
     round_ = plate_map[0]["round"]
@@ -435,9 +446,9 @@ def cmd_merge(args):
         os.path.dirname(os.path.abspath(args.plate_map)), f"results_round{round_}_wells.csv")
     write_csv(
         wells_path,
-        ["round", "plate", "well", "solute", "condition_id", "role", "replicate",
+        ["round", "plate", "well", "sample_id", "solute", "condition_id", "role", "replicate",
          "abs_raw", "abs_blank", "abs_corrected", "rel_to_DMF"],
-        [[round_, p, m["well"], m["solute"], m["condition_id"], m["role"], m["replicate"],
+        [[round_, p, m["well"], well_sample_id(m, p), m["solute"], m["condition_id"], m["role"], m["replicate"],
           fmt(raw), fmt(blank), fmt(c), fmt(rel(m, c))] for p, m, raw, blank, c in obs],
     )
 

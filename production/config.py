@@ -9,6 +9,7 @@ or, from a script that is not a package member:
     cfg = importlib.util.module_from_spec(spec); spec.loader.exec_module(cfg)
 """
 import re
+import string
 import tomllib
 from pathlib import Path
 
@@ -33,6 +34,9 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError(f"two solvents share a trough: {troughs}")
     if cfg["reference"]["solvent"] not in solvents:
         raise ValueError("reference solvent is not in the solvent list")
+    fields = {f for _, f, _, _ in string.Formatter().parse(cfg["numbering"]["sample_id"]) if f}
+    if fields != {"round", "plate", "solute", "cond"}:
+        raise ValueError(f"numbering.sample_id needs {{round}}, {{plate}}, {{solute}} and {{cond}}, got {sorted(fields)}")
     if cfg["well"]["total_ul"] % cfg["well"]["min_ul"]:
         raise ValueError("total_ul must be a multiple of min_ul")
     for pair in cfg.get("forbidden_pairs", []):
@@ -46,6 +50,7 @@ _cfg = load()
 FIRST_ROUND = _cfg["numbering"]["first_round"]
 FIRST_PLATE = _cfg["numbering"]["first_plate"]
 FIRST_CONDITION = _cfg["numbering"]["first_condition"]
+SAMPLE_ID_FORMAT = _cfg["numbering"]["sample_id"]
 
 TOTAL_UL = _cfg["well"]["total_ul"]
 MIN_UL = _cfg["well"]["min_ul"]
@@ -65,6 +70,11 @@ PLATE_ATTACKERS = [s["name"] for s in _cfg["solvents"] if s["attacks_polystyrene
 
 # Pairs of solvents that may not share a well (immiscible). See is_allowed().
 FORBIDDEN_PAIRS = [frozenset(p["solvents"]) for p in _cfg.get("forbidden_pairs", [])]
+
+
+def sample_id(round_, plate, solute, cond) -> str:
+    """Name of one well on one plate, e.g. round0_plate1_solute0_cond0 (solute = block number, cond = position in block)."""
+    return SAMPLE_ID_FORMAT.format(round=round_, plate=plate, solute=solute, cond=cond)
 
 
 def is_allowed(solvent_names) -> bool:

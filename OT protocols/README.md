@@ -78,6 +78,14 @@ and scaled to 300 µL. Optional columns:
 Each solute can take at most "conditions per solute" rows (23 by default). Unfilled wells
 stay empty.
 
+**Sample ids** (`numbering.sample_id` in `production/config.toml`): every well on every plate is one sample,
+`round{R}_plate{P}_solute{S}_cond{C}`. S is the solute block (0 = Glutarimide … 3 = Succinimide) and C is the
+well's position in its block, 0–23 with cond0 = the DMF control. So A1 of round 0 on the second plate is
+`round0_plate1_solute0_cond0`. `layout` writes the parts as `solute_index` and `cond` columns in
+`plate_map_roundN.csv`, and `merge` writes the full `sample_id` on every row of `results_roundN_wells.csv`.
+`condition_id` stays as the mixture name (`R0_DMFref`, `R0_grid00`, …). It links the 3 plates and the solutes
+for BO and analysis, so cond C holds condition_id counter C − 1 (cond1 = `R0_grid00`).
+
 **`bo_dataset.csv`**: one row per round × solute × condition:
 
 | column | meaning |

@@ -71,7 +71,12 @@ def test_bo_bridge_merge_reads_debug_spectra_and_sdl_bo_reads_the_result(tmp_pat
     assert result.returncode == 0, result.stdout + result.stderr
     raw = pd.read_csv(dataset_path)
     assert len(raw) == 96 and (raw["n_obs"] == 3).all()  # 4 solutes x 24 conditions, 3 plates pooled
-    assert set(pd.read_csv(tmp_path / "wells.csv")["plate"]) == set(range(P, P + 3))
+    wells = pd.read_csv(tmp_path / "wells.csv").set_index(["plate", "well"])
+    assert set(wells.index.get_level_values("plate")) == set(range(P, P + 3))
+    # naming convention: A1 of round 0 on the second plate is round0_plate1_solute0_cond0 (cond0 = DMF control)
+    assert wells.loc[(P + 1, "A1"), "sample_id"] == config.sample_id(R0, P + 1, 0, config.FIRST_CONDITION) == "round0_plate1_solute0_cond0"
+    assert wells.loc[(P + 1, "A1"), "role"] == "control"
+    assert wells["sample_id"].is_unique and wells.loc[(P, "H12"), "sample_id"].endswith(f"_solute{len(config.SOLUTES) - 1}_cond{config.FIRST_CONDITION + 23}")
     with pytest.warns(UserWarning, match="negative rel_mean"):  # other solutes read off-band
         df = dataset.load_dataset(dataset_path)
     block = df[df.solute == first_solute]  # read at its own band, so this is the meaningful block

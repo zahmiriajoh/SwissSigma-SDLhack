@@ -9,6 +9,10 @@
 first_round = 0       # files: plate_map_round0.csv, reader_round0_plate0.csv, ...; ids: R0_seed00 ...
 first_plate = 0       # the three identical plates of a round are plate0, plate1, plate2
 first_condition = 0   # condition counters within an id start at 00
+# Every well on every plate is one sample (user, 2026-10-20): solute = block number in [[solutes]] order,
+# cond = position in that solute's block (cond0 = the DMF control, then the BO conditions in plate order).
+# A1 of round 0, plate 1 is round0_plate1_solute0_cond0. condition_id (the mixture) is kept alongside it.
+sample_id = "round{round}_plate{plate}_solute{solute}_cond{cond}"
 
 [well]
 total_ul = 300                 # liquid per well; the reference control well is 300 uL of pure DMF
