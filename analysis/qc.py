@@ -5,11 +5,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from production.config import PLATE_ATTACKERS, REFERENCE_SOLVENT
+
 from .plots import (OKABE_ITO, PLATE_MARKERS, colors_for, identity_line, panel_grid, plate_heatmap, save)
 from .spectra import DEFAULT_NM_RANGE, blank_correct
 from .summary import Summary
 
-ESTERS_ETHERS = ["EtOAc", "iPrOAc", "2MeTHF", "CPME"]  # solvents that attack polystyrene most
+# Solvents that craze polystyrene: the production list (production/config.toml) plus the fake toy-run solvents.
+PLATE_ATTACKERS = list(dict.fromkeys(PLATE_ATTACKERS + ["EtOAc", "iPrOAc", "2MeTHF", "CPME"]))
+PLATE_ATTACKERS = [s for s in PLATE_ATTACKERS if s != REFERENCE_SOLVENT]  # the control is pure DMF anyway
 PLATE_OFFSET_FLAG = 0.05       # a plate whose median deviates from the others by more than this is flagged
 SCATTER_NM = (600.0, 800.0)    # no solute absorbs here: signal = scattering by undissolved solid
 MIN_ABS_FOR_PEAK = 0.05     # peak position is only meaningful for wells whose corrected band is at least this high
@@ -145,7 +149,7 @@ def q3_blank_and_attack(run, outdir):
     colors = colors_for(run.solutes)
     cols = [f"frac_{s}" for s in run.solvents]
     w["dominant"] = w[cols].idxmax(axis=1).str[len("frac_"):]
-    w["ester_ether"] = w[[f"frac_{s}" for s in ESTERS_ETHERS if s in run.solvents]].sum(axis=1)
+    w["ester_ether"] = w[[f"frac_{s}" for s in PLATE_ATTACKERS if s in run.solvents]].sum(axis=1)
     log = run.plate_log()
     panels = 2 + (log is not None) + (not additivity.empty)
     fig, axes = panel_grid(panels, panels, (4.6, 3.6))
@@ -163,7 +167,7 @@ def q3_blank_and_attack(run, outdir):
     for solute in run.solutes:
         g = w[w["solute"] == solute]
         ax.plot(g["ester_ether"], g["abs_blank"], "o", ms=3, color=colors[solute], alpha=0.6)
-    ax.set_xlabel("Ester + ether fraction", fontsize=9)
+    ax.set_xlabel("Fraction of plate-attacking solvents", fontsize=9)
     ax.set_ylabel("Blank absorbance", fontsize=9)
     ax.set_title("Polystyrene-attacking solvents", fontsize=10)
     if log is not None:
@@ -350,7 +354,7 @@ def q7_calibration(run, outdir):
         table, cal = calibration_table(qc_map, qc_spec, wl)
         table["round"] = r
         ctrl = run.wells[(run.wells["round"] == r) & (run.wells["role"] == "control")].groupby("solute")["abs_corrected"].mean()
-        dmf = table[table["solvent"] == "DMF"].set_index("solute")["slope_per_loading"]
+        dmf = table[table["solvent"] == REFERENCE_SOLVENT].set_index("solute")["slope_per_loading"]
         table["dmf_control_recovery"] = table["solute"].map(lambda s: ctrl.get(s, np.nan) / dmf.get(s, np.nan))
         rows.append(table)
         colors = colors_for(run.solvents)

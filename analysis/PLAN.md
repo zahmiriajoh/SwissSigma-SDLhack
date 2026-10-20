@@ -46,7 +46,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 ## Answers (2026-10-20)
 
 - **Q-a blank plate and calibration:** one extra plate every round with solvent-only blanks and a calibration series for each pure solvent–solute pair. Implemented as the QC plate (`analysis qc-layout`).
-- **Q-b solutes and reader:** unknown for now (**remind the user to check**: real solute names for `SOLUTES` in `bo_bridge.py`, their absorption maxima, the reader's linear range and export format); assume a range of absorbance values to test the full range; assume fixed wavelengths.
+- **Q-b solutes and reader:** solutes and solvents are now fixed in `production/config.toml` (Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide; DMF, acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc; numbering from zero). Still unknown (**remind the user**): the solutes' absorption maxima, the reader's linear range and export format. Assume a range of absorbance values to test the full range; assume fixed wavelengths. See `production/README.md` for the UV-readout and immiscibility concerns.
 - **Q-c timing:** shake-end-to-read time will be recorded per plate.
 - **Q-d solid loading:** same mass in every well, recorded.
 - **Q-e priorities:** Q1, Q2, R2, R1, R3, Q3, Q4, R4, R5, Q5, Q6, R6, R7, Q7.

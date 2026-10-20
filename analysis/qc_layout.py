@@ -13,6 +13,8 @@ from itertools import combinations
 
 import pandas as pd
 
+from production.config import REFERENCE_SOLVENT
+
 from .spectra import WELLS
 
 LOADINGS = (0.5, 1.0)  # fractions of the nominal solid mass in the calibration series
@@ -27,7 +29,7 @@ def qc_plate_map(plate_map, loadings=LOADINGS) -> pd.DataFrame:
     round_ = int(plate_map["round"].iloc[0])
     frac_cols = [c for c in plate_map.columns if c.startswith("frac_")]
     solvents = [c[len("frac_"):] for c in frac_cols]
-    green = [s for s in solvents if s != "DMF"]
+    green = [s for s in solvents if s != REFERENCE_SOLVENT]
     solutes = list(dict.fromkeys(plate_map["solute"]))
     total_ul = int(round(plate_map[[c.replace("frac_", "vol_") + "_ul" for c in frac_cols]].sum(axis=1).iloc[0])) \
         if f"vol_{solvents[0]}_ul" in plate_map.columns else 300

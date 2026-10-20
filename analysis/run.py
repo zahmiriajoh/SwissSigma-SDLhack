@@ -15,6 +15,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from production.config import REFERENCE_SOLVENT
+
 from .spectra import SpectraError, read_plate_map, read_spectra, synthetic_blank
 
 KINDS = ["control", "seed", "exploit", "explore", "retest"]
@@ -64,7 +66,7 @@ class Run:
         self.shared = self._with_kind(pd.read_csv(shared)) if shared.exists() else None
         self.solutes = list(dict.fromkeys(self.dataset["solute"]))
         self.solvents = solvent_names(self.dataset)
-        self.green_solvents = [s for s in self.solvents if s != "DMF"]
+        self.green_solvents = [s for s in self.solvents if s != REFERENCE_SOLVENT]
 
     # ----- per-round optional files -----------------------------------------------------------
     def _optional(self, name):
