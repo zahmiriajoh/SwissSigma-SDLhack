@@ -38,6 +38,17 @@ name = "Phthalimide"
 [[solutes]]
 name = "Succinimide"
 
+# After the shared seed round (round 0, every solute on the same conditions) the campaign splits into independent
+# trajectories ("arms"). Each arm optimises the minimum over its solutes, is designed by its own GPs trained only on the
+# seed round and its own wells, and owns the plate blocks of its solutes. Every solute belongs to exactly one arm.
+[[arms]]
+name = "phthalimide"        # letters only: it appears in condition ids (R1_phthalimide_exploit01)
+solutes = ["Phthalimide"]
+
+[[arms]]
+name = "others"
+solutes = ["Glutarimide", "Boc-hydroxyproline", "Succinimide"]
+
 # Solvents. `name` is the identifier used in CSV columns (frac_<name>, vol_<name>_ul) and must not contain hyphens or
 # spaces; `label` is for figures and text. `trough` is the well of the 8-trough reservoir (H1 stays the diluent).
 # attacks_polystyrene marks solvents known to craze or dissolve the polystyrene readout plate (acetone, esters).

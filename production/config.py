@@ -35,6 +35,13 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError("reference solvent is not in the solvent list")
     if cfg["well"]["total_ul"] % cfg["well"]["min_ul"]:
         raise ValueError("total_ul must be a multiple of min_ul")
+    arms = cfg.get("arms", [])
+    if arms:
+        names, in_arms = [a["name"] for a in arms], [s for a in arms for s in a["solutes"]]
+        if any(not re.fullmatch(r"[A-Za-z]+", n) for n in names) or len(set(names)) != len(names):
+            raise ValueError(f"arm names must be unique and letters only (they are part of condition ids): {names}")
+        if sorted(in_arms) != sorted(solutes):
+            raise ValueError(f"every solute must be in exactly one arm: arms hold {in_arms}, solutes are {solutes}")
     for pair in cfg.get("forbidden_pairs", []):
         if len(pair["solvents"]) != 2 or not set(pair["solvents"]) <= set(solvents):
             raise ValueError(f"forbidden pair must name two known solvents: {pair}")
@@ -74,4 +81,5 @@ def is_allowed(solvent_names) -> bool:
 
 
 SOLUTES = [s["name"] for s in _cfg["solutes"]]
+ARMS = {a["name"]: a["solutes"] for a in _cfg.get("arms", [])}  # {arm: its solutes}; empty = one shared trajectory
 SOLUTE_WAVELENGTH_NM = {s["name"]: s.get("wavelength_nm") for s in _cfg["solutes"]}  # None = unknown, pick from data

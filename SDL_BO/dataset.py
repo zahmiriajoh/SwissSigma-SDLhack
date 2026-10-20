@@ -130,6 +130,15 @@ def unmeasurable_solutes(dataset_path) -> list:
     return sorted(flagged)
 
 
+def excluded_solutes(dataset_path, df: pd.DataFrame) -> list:
+    """The unmeasurable solutes of `df` to leave out of its score. If that is all of them, score them anyway (with a warning)."""
+    flagged = [s for s in unmeasurable_solutes(dataset_path) if s in set(df["solute"])]
+    if flagged and set(flagged) == set(df["solute"]):
+        warnings.warn(f"every scored solute ({', '.join(flagged)}) is flagged not measurable; scoring them anyway")
+        return []
+    return flagged
+
+
 def score_mixtures(df: pd.DataFrame, exclude=()) -> pd.DataFrame:
     """One row per mixture_key: mean ratio_<solute> over its condition rows, `score` (their minimum over the solutes
     not in `exclude`; NaN if one of those never saw the mixture) and `n` condition rows."""
