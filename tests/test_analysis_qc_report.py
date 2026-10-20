@@ -104,7 +104,7 @@ def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     assert obj["obj_min_rel"].max() > obj.loc[obj["n_solvents"] == 1, "obj_min_rel"].max()
     for name in ("R1_per_solute", "R2_objective", "R3_progress", "R4_ternary", "R4_binaries", "R5_synergy", "R6_solutes", "R7_dataset"):
         assert (outdir / f"report_{name}.png").exists()
-    assert BAND_HEIGHTS[SOLUTES[0]] > 2.5  # the toy really does span the reader's range
+    assert BAND_HEIGHTS[SOLUTES[1]] > 2.5 and BAND_HEIGHTS[SOLUTES[3]] < 0.1  # the toy really does span the reader's range
 
 
 def test_cli_qc_layout(tmp_path):
