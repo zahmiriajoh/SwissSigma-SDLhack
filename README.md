@@ -8,10 +8,9 @@ optimisation (BO) picks the next round of mixtures. Each subfolder has its own R
 ## Setup
 
 ```bash
-mamba env create -f environment.yml   # Python 3.12, opentrons 8.8.2, numpy, pandas, scipy, scikit-learn, matplotlib, pytest
-mamba activate sdlhack
-pytest tests/                         # unit + interface tests, ~30 s
-python examples/toy_additive_pipeline.py   # whole loop on fake additive chemistry, ~1 min/round; outputs kept in examples/toy_additive_output/
+bash setup.sh                         # macOS, Linux, Windows Git Bash: installs uv, Python 3.12 and every package, then checks
+uv run pytest tests/                  # unit + interface tests, ~40 s
+uv run python examples/toy_additive_pipeline.py   # whole loop on fake additive chemistry, ~1 min/round; outputs kept in examples/toy_additive_output/
 production/run_bo.sh csvs                  # the real campaign: one call per round, see production/README.md
 ```
 

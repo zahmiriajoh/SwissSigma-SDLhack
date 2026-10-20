@@ -6,7 +6,7 @@ reads and writes exactly those. The dataset file is the only state.
 
 ## Install
 
-Use the repo environment (`mamba env create -f environment.yml`, `mamba activate sdlhack`). Run from the
+Use the repo environment (`bash setup.sh` once at the repo root, then prefix commands with `uv run`). Run from the
 repo root: `python -m SDL_BO ...` or `import SDL_BO`.
 
 ## The loop

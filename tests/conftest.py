@@ -1,4 +1,4 @@
-"""Shared paths and fixtures. Run from the repo root in the `sdlhack` env:  pytest tests/"""
+"""Shared paths and fixtures. Run from the repo root:  uv run pytest tests/"""
 import importlib.util
 import subprocess
 import sys

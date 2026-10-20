@@ -14,7 +14,7 @@ What each figure shows and the decisions behind them are in [`PLAN.md`](PLAN.md)
 
 ## Install
 
-Part of the repo-wide `sdlhack` environment (`mamba env create -f ../environment.yml`): Python 3.12,
+Part of the repo-wide uv environment (`bash setup.sh` at the repo root; run commands as `uv run python -m analysis ...`): Python 3.12,
 `numpy`, `pandas`, `matplotlib`; `report` imports `SDL_BO` for the Gaussian-process landscape.
 
 ## One round

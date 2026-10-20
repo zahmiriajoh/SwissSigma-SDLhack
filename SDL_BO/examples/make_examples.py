@@ -2,7 +2,7 @@
 
     SDL_BO init/suggest -> bo_bridge layout -> fake plate reader -> bo_bridge merge -> SDL_BO suggest ...
 
-Run from the repo root inside the `sdlhack` environment:  python SDL_BO/examples/make_examples.py [--rounds 3]
+Run from the repo root with `uv run`:  python SDL_BO/examples/make_examples.py [--rounds 3]
 Also used by the tests as the end-to-end check that SDL_BO and bo_bridge speak the same formats.
 """
 import argparse

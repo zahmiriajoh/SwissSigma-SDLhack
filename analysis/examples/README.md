@@ -33,7 +33,7 @@ default): per-solute band heights, plate attack growing with the read delay, a r
 
 ## Running the analysis on these files
 
-From the repo root in the `sdlhack` environment:
+From the repo root, after `bash setup.sh` (prefix with `uv run`):
 
 ```bash
 python -m analysis reduce --plate-map "OT protocols/examples/plate_map_round0.csv" \

@@ -9,7 +9,7 @@ saturates in good solvents, the last sits near the noise floor, the first solute
 cut-off (so it is read on a shoulder and declared not measurable), and the plate-attacking solvents make blank wells
 grow with the read delay.
 
-Run from the repo root in the `sdlhack` environment:
+Run from the repo root (prefix with `uv run`):
     python analysis/examples/make_toy_run.py --outdir runs/toy [--rounds 3] [--fixed-wavelengths] [--seed 0]
 """
 import argparse

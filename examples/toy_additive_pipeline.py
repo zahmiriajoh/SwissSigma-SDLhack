@@ -11,7 +11,7 @@ round's 23 conditions may hold at most ~1960 uL of any solvent (mean fraction 0.
 spends the whole DOMINANT budget on the DOMINANT-richest untested mixtures. `--one-plate` loosens the cap
 (5880 uL) and shows the exploit picks themselves becoming DOMINANT-rich.
 
-Run from the repo root in the `sdlhack` environment (~1 min per round on the 5 uL grid, ~10 s with --coarse):
+Run from the repo root with `uv run` (~1 min per round on the 5 uL grid, ~10 s with --coarse):
     python examples/toy_additive_pipeline.py [--rounds 3] [--coarse] [--one-plate] [--dominant EtOH] [--outdir DIR]
 Every file of every round (suggestions, robot CSV, plate map, spectra, endpoint exports, wavelengths, per-well
 results, bo_dataset) is kept in --outdir (default examples/toy_additive_output/, tracked in git together with the
