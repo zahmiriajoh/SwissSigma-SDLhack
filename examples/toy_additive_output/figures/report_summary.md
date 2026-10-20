@@ -11,7 +11,8 @@
 | S3 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.902 | 0.997 | -0.661 | False |
 | S4 | 0.0167 2MeTHF + 0.983 DMC | 0.905 | 1 DMC | 0.903 | 1.003 | 0.240 | False |
 
-Figure: `report_R1_per_solute.png`
+
+![report_R1_per_solute](report_R1_per_solute.png)
 
 ## R2 the 'dissolves everything' objective
 
@@ -30,7 +31,8 @@ Figure: `report_R1_per_solute.png`
 | 9 | 0.217 EtOAc + 0.65 DMC + 0.133 MeCN | 0.739 | 0.002 | S3 | 3 | 3 |
 | 10 | 0.333 EtOAc + 0.667 DMC | 0.712 | 0.011 | S1 | 2 | 1 |
 
-Figure: `report_R2_objective.png`
+
+![report_R2_objective](report_R2_objective.png)
 
 ## R3 BO progress
 
@@ -46,7 +48,8 @@ Figure: `report_R2_objective.png`
 | 3 | explore | 8 | 0.334 | 0.435 |
 | 3 | retest | 3 | 0.890 | 0.891 |
 
-Figure: `report_R3_progress.png`
+
+![report_R3_progress](report_R3_progress.png)
 
 ## R4 composition landscape
 
@@ -58,9 +61,12 @@ Figure: `report_R3_progress.png`
 | 2MeTHF / EtOAc / iPrOAc | 13 |
 | EtOAc / DMC / MeCN | 13 |
 
-Figure: `report_R4_ternary.png`
-Figure: `report_R4_gp.png`
-Figure: `report_R4_binaries.png`
+
+![report_R4_ternary](report_R4_ternary.png)
+
+![report_R4_gp](report_R4_gp.png)
+
+![report_R4_binaries](report_R4_binaries.png)
 
 ## R5 synergy
 
@@ -73,7 +79,8 @@ Figure: `report_R4_binaries.png`
 | S3 | 57 | -0.004 | 0.004 | 0.0167 2MeTHF + 0.983 DMC |
 | S4 | 57 | -0.001 | 0.011 | 0.5 DMC + 0.5 iPrOAc |
 
-Figure: `report_R5_synergy.png`
+
+![report_R5_synergy](report_R5_synergy.png)
 
 ## R6 agreement between solutes
 
@@ -86,10 +93,12 @@ Figure: `report_R5_synergy.png`
 | S3 | 0.645 | 0.748 | 1.000 | 0.714 |
 | S4 | 0.616 | 0.642 | 0.714 | 1.000 |
 
-Figure: `report_R6_solutes.png`
+
+![report_R6_solutes](report_R6_solutes.png)
 
 ## R7 dataset
 
 - 69 condition rows over 3 round(s), 4 solutes.
 - Deliverable files in the run folder: `bo_dataset.csv`, `bo_dataset_shared.csv`, `plate_map_round1.csv`, `plate_map_round2.csv`, `plate_map_round3.csv`, `results_round1_wells.csv`, `results_round2_wells.csv`, `results_round3_wells.csv`; QC numbers in `qc_summary.md`.
-Figure: `report_R7_dataset.png`
+
+![report_R7_dataset](report_R7_dataset.png)

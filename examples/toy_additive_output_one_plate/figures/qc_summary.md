@@ -23,7 +23,8 @@
 | S3 | 1.205 | 0.013 |  |
 | S4 | 1.204 | 0.008 |  |
 
-Figure: `qc_Q2_controls.png`
+
+![qc_Q2_controls](qc_Q2_controls.png)
 
 ## Q3 blank wells and plate attack
 
@@ -38,7 +39,8 @@ Figure: `qc_Q2_controls.png`
 | S3 | 0.081 | 0.086 | 0.083 | 0.083 | 0.083 | 0.083 | 0.077 | 0.003 | 0.178 |
 | S4 | 0.068 | 0.068 | 0.064 | 0.069 | 0.065 | 0.065 | 0.065 | 0.005 | 0.095 |
 
-Figure: `qc_Q3_blank.png`
+
+![qc_Q3_blank](qc_Q3_blank.png)
 
 ## Q4 spectral QC
 
@@ -51,10 +53,14 @@ Figure: `qc_Q3_blank.png`
 | 1 | 0 |  | 0 | 1.000 | 0.001 |
 | 2 | 0 |  | 0 | 1.000 | 0.001 |
 
-Figure: `qc_Q4_peakshift_round1.png`
-Figure: `qc_Q4_scatter_round1.png`
-Figure: `qc_Q4_peakshift_round2.png`
-Figure: `qc_Q4_scatter_round2.png`
+
+![qc_Q4_peakshift_round1](qc_Q4_peakshift_round1.png)
+
+![qc_Q4_scatter_round1](qc_Q4_scatter_round1.png)
+
+![qc_Q4_peakshift_round2](qc_Q4_peakshift_round2.png)
+
+![qc_Q4_scatter_round2](qc_Q4_scatter_round2.png)
 
 ## Q5 precision against signal
 
@@ -80,7 +86,8 @@ Figure: `qc_Q4_scatter_round2.png`
 | S3 | 3 | 0.010 |  |  |
 | S4 | 3 | 0.014 |  |  |
 
-Figure: `qc_Q6_retests.png`
+
+![qc_Q6_retests](qc_Q6_retests.png)
 
 ## Q7 calibration
 

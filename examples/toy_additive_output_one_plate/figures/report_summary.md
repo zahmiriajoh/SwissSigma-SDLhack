@@ -11,7 +11,8 @@
 | S3 | 0.0167 EtOAc + 0.983 DMC | 0.915 | 1 DMC | 0.901 | 1.015 | 1.844 | False |
 | S4 | 0.0167 2MeTHF + 0.983 DMC | 0.899 | 1 DMC | 0.899 | 1.000 | 0.019 | False |
 
-Figure: `report_R1_per_solute.png`
+
+![report_R1_per_solute](report_R1_per_solute.png)
 
 ## R2 the 'dissolves everything' objective
 
@@ -30,7 +31,8 @@ Figure: `report_R1_per_solute.png`
 | 9 | 0.0167 EtOAc + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.000 | S1 | 3 | 2 |
 | 10 | 0.0167 2MeTHF + 0.967 DMC + 0.0167 iPrOAc | 0.879 | 0.000 | S2 | 3 | 2 |
 
-Figure: `report_R2_objective.png`
+
+![report_R2_objective](report_R2_objective.png)
 
 ## R3 BO progress
 
@@ -43,7 +45,8 @@ Figure: `report_R2_objective.png`
 | 2 | explore | 8 | 0.410 | 0.561 |
 | 2 | retest | 3 | 0.752 | 0.896 |
 
-Figure: `report_R3_progress.png`
+
+![report_R3_progress](report_R3_progress.png)
 
 ## R4 composition landscape
 
@@ -55,9 +58,12 @@ Figure: `report_R3_progress.png`
 | 2MeTHF / DMC / MeCN | 13 |
 | 2MeTHF / DMC / CPME | 12 |
 
-Figure: `report_R4_ternary.png`
-Figure: `report_R4_gp.png`
-Figure: `report_R4_binaries.png`
+
+![report_R4_ternary](report_R4_ternary.png)
+
+![report_R4_gp](report_R4_gp.png)
+
+![report_R4_binaries](report_R4_binaries.png)
 
 ## R5 synergy
 
@@ -70,7 +76,8 @@ Figure: `report_R4_binaries.png`
 | S3 | 37 | 0.002 | 0.019 | 0.0167 EtOAc + 0.983 DMC |
 | S4 | 37 | 0.003 | 0.019 | 0.15 2MeTHF + 0.1 MeCN + 0.75 iPrOAc |
 
-Figure: `report_R5_synergy.png`
+
+![report_R5_synergy](report_R5_synergy.png)
 
 ## R6 agreement between solutes
 
@@ -83,10 +90,12 @@ Figure: `report_R5_synergy.png`
 | S3 | 0.685 | 0.818 | 1.000 | 0.797 |
 | S4 | 0.658 | 0.698 | 0.797 | 1.000 |
 
-Figure: `report_R6_solutes.png`
+
+![report_R6_solutes](report_R6_solutes.png)
 
 ## R7 dataset
 
 - 46 condition rows over 2 round(s), 4 solutes.
 - Deliverable files in the run folder: `bo_dataset.csv`, `bo_dataset_shared.csv`, `plate_map_round1.csv`, `plate_map_round2.csv`, `results_round1_wells.csv`, `results_round2_wells.csv`; QC numbers in `qc_summary.md`.
-Figure: `report_R7_dataset.png`
+
+![report_R7_dataset](report_R7_dataset.png)

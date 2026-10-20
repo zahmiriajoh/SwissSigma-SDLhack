@@ -20,9 +20,12 @@
 | 3 | S3 | 3 | 0.005 |  |
 | 3 | S4 | 3 | 0.006 |  |
 
-Figure: `qc_Q1_plates_round1.png`
-Figure: `qc_Q1_plates_round2.png`
-Figure: `qc_Q1_plates_round3.png`
+
+![qc_Q1_plates_round1](qc_Q1_plates_round1.png)
+
+![qc_Q1_plates_round2](qc_Q1_plates_round2.png)
+
+![qc_Q1_plates_round3](qc_Q1_plates_round3.png)
 
 ## Q2 control stability
 
@@ -36,7 +39,8 @@ Figure: `qc_Q1_plates_round3.png`
 | S3 | 1.192 | 0.006 | 0.002 |
 | S4 | 1.197 | 0.006 | 0.002 |
 
-Figure: `qc_Q2_controls.png`
+
+![qc_Q2_controls](qc_Q2_controls.png)
 
 ## Q3 blank wells and plate attack
 
@@ -51,7 +55,8 @@ Figure: `qc_Q2_controls.png`
 | S3 | 0.083 | 0.083 | 0.085 | 0.082 | 0.082 | 0.083 | 0.082 | 0.003 | 0.050 |
 | S4 | 0.071 | 0.066 | 0.067 | 0.068 | 0.072 | 0.070 | 0.067 | 0.004 | 0.076 |
 
-Figure: `qc_Q3_blank.png`
+
+![qc_Q3_blank](qc_Q3_blank.png)
 
 ## Q4 spectral QC
 
@@ -65,12 +70,18 @@ Figure: `qc_Q3_blank.png`
 | 2 | 0 |  | 0 | 1.000 | 0.001 |
 | 3 | 0 |  | 0 | 1.000 | 0.001 |
 
-Figure: `qc_Q4_peakshift_round1.png`
-Figure: `qc_Q4_scatter_round1.png`
-Figure: `qc_Q4_peakshift_round2.png`
-Figure: `qc_Q4_scatter_round2.png`
-Figure: `qc_Q4_peakshift_round3.png`
-Figure: `qc_Q4_scatter_round3.png`
+
+![qc_Q4_peakshift_round1](qc_Q4_peakshift_round1.png)
+
+![qc_Q4_scatter_round1](qc_Q4_scatter_round1.png)
+
+![qc_Q4_peakshift_round2](qc_Q4_peakshift_round2.png)
+
+![qc_Q4_scatter_round2](qc_Q4_scatter_round2.png)
+
+![qc_Q4_peakshift_round3](qc_Q4_peakshift_round3.png)
+
+![qc_Q4_scatter_round3](qc_Q4_scatter_round3.png)
 
 ## Q5 precision against signal
 
@@ -84,7 +95,8 @@ Figure: `qc_Q4_scatter_round3.png`
 | S3 | 0.010 | 0.000 | 0.116 |
 | S4 | 0.011 | 0.000 | -0.642 |
 
-Figure: `qc_Q5_precision.png`
+
+![qc_Q5_precision](qc_Q5_precision.png)
 
 ## Q6 cross-round re-tests
 
@@ -98,7 +110,8 @@ Figure: `qc_Q5_precision.png`
 | S3 | 6 | 0.004 | 0.005 | 0.833 |
 | S4 | 6 | 0.006 | 0.005 | 0.500 |
 
-Figure: `qc_Q6_retests.png`
+
+![qc_Q6_retests](qc_Q6_retests.png)
 
 ## Q7 calibration
 

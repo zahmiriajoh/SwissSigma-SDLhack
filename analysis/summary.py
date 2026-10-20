@@ -25,7 +25,7 @@ class Summary:
         self.parts += [f"- {n}" for n in notes]
         if table is not None and len(table):
             self.parts.append("\n" + md_table(table) + "\n")
-        self.parts += [f"Figure: `{f.name}`" for f in figures]
+        self.parts += [f"\n![{f.stem}]({f.name})" for f in figures]  # relative: the summary sits next to its figures
         self.parts.append("")
 
     def write(self, path):
