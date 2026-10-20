@@ -83,7 +83,7 @@ print(make_report("bo_dataset.csv"))
 | `space.py` | Solvents, 5 µL grid (35,111 allowed mixtures), trough budget. Constants mirror `bo_bridge.py`. |
 | `dataset.py` | Reads and validates `bo_dataset.csv`; per-mixture scores. |
 | `model.py` | One Gaussian process per solute (kernel by cross-validation); exploit (batch expected improvement) and explore picks under a solvent `Budget`. |
-| `campaign.py` | Round-1 design and `suggest_next_round`. |
+| `campaign.py` | Round-1 design, `fit_per_solute` (GP per solute for plots), `suggest_next_round`. |
 | `report.py` | Text report and Pareto front. |
 | `cli.py`, `__main__.py` | Command line. |
 

@@ -59,7 +59,7 @@ def seed_design(n_conditions=N_CONDITIONS, round_number=1, n_solutes=space.N_SOL
     return suggestion_rows(designs, _ids(round_number, "seed", len(designs)))
 
 
-def _fit_per_solute(dataset: pd.DataFrame, seed: int) -> dict:
+def fit_per_solute(dataset: pd.DataFrame, seed: int) -> dict:
     """{solute: FittedModel}, each trained on that solute's rows (fractions -> rel_mean); repeats share a CV group."""
     fitted = {}
     for solute, rows in dataset.groupby("solute"):
@@ -93,7 +93,7 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
     mixtures = score_mixtures(dataset)
     if mixtures["score"].isna().all():
         raise ValueError("no mixture has been measured on every solute, so there is no score to improve on")
-    fitted = _fit_per_solute(dataset, seed)
+    fitted = fit_per_solute(dataset, seed)
     gps = [fitted[s].gp for s in solutes(dataset)]
     rng = np.random.default_rng(seed + round_number)
 
