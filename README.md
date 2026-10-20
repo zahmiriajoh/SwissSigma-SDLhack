@@ -43,6 +43,24 @@ python -m analysis qc / report              ──► figures + qc_summary.md / 
 
 Keep every round of a campaign in one folder: `analysis qc` and `report` find the rounds from the `plate_map_roundN.csv` files there.
 
+## Worked examples
+
+Two complete campaigns produced by `examples/toy_additive_pipeline.py` (real SDL_BO, fake additive chemistry in which
+DMC is the best solvent for every solute) are tracked in the repo, with every intermediate file and the analysis outputs:
+
+| Folder | Rounds × plates | Look at |
+|---|---|---|
+| `examples/toy_additive_output/` | 3 × 3 | `figures/qc_summary.md` (Q1–Q7 with figures), `figures/report_summary.md` (R1–R7 with figures) |
+| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates |
+
+Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
+`reader_roundN_plate{P}.csv` (+ blank) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
+`results_roundN_wells.csv`, plus the cumulative `bo_dataset.csv`, `bo_dataset_shared.csv` and `report.txt`. The expected
+result is that BO homes in on pure DMC and the report finds no mixture beating it. These runs predate the QC plate, so
+their Q7 calibration section is empty; `python analysis/examples/make_toy_run.py --outdir runs/toy` builds a fake campaign
+with QC plates and plate logs in seconds (random suggestions, no SDL_BO), and `python -m analysis qc / report --run runs/toy`
+analyses it.
+
 ## Experiment definition (from `bo_bridge.py`)
 
 - **Solvents:** 2MeTHF, EtOAc, DMC, CPME, MeCN, iPrOAc as mixture components; DMF only as the pure reference control.
