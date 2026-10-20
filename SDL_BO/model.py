@@ -1,8 +1,9 @@
 """A Gaussian process (GP) per solute, and the two ways we pick new mixtures from them.
 
 * One GP per solute predicts its ratio to DMF from the six green-solvent fractions; the kernel is chosen by cross-validation.
-* A mixture's score is its worst solute. "Exploit" picks use batch expected improvement (qEI) to beat the best score so far;
-  "explore" picks take the mixtures the models are least sure about.
+* A mixture's score is its worst solute. "Exploit" picks use batch expected improvement (qEI) to beat the best score so far
+  (falling back to the best predicted score once nothing is expected to beat it); "explore" picks take the mixtures the
+  models are least sure about.
 
 Notation: fractions (n_rows, 6) model input; targets (n_rows,) rel_mean = absorbance / DMF absorbance;
 candidates (n_candidates, 6) the mixtures we choose among.
@@ -17,7 +18,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Matern, WhiteKernel
 from sklearn.model_selection import GroupKFold
 
-MIN_USEFUL_GAIN = 1e-10  # an exploit pick must add at least this much expected improvement, or it is random
+MIN_USEFUL_GAIN = 1e-10  # below this expected improvement, exploit picks fall back to the best predicted score
 MIN_EXPLORE_UNCERTAINTY = 1e-4  # posterior / prior variance averaged over solutes (0 = known, 1 = no information)
 MIN_VARIANCE = 1e-12  # floor so rounding error never gives a negative variance
 JITTER = 1e-8  # added to the picks' covariance diagonal for a stable Cholesky
@@ -190,7 +191,8 @@ def _sampled_scores(posteriors, picks, standard_normals):
 
 def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=None, cost=None, budget=None,
                        min_improvement=MIN_IMPROVEMENT, n_samples=N_SAMPLES) -> list:
-    """Greedy qEI: indices into `candidates` that add most expected improvement over `incumbent_score` (random if none do).
+    """Greedy qEI: indices into `candidates` that add most expected improvement over `incumbent_score`; when no candidate
+    is expected to improve, the highest predicted score (worst-solute posterior mean) is taken instead.
 
     `cost` (n_candidates, n_solvents) and `budget` (a Budget) limit the batch's solvent use; picking stops early if
     nothing affordable is left.
@@ -199,6 +201,7 @@ def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=Non
     if budget is None:
         budget, cost = _no_budget(len(candidates), cost)
     posteriors = [LatentPosterior(gp, candidates) for gp in solute_gps]
+    predicted_score = np.min([p.mean for p in posteriors], axis=0)  # fallback ranking: the models' best guess
 
     # standard_normals[k] is the fresh randomness of pick k: every candidate is evaluated as "the next pick" with it
     standard_normals = rng.standard_normal((n_picks, n_samples, len(solute_gps)))
@@ -219,8 +222,8 @@ def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=Non
         gain = np.where(still_available, new_batch_value - batch_improvement.mean(), -np.inf)
 
         best_candidate = int(np.argmax(gain))
-        if gain[best_candidate] <= MIN_USEFUL_GAIN:
-            best_candidate = int(rng.choice(np.flatnonzero(still_available)))
+        if gain[best_candidate] <= MIN_USEFUL_GAIN:  # nothing is expected to beat the incumbent: take the best predicted
+            best_candidate = int(np.argmax(np.where(still_available, predicted_score, -np.inf)))
         picks.append(best_candidate)
         still_available[best_candidate] = False
         budget.spend(cost[best_candidate])

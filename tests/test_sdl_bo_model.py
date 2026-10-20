@@ -66,3 +66,14 @@ def test_fallback_kernel_with_few_mixtures():
     fitted = model.fit_best_gp(fractions, np.arange(6) / 6, [str(i) for i in range(6)])
     assert isinstance(fitted.gp, GaussianProcessRegressor)
     assert fitted.kernel_name == model.FALLBACK_KERNEL and fitted.cv_rmse_by_kernel == {}
+
+
+def test_exploit_falls_back_to_best_predicted_when_nothing_can_improve():
+    """Incumbent already at the optimum of a confidently known linear target: picks are the highest predicted, not random."""
+    ul = space.enumerate_mixtures(step_ul=50)
+    fractions = space.to_fractions(ul)
+    fitted = model.fit_best_gp(fractions, fractions[:, 0], [str(i) for i in range(len(ul))])  # noise-free, all points
+    candidates_ul = space.enumerate_mixtures(step_ul=25)
+    candidates = space.to_fractions(candidates_ul)
+    picks = model.pick_exploit_batch([fitted.gp], candidates, 6, incumbent_score=1.0)
+    assert candidates[picks, 0].min() >= 0.75  # all picks in the solvent-0-rich corner
