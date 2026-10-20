@@ -2,7 +2,8 @@
 
 Layout (96 wells, row order):
     calibration   every solvent x every solute x LOADINGS       (7 x 4 x 2 = 56 wells by default)
-    blank         every pure solvent, every equal binary of the green solvents, then equal ternaries until full
+    blank         every pure solvent, every allowed equal binary of the green solvents, then allowed equal ternaries
+                  (forbidden pairs from production/config.toml are skipped, so some wells may stay empty)
 
 Calibration wells get a known fraction of the nominal solid mass (`loading`: 1.0 = the mass used in the sample
 plates) and 300 uL of one pure solvent, so absorbance against loading gives the response per unit mass and shows
@@ -13,7 +14,7 @@ from itertools import combinations
 
 import pandas as pd
 
-from production.config import REFERENCE_SOLVENT
+from production.config import REFERENCE_SOLVENT, is_allowed
 
 from .spectra import WELLS
 
@@ -21,7 +22,8 @@ LOADINGS = (0.5, 1.0)  # fractions of the nominal solid mass in the calibration 
 
 
 def _mix_rows(solvents, n):
-    return [{s: 1 / n for s in combo} for combo in combinations(solvents, n)]
+    """Equal-part mixtures of n solvents, skipping forbidden (immiscible) pairs."""
+    return [{s: 1 / n for s in combo} for combo in combinations(solvents, n) if is_allowed(combo)]
 
 
 def qc_plate_map(plate_map, loadings=LOADINGS) -> pd.DataFrame:

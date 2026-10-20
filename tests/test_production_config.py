@@ -32,3 +32,9 @@ def test_loader_rejects_inconsistent_files(tmp_path):
     bad.write_text(text.replace('name = "iPrOH"', 'name = "i-PrOH"'))
     with pytest.raises(ValueError, match="hyphens"):
         config.load(bad)
+
+
+def test_forbidden_pairs():
+    assert config.FORBIDDEN_PAIRS == [frozenset({"water", "iPrOAc"}), frozenset({"water", "tBuOAc"})]
+    assert config.is_allowed(["water", "EtOH"]) and config.is_allowed(["iPrOAc", "tBuOAc", "acetone"])
+    assert not config.is_allowed(["water", "iPrOAc"]) and not config.is_allowed(["EtOH", "tBuOAc", "water"])

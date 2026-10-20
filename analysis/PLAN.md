@@ -96,3 +96,6 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     real export must be run through `analysis reduce` before the first round**; if the instrument writes another shape
     (one block per wavelength, extra header rows, a different wavelength column name) the parser needs a small
     addition. The accepted formats are documented in `README.md` ("File formats").
+14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
+    `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check,
+    the QC plate's mixture blanks (89 wells used) and the toy generator. See `production/README.md`.

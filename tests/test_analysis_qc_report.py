@@ -13,6 +13,7 @@ from analysis.report import run_report, synergy_table
 from analysis.run import Run, condition_kind
 from analysis.spectra import read_plate_map, read_spectra, synthetic_blank
 from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
+from production.config import is_allowed as config_is_allowed
 
 sys.path.insert(0, str(DEBUG_DIR))
 from make_toy_run import BAND_HEIGHTS  # noqa: E402
@@ -40,6 +41,8 @@ def test_qc_layout_fills_the_plate_with_calibration_and_blanks():
     assert len(qc) == 96 and qc["role"].value_counts().to_dict() == {"calibration": 56, "blank": 40}
     vol = qc[[c for c in qc.columns if c.startswith("vol_")]].sum(axis=1)
     assert (vol == 300).all()  # every well gets the full volume
+    cols = [c for c in qc.columns if c.startswith("frac_")]
+    assert all(config_is_allowed([c[len("frac_"):] for c in cols if row[c] > 0]) for _, row in qc.iterrows())
     pure_blanks = qc[(qc["role"] == "blank") & (qc["solvent"] != "")]
     assert sorted(pure_blanks["solvent"]) == sorted(["DMF", "acetone", "EtOH", "iPrOH", "water", "iPrOAc", "tBuOAc"])
     robot = robot_csv(qc)
@@ -70,6 +73,12 @@ def test_qc_summary_recovers_the_fake_data(toy_run, tmp_path):
     # the plate log gives the read-delay panel its data
     plates = {str(p) for p in range(p0, p0 + 3)} | {"qc"}
     assert toy_run.plate_log() is not None and set(toy_run.plate_log()["plate"].astype(str)) >= plates
+
+
+def test_toy_run_has_no_forbidden_pairs(toy_run):
+    s = toy_run.samples()
+    cols = [f"frac_{x}" for x in toy_run.green_solvents]
+    assert all(config_is_allowed([c[len("frac_"):] for c in cols if row[c] > 0]) for _, row in s.iterrows())
 
 
 def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):

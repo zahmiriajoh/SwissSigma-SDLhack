@@ -25,7 +25,7 @@ import fake_plate_reader as fpr  # noqa: E402
 
 from analysis.qc_layout import write_qc_layout  # noqa: E402
 from analysis.spectra import read_plate_map  # noqa: E402
-from production.config import FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, PLATE_ATTACKERS, SOLUTES  # noqa: E402
+from production.config import FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, PLATE_ATTACKERS, SOLUTES, is_allowed  # noqa: E402
 
 BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 N_PLATES = 3
@@ -45,8 +45,10 @@ def run(*args):
 
 
 def random_mixture(rng, n_solvents):
-    """A 5 uL-grid mixture of n green solvents, as fractions."""
+    """A 5 uL-grid mixture of n green solvents (no forbidden pair), as fractions."""
     solvents = rng.choice(fpr.GREEN_SOLVENTS, size=n_solvents, replace=False)
+    while not is_allowed(solvents):
+        solvents = rng.choice(fpr.GREEN_SOLVENTS, size=n_solvents, replace=False)
     units = rng.multinomial(60 - n_solvents, np.ones(n_solvents) / n_solvents) + 1  # 60 x 5 uL, each >= 5 uL
     return dict(zip(solvents, units / 60))
 
@@ -62,9 +64,10 @@ def suggestions(round_, outdir, rng) -> Path:
     frac_cols = [f"frac_{s}" for s in fpr.GREEN_SOLVENTS]
     rows = [[row["condition_id"], *row[frac_cols].to_numpy(dtype=float)] for _, row in best.head(N_RETEST).iterrows()]
 
-    def add_if_affordable(row):  # keep every solvent within what its trough can feed over the round
+    def add_if_affordable(row):  # keep every solvent within what its trough can feed over the round; no forbidden pairs
         used = np.sum([r[1:] for r in rows + [row]], axis=0)
-        if (used <= SOLVENT_BUDGET).all():
+        present = [s for s, f in zip(fpr.GREEN_SOLVENTS, row[1:]) if f > 0]
+        if (used <= SOLVENT_BUDGET).all() and is_allowed(present):
             rows.append(row)
 
     i = 0

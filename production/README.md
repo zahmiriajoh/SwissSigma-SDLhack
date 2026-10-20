@@ -27,19 +27,35 @@ and the test suite checks that it does.
 `attacks_polystyrene` marks the solvents expected to craze the polystyrene readout plate (acetone and the esters);
 `analysis qc` uses it for the plate-attack check.
 
+## Forbidden solvent pairs
+
+Water is immiscible with i-PrOAc and with t-BuOAc, so a well containing either pair would phase-separate and its
+absorbance would mean nothing. The user therefore forbade these two pairs (2026-10-20); they are listed under
+`[[forbidden_pairs]]` and exposed as `FORBIDDEN_PAIRS` and `is_allowed(solvent_names)`. A mixture is forbidden
+when it contains **both** solvents of a pair at any fraction; ternaries such as water + EtOH + i-PrOAc are
+forbidden too, water + EtOH + acetone is fine. This is enforced in four places:
+
+| Where | Effect |
+|---|---|
+| `SDL_BO/space.py` | the search space never contains a forbidden mixture, so the BO cannot propose one |
+| `OT protocols/bo_bridge.py` | the round-0 seed grid skips them, and `layout` refuses any suggestions file that contains one |
+| `analysis/qc_layout.py` | the QC plate's mixture blanks skip them (89 of 96 wells are then used) |
+| `analysis/examples/make_toy_run.py` | random toy suggestions skip them |
+
+To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester again, delete the entries.
+
 ## Interpretation notes for the user to confirm
 
-- "Each well: 300 µL of DMF" was read as **300 µL total liquid per well**, with the reference control being 300 µL of
-  pure DMF. If instead every well should contain DMF, the mixture model changes and this file is wrong.
-- Zero-based numbering was applied to rounds, plates and condition counters (`round0`, `plate0`, `R0_seed00`), not to
-  well names.
+- "Each well: 300 µL of DMF" means **300 µL total liquid per well**, with the reference control being 300 µL of
+  pure DMF (confirmed by the user).
+- Zero-based numbering applies to rounds, plates, replicates and condition counters (`round0`, `plate0`, `R0_seed00`),
+  not to well names; each solute block starts with its DMF control as item 0, so A1 is the control of solute 0 and A2 is
+  condition 0 (confirmed by the user).
 - **UV readout concern.** DMF is opaque below about 270 nm and acetone below about 330 nm, while glutarimide,
   succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only phthalimide (about 295 nm) has a
   comfortable band. A UV absorbance readout of the other three solutes, especially in acetone-containing mixtures, may
   not be measurable. Please check the solutes' spectra and the solvent cut-offs before the first run.
-- **Immiscible pairs.** Water is immiscible with i-PrOAc and t-BuOAc, so the seed grid and the BO will propose
-  water/ester mixtures that phase-separate unless those pairs are forbidden. Nothing in the pipeline forbids them yet;
-  say whether they should be excluded (raised by sdl_merge as well).
+- ~~Immiscible pairs~~: decided, see "Forbidden solvent pairs" above.
 
 ## Who reads it
 

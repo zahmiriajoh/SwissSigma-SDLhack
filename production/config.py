@@ -35,6 +35,9 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError("reference solvent is not in the solvent list")
     if cfg["well"]["total_ul"] % cfg["well"]["min_ul"]:
         raise ValueError("total_ul must be a multiple of min_ul")
+    for pair in cfg.get("forbidden_pairs", []):
+        if len(pair["solvents"]) != 2 or not set(pair["solvents"]) <= set(solvents):
+            raise ValueError(f"forbidden pair must name two known solvents: {pair}")
     return cfg
 
 
@@ -59,6 +62,16 @@ GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]
 SOLVENT_LABELS = {s["name"]: s["label"] for s in _cfg["solvents"]}
 SOLVENT_TROUGHS = {s["name"]: [s["trough"]] for s in _cfg["solvents"]}   # bo_bridge / protocol format (list per solvent)
 PLATE_ATTACKERS = [s["name"] for s in _cfg["solvents"] if s["attacks_polystyrene"]]
+
+# Pairs of solvents that may not share a well (immiscible). See is_allowed().
+FORBIDDEN_PAIRS = [frozenset(p["solvents"]) for p in _cfg.get("forbidden_pairs", [])]
+
+
+def is_allowed(solvent_names) -> bool:
+    """False if the mixture made of `solvent_names` (any iterable of names with non-zero volume) contains a forbidden pair."""
+    present = set(solvent_names)
+    return not any(pair <= present for pair in FORBIDDEN_PAIRS)
+
 
 SOLUTES = [s["name"] for s in _cfg["solutes"]]
 SOLUTE_WAVELENGTH_NM = {s["name"]: s.get("wavelength_nm") for s in _cfg["solutes"]}  # None = unknown, pick from data

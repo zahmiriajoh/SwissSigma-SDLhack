@@ -82,3 +82,12 @@ name = "tBuOAc"
 label = "t-BuOAc"
 trough = "G1"
 attacks_polystyrene = true
+
+# Solvent pairs that must never share a well: water is immiscible with the two esters, so such mixtures would
+# phase-separate (user decision, 2026-10-20). SDL_BO never proposes them, bo_bridge refuses them, and the QC plate
+# and toy generators skip them. A mixture is forbidden if it contains BOTH solvents of any pair, at any fraction.
+[[forbidden_pairs]]
+solvents = ["water", "iPrOAc"]
+
+[[forbidden_pairs]]
+solvents = ["water", "tBuOAc"]
