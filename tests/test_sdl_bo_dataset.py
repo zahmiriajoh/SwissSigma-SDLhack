@@ -73,3 +73,19 @@ def test_missing_column_and_missing_rel_mean(tmp_path):
     with pytest.raises(dataset.DatasetError, match="no condition has a rel_mean"):
         with pytest.warns(UserWarning, match="dropping"):
             dataset.load_dataset(write(tmp_path, rows))
+
+
+def test_unmeasurable_solutes_leave_the_score(tmp_path):
+    """A solute flagged measurable == False in any round's wavelengths file (from analysis reduce) is not scored."""
+    path = write(tmp_path, pd.concat([make_rows(), make_rows(round_=space.FIRST_ROUND + 1, rel_mean=0.7)]))
+    flagged = SOLUTE_B
+    report = pd.DataFrame({"wavelength_nm": [275, 275], "measurable": [True, False]}, index=pd.Index([SOLUTE_A, flagged], name="solute"))
+    report.to_csv(tmp_path / f"wavelengths_round{space.FIRST_ROUND + 1}.csv")
+    pd.DataFrame({"wavelength_nm": [275, 275]}, index=report.index).to_csv(tmp_path / f"wavelengths_round{space.FIRST_ROUND}.csv")  # old format, no flag
+    assert dataset.unmeasurable_solutes(path) == [flagged]
+    df = dataset.load_dataset(path)
+    df.loc[df.solute == flagged, "rel_mean"] = 0.01  # noise that must not drive the score
+    scored = dataset.score_mixtures(df, exclude=[flagged])
+    assert scored["score"].item() == pytest.approx(0.6)  # mean of the measurable solute's 0.5 and 0.7
+    with pytest.raises(dataset.DatasetError, match="every solute is excluded"):
+        dataset.score_mixtures(df, exclude=[SOLUTE_A, flagged])

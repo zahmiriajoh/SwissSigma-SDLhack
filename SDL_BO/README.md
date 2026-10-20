@@ -57,6 +57,7 @@ warning. Malformed files (fractions not summing to 1, DMF in a mixture, non-inte
 
 - **ratio_\<solute\>** = `rel_mean`, averaged over every condition row with the same composition (re-tests across rounds).
 - **score** of a mixture = its worst solute's ratio. 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
+- Solutes flagged `measurable = False` in any `wavelengths_roundN.csv` next to the dataset (written by `analysis reduce` when a solute's DMF control is within the noise) stay in the data but are left out of the score, as in `analysis report`; `suggest` and `report` say which.
 
 ## Use from Python
 
