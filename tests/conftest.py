@@ -9,7 +9,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 OT_EXAMPLES = REPO / "OT protocols" / "examples"
-DEBUG_DIR = REPO / "data" / "debug_analysis"
+DEBUG_DIR = REPO / "analysis" / "examples"
 SDL_BO_EXAMPLES = REPO / "SDL_BO" / "examples"
 for path in (REPO, DEBUG_DIR, SDL_BO_EXAMPLES):
     sys.path.insert(0, str(path))

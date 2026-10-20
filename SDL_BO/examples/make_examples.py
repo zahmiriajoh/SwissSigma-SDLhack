@@ -16,7 +16,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 sys.path.insert(0, str(REPO))
-sys.path.insert(0, str(REPO / "data" / "debug_analysis"))
+sys.path.insert(0, str(REPO / "analysis" / "examples"))
 from fake_plate_reader import endpoint_export, read_plate_map  # noqa: E402
 
 from SDL_BO.campaign import seed_design, suggest_next_round  # noqa: E402

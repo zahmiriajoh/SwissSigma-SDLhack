@@ -22,7 +22,7 @@ pytest tests/                         # unit + interface tests, ~15 s
 | `analysis/` | Plate-reader spectra → one absorbance per well per plate (`python -m analysis reduce`), in the format `bo_bridge.py merge` takes. |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
-| `data/debug_analysis/` | Fake plate reader and synthetic full-spectrum exports (3 plates + blank) for the round-1 example plate map. |
+| `analysis/examples/` | Fake plate reader and synthetic full-spectrum exports (3 plates + blank) for the round-1 example plate map. |
 | `data/Opentrons_Example_Files/` | Reference protocols and labware provided by the organisers (read-only). |
 | `data/project_proposal/` | Project proposal (read-only). |
 
