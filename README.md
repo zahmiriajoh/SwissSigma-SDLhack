@@ -10,7 +10,8 @@ optimisation (BO) picks the next round of mixtures. Each subfolder has its own R
 ```bash
 mamba env create -f environment.yml   # Python 3.12, opentrons 8.8.2, numpy, pandas, scipy, scikit-learn, matplotlib, pytest
 mamba activate sdlhack
-pytest tests/                         # unit + interface tests, ~15 s
+pytest tests/                         # unit + interface tests, ~30 s
+python examples/toy_additive_pipeline.py   # whole loop on fake additive chemistry, ~1 min/round; outputs kept in examples/toy_additive_output/
 ```
 
 ## Folders
@@ -22,6 +23,7 @@ pytest tests/                         # unit + interface tests, ~15 s
 | `analysis/` | Plate-reader spectra → one absorbance per well per plate (`python -m analysis reduce`), in the format `bo_bridge.py merge` takes. |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
+| `examples/` | `toy_additive_pipeline.py`: runs the whole loop with fake additive solubility and checks BO homes in on the best pure solvent. Its outputs (every CSV of every round) are kept in `examples/toy_additive_output/` as debugging material. |
 | `analysis/examples/` | Fake plate reader and synthetic full-spectrum exports (3 plates + blank) for the round-1 example plate map. |
 | `data/Opentrons_Example_Files/` | Reference protocols and labware provided by the organisers (read-only). |
 | `data/project_proposal/` | Project proposal (read-only). |
