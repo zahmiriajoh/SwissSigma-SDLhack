@@ -12,6 +12,7 @@ Files may sit in the folder itself or in its `ratios/` (robot inputs, plate maps
 logs) subfolders, the production layout (production/README.md); the first match wins.
 """
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -55,7 +56,8 @@ def mixture_key(row, cols) -> str:
 class Run:
     """Lazy reader for a campaign folder."""
 
-    def __init__(self, folder):
+    def __init__(self, folder, solutes=None):
+        """`solutes` restricts the run to those solutes' wells and rows: one arm's view, so every objective is that arm's."""
         self.folder = Path(folder)
         self.dirs = [d for d in (self.folder, self.folder / "ratios", self.folder / "uvvis") if d.is_dir()]
         laid_out = sorted({int(m.group(1)) for d in self.dirs for p in d.glob("plate_map_round*.csv")
@@ -74,12 +76,18 @@ class Run:
         if dataset is None:
             raise SpectraError(f"bo_dataset.csv missing in {self.folder}: run bo_bridge.py merge first")
         self.dataset = self._with_kind(pd.read_csv(dataset))
+        if solutes is not None:
+            self.wells = self.wells[self.wells["solute"].isin(solutes)].reset_index(drop=True)
+            self.dataset = self.dataset[self.dataset["solute"].isin(solutes)].reset_index(drop=True)
         shared = self._optional("bo_dataset_shared.csv")
         self.shared = self._with_kind(pd.read_csv(shared)) if shared else None
         self.solutes = list(dict.fromkeys(self.dataset["solute"]))
         self.solvents = solvent_names(self.dataset)
         self.green_solvents = [s for s in self.solvents if s != REFERENCE_SOLVENT]
-        self.unmeasurable = self._unmeasurable_solutes()  # declared by `analysis reduce` (wavelengths_roundN.csv, column measurable)
+        self.unmeasurable = [s for s in self._unmeasurable_solutes() if s in self.solutes]  # `analysis reduce` (column measurable)
+        if self.unmeasurable == sorted(self.solutes):
+            warnings.warn(f"every solute ({', '.join(self.solutes)}) is flagged not measurable; scoring them anyway")
+            self.unmeasurable = []
         self.measurable_solutes = [s for s in self.solutes if s not in self.unmeasurable]
 
     # ----- per-round optional files -----------------------------------------------------------

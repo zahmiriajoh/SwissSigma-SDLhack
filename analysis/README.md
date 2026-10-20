@@ -78,6 +78,7 @@ subtracted, and the solvent's own absorbance stays in every well. If a solvent-o
 | `--run` | required | the campaign folder |
 | `--outdir` | `<run>/figures` | figures and summary |
 | `qc --abs-max` | 2.5 | reader linear range: raw absorbance above it is flagged as saturated |
+| `report --arms` | off | one report per arm of `production/config.toml` in `<outdir>/<arm>/`: each arm's objective (phthalimide alone; the minimum of the other three) replaces the all-solute one, because after round 0 the arms share no conditions |
 | `report --no-gp` | off | skip the SDL_BO Gaussian-process landscape (needs `SDL_BO` and a few seconds per solute) |
 | `report --seed` | 0 | seed for the GP fits |
 
@@ -100,6 +101,7 @@ from analysis.run import Run
 from analysis.qc import run_qc
 from analysis.report import run_report
 run = Run("runs/r1")                 # plate maps, per-well results, datasets, spectra, plate log
+arm = Run("runs/r1", ["Phthalimide"])   # one arm's view: only those solutes, so every objective is theirs
 run_qc(run, Path("runs/r1/figures"))
 run_report(run, Path("runs/r1/figures"), with_gp=True)
 run.pooled()                         # one row per solute x mixture, pooled over rounds

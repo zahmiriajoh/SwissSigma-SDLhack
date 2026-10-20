@@ -61,7 +61,7 @@ It never overwrites a finished round, so it is safe to re-run. `--seed N` change
 
 Everything the analysis derives (`endpoint_roundN_*.csv`, `wavelengths_roundN.csv`, `results_roundN_wells.csv`,
 `bo_dataset.csv`, `bo_dataset_shared.csv`, `figures/`) lands in `csvs/` itself; `analysis qc` and `report` read the
-whole `csvs/` tree. **After round 0**, read `csvs/wavelengths_round0.csv`: its `measurable` column says which solutes
+whole `csvs/` tree (`report` runs once per arm, into `figures/phthalimide/` and `figures/others/`). **After round 0**, read `csvs/wavelengths_round0.csv`: its `measurable` column says which solutes
 the UV readout can follow (see "Interpretation notes").
 
 ## What is in `config.toml` (as of 2026-10-20)

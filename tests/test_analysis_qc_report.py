@@ -80,6 +80,35 @@ def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     assert BAND_HEIGHTS[SOLUTES[1]] > 2.5 and BAND_HEIGHTS[SOLUTES[3]] < 0.1  # the toy really does span the reader's range
 
 
+def test_run_restricted_to_an_arm_has_that_arms_objective(toy_run):
+    arm = [SOLUTES[2]]
+    one = Run(toy_run.folder, arm).pooled_objective()
+    assert [c for c in one.columns if c.startswith("rel_")] == [f"rel_{arm[0]}"] and (one["obj_min_rel"] == one[f"rel_{arm[0]}"]).all()
+    pair = [SOLUTES[1], SOLUTES[3]]
+    two = Run(toy_run.folder, pair).pooled_objective()
+    assert np.allclose(two["obj_min_rel"], two[[f"rel_{s}" for s in pair]].min(axis=1))
+
+
+def test_run_scores_an_arm_anyway_when_all_its_solutes_are_unmeasurable(toy_run, tmp_path):
+    import shutil
+    folder = tmp_path / "copy"
+    shutil.copytree(toy_run.folder, folder)
+    report = pd.read_csv(folder / f"wavelengths_round{FIRST_ROUND}.csv", index_col=0)
+    report.loc[SOLUTES[2], "measurable"] = False
+    report.to_csv(folder / f"wavelengths_round{FIRST_ROUND}.csv")
+    with pytest.warns(UserWarning, match="scoring them anyway"):
+        run = Run(folder, [SOLUTES[2]])
+    assert run.unmeasurable == [] and run.measurable_solutes == [SOLUTES[2]]
+
+
+def test_cli_report_arms_writes_one_report_per_arm(toy_run, tmp_path):
+    from production.config import ARMS
+    result = subprocess.run([sys.executable, "-m", "analysis", "report", "--arms", "--no-gp", "--run", toy_run.folder, "--outdir", tmp_path],
+                            capture_output=True, text=True, cwd=REPO)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert all((tmp_path / arm / "report_summary.md").exists() for arm in ARMS)
+
+
 def test_run_reads_the_production_csvs_layout_and_skips_unmeasured_rounds(toy_run, tmp_path):
     """Files split into csvs/ratios (robot inputs) and csvs/uvvis (reader exports) with the next round already laid out."""
     import shutil

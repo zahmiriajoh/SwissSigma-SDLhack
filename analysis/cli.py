@@ -7,7 +7,7 @@
 import argparse
 from pathlib import Path
 
-from production.config import FIRST_PLATE, SOLUTE_WAVELENGTH_NM
+from production.config import ARMS, FIRST_PLATE, SOLUTE_WAVELENGTH_NM
 
 from .spectra import (ABS_MAX_DEFAULT, BLANK_MAX_DEFAULT, DEFAULT_NM_RANGE, MIN_SIGNAL_SIGMAS, SpectraError,
                       read_plate_map, read_spectra, reduce_round)
@@ -54,6 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
     report = commands.add_parser("report", help="study-aim figures and report_summary.md for a campaign folder")
     report.add_argument("--run", required=True, help="campaign folder (see qc)")
     report.add_argument("--outdir", help="default <run>/figures")
+    report.add_argument("--arms", action="store_true", help="one report per arm of production/config.toml, in <outdir>/<arm>/")
     report.add_argument("--no-gp", action="store_true", help="skip the SDL_BO Gaussian-process posterior plots")
     report.add_argument("--seed", type=int, default=0, help="seed for the GP fits")
     return parser
@@ -62,9 +63,11 @@ def _build_parser() -> argparse.ArgumentParser:
 def _run_report(args) -> None:
     from .report import run_report
     from .run import Run
-    run = Run(args.run)
-    path = run_report(run, Path(args.outdir or Path(args.run) / "figures"), not args.no_gp, args.seed)
-    print(f"wrote {path} and figures to {path.parent}")
+    outdir = Path(args.outdir or Path(args.run) / "figures")
+    views = {outdir / arm: solutes for arm, solutes in ARMS.items()} if args.arms else {outdir: None}
+    for arm_dir, solutes in views.items():
+        path = run_report(Run(args.run, solutes), arm_dir, not args.no_gp, args.seed)
+        print(f"wrote {path} and figures to {path.parent}")
 
 
 def _run_qc(args) -> None:

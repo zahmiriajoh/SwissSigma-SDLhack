@@ -127,5 +127,5 @@ if [[ $FIGURES -eq 1 ]]; then
   echo
   echo "== QC and report figures for rounds $FIRST_ROUND-$N -> $FIG"
   python -m analysis qc --run "$CSV_DIR" --outdir "$FIG"
-  python -m analysis report --run "$CSV_DIR" --outdir "$FIG"
+  python -m analysis report --arms --run "$CSV_DIR" --outdir "$FIG"  # one report per arm, in figures/<arm>/
 fi
