@@ -1,0 +1,12 @@
+Best mixture: 100% DMC  score=0.898 (n=2)
+Best pure solvent: 100% DMC  score=0.898 (n=2)
+  ratio_S1: best pure=0.898  best overall=0.898
+  ratio_S2: best pure=0.904  best overall=0.904
+  ratio_S3: best pure=0.901  best overall=0.915
+  ratio_S4: best pure=0.899  best overall=0.899
+Pareto front: 4 of 43 mixtures are not beaten on every solute
+  100% DMC  score=0.898  ratio_S1=0.898  ratio_S2=0.904  ratio_S3=0.901  ratio_S4=0.899
+  98.3333% DMC + 1.66667% CPME  score=0.886  ratio_S1=0.886  ratio_S2=0.901  ratio_S3=0.904  ratio_S4=0.896
+  1.66667% EtOAc + 98.3333% DMC  score=0.885  ratio_S1=0.885  ratio_S2=0.899  ratio_S3=0.915  ratio_S4=0.896
+  1.66667% 2MeTHF + 98.3333% DMC  score=0.882  ratio_S1=0.882  ratio_S2=0.891  ratio_S3=0.905  ratio_S4=0.899
+(ratio_<solute> = absorbance relative to the DMF control of the same round; score = the worst solute's ratio; 1.0 = DMF parity)

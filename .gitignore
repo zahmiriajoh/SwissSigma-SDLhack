@@ -1,6 +1,3 @@
 __pycache__/
 *.pyc
 .DS_Store
-
-# toy pipeline run outputs (regenerate with examples/toy_additive_pipeline.py)
-examples/toy_additive_output*/
