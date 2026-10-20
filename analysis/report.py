@@ -86,7 +86,7 @@ def r2_objective(run, outdir):
     ax.set_ylabel("Worst-solute relative solubility", fontsize=9)
     ax.set_xticks([])
     ax.tick_params(labelsize=8)
-    ax.legend(fontsize=7, frameon=False, ncol=3)
+    ax.legend(fontsize=7, frameon=False, ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.08))
     ax.set_title("The 'dissolves everything' objective: every measured mixture", fontsize=11)
     fig.tight_layout()
     rel_cols = [c for c in obj.columns if c.startswith("rel_")]
