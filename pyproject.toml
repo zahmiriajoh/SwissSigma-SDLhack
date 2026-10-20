@@ -1,0 +1,22 @@
+# One environment for the whole repo, managed by uv:  bash setup.sh  (or: uv sync), then  uv run <command>.
+# opentrons 8.8.2 is the last series whose simulator runs OT-2 protocols and needs Python 3.10-3.12.
+[project]
+name = "swisssigma-sdlhack"
+version = "0.1.0"
+description = "Self-driving lab for green-solvent mixtures: OT-2 protocol, Bayesian optimisation and analysis"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "opentrons==8.8.2",
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "pytest",
+]
+
+[tool.uv]
+package = false  # the repo is run in place (python -m SDL_BO, python -m analysis, "OT protocols/bo_bridge.py"), not installed
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
