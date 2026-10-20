@@ -52,17 +52,11 @@ Keep every round of a campaign in one folder: `analysis qc` and `report` find th
 
 ## Pending decisions and open questions
 
-Things the code runs on placeholders for, or that need a human answer before or during the first real round.
-Analysis implementation choices are listed in full in [`analysis/PLAN.md`](analysis/PLAN.md) ("Decisions for review").
+Open before the first real round; the details and current placeholders live in the linked documents.
 
-| Open item | Where it bites | Current placeholder |
-|---|---|---|
-| **Real solutes**: names and expected absorption maxima | `SOLUTES` in `OT protocols/bo_bridge.py`; the reader's fixed-wavelength list (PLAN decision 4) | `S1`–`S4`; fake bands at 275, 320, 350, 410 nm |
-| **Plate reader linear range** | saturation flag in `analysis qc` (PLAN decision 5) | `--abs-max 2.5` |
-| **Plate reader export format** | `analysis reduce` parser (PLAN decision 13) | long table or wide matrix, chosen from invented files; run the first real export through `reduce` |
-| **QC plate layout and loadings** | `analysis qc-layout` (PLAN decision 1); scientists weigh `loading × nominal mass` into the calibration wells | 7 solvents × 4 solutes × loadings 0.5 and 1.0, 40 blanks |
-| **Plate log** | read-delay panel in `analysis qc` (PLAN decision 10) | `plate_log_roundN.csv` with `plate`, `read_delay_min`, filled in by hand |
-| **Solvent trough budget** | one 25 mL trough per solvent caps each solvent at ~1960 µL per round in SDL_BO (`space.solvent_budget_ul`), so no round can be dominated by one solvent; the toy run converges only in one-plate mode | the spare trough H1 is unassigned in `bo_bridge.py`; decide whether to give it to the solvent BO favours |
-| **Polystyrene readout plates** | esters, ethers and DMF attack them; blank wells and the Q3 check measure the effect but cannot remove it | see "Known limitations" in `OT protocols/README.md` |
-| **Run time** | the 1.5–2 h fill estimate is from the simulator | water dry run on the OT-2 or the Flex analog still to be done |
-| **Slides** | whether the figures also go into a slide deck | not decided; ask when the write-up starts |
+- **Analysis step** ([`analysis/PLAN.md`](analysis/PLAN.md), "Decisions for review"): real solute names and absorption
+  maxima, the plate reader's linear range and export format, the QC plate layout and loadings, the plate-log format,
+  and whether the figures also go into slides.
+- **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
+  polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
+- **Protocol notes** (`data/261018_protocol/`, not yet in git): run naming convention and where plate-reader exports are stored.
