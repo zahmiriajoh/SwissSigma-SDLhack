@@ -55,37 +55,37 @@ def fake_reader(plate_map, path, seed):
 
 # --- protocol settings -------------------------------------------------------------
 sim("default_testdata", proto_with())
-ex = os.path.join(P, "examples", "ot_input_round1.csv")
-sim("round1_3plates", proto_with(ex))
-sim("round1_2plates", proto_with(ex, n_plates=2))
-sim("round1_1plate", proto_with(ex, n_plates=1))
+ex = os.path.join(P, "examples", "ot_input_round0.csv")
+sim("round0_3plates", proto_with(ex))
+sim("round0_2plates", proto_with(ex, n_plates=2))
+sim("round0_1plate", proto_with(ex, n_plates=1))
+sim("resume_shake_plate1", proto_with(ex, start_step='"1"'))
 sim("resume_shake_plate2", proto_with(ex, start_step='"2"'))
-sim("resume_shake_plate3", proto_with(ex, start_step='"3"'))
 sim("heated_45C", proto_with(ex, temperature_c=45))
 sim("ERR_temp_30C", proto_with(ex, temperature_c=30), False, "below 37")
-sim("ERR_resume_plate3_of_2", proto_with(ex, n_plates=2, start_step='"3"'), False, "only 2 plate")
+sim("ERR_resume_plate2_of_2", proto_with(ex, n_plates=2, start_step='"2"'), False, "only 2 plate")
 rows = [r for r in csv.reader(open(ex))]
 over = [rows[0]] + [r[:] for r in rows[1:]]; over[1][3] = "350"
 sim("ERR_overvolume", proto_with(rows=over), False, "exceeds")
-bad = [rows[0][:3] + ["vol_Toluene_ul"], ["A1", "S1", "x", "100"]]
+bad = [rows[0][:3] + ["vol_Toluene_ul"], ["A1", "Glutarimide", "x", "100"]]
 sim("ERR_unknown_solvent", proto_with(rows=bad), False, "no reservoir trough")
-flood = [rows[0][:3] + ["vol_2MeTHF_ul"]] + [[f"{r}{c}", "S1", "x", "300"] for r in "ABCDEFGH" for c in range(1, 13)]
+flood = [rows[0][:3] + ["vol_acetone_ul"]] + [[f"{r}{c}", "Glutarimide", "x", "300"] for r in "ABCDEFGH" for c in range(1, 13)]
 sim("ERR_trough_overflow", proto_with(rows=flood), False, "only supply")
 
 # --- BO loop: 2 rounds ---------------------------------------------------------------
-rc, out = sh(B, "grid", "--round", "1", "-o", "s1.csv"); check("grid round 1", rc == 0, out.strip().splitlines()[-1])
-rc, out = sh(B, "layout", "--round", "1", "--suggestions", "s1.csv", "--outdir", "r1"); check("layout round 1", rc == 0)
-check("examples match fresh layout", open(os.path.join(T, "r1", "ot_input_round1.csv")).read() == open(ex).read())
-sim("loop_round1", proto_with(os.path.join(T, "r1", "ot_input_round1.csv")))
-for p in (1, 2, 3):
-    fake_reader(os.path.join(T, "r1", "plate_map_round1.csv"), os.path.join(T, "r1", f"plate{p}.csv"), p)
-rc, out = sh(B, "merge", "--plate-map", "r1/plate_map_round1.csv", "--reader", "r1/plate1.csv", "r1/plate2.csv", "r1/plate3.csv", "--dataset", "ds.csv")
-check("merge round 1", rc == 0, out.strip().splitlines()[1] if rc == 0 else out[-200:])
-# round 2: BO output mixing per-solute and shared rows
-with open(os.path.join(T, "s2.csv"), "w") as f:
-    f.write("solute,frac_2MeTHF,frac_EtOAc,frac_DMC,frac_CPME,frac_MeCN,frac_iPrOAc\n")
+rc, out = sh(B, "grid", "--round", "0", "-o", "s0.csv"); check("grid round 0", rc == 0, out.strip().splitlines()[-1])
+rc, out = sh(B, "layout", "--round", "0", "--suggestions", "s0.csv", "--outdir", "r0"); check("layout round 0", rc == 0)
+check("examples match fresh layout", open(os.path.join(T, "r0", "ot_input_round0.csv")).read() == open(ex).read())
+sim("loop_round0", proto_with(os.path.join(T, "r0", "ot_input_round0.csv")))
+for p in (0, 1, 2):
+    fake_reader(os.path.join(T, "r0", "plate_map_round0.csv"), os.path.join(T, "r0", f"plate{p}.csv"), p)
+rc, out = sh(B, "merge", "--plate-map", "r0/plate_map_round0.csv", "--reader", "r0/plate0.csv", "r0/plate1.csv", "r0/plate2.csv", "--dataset", "ds.csv")
+check("merge round 0", rc == 0, out.strip().splitlines()[1] if rc == 0 else out[-200:])
+# round 1: BO output mixing per-solute and shared rows
+with open(os.path.join(T, "s1.csv"), "w") as f:
+    f.write("solute,frac_acetone,frac_EtOH,frac_iPrOH,frac_water,frac_iPrOAc,frac_tBuOAc\n")
     random.seed(9)
-    for s in ("S1", "S2", "S3", "S4"):
+    for s in ("Glutarimide", "Boc-hydroxyproline", "Phthalimide", "Succinimide"):
         for _ in range(18):
             k = random.choice([1, 2, 3]); idx = random.sample(range(6), k); w = [random.random() for _ in idx]
             fr = [0.0] * 6
@@ -93,22 +93,22 @@ with open(os.path.join(T, "s2.csv"), "w") as f:
             f.write(s + "," + ",".join(f"{x:.3f}" for x in fr) + "\n")
     for _ in range(5):
         f.write(",0.5,0,0.5,0,0,0\n" if _ == 0 else ",0.34,0.33,0,0.33,0,0\n" if _ == 1 else f",{0.2*_:.1f},0,0,{1-0.2*_:.1f},0,0\n")
-rc, out = sh(B, "layout", "--round", "2", "--suggestions", "s2.csv", "--outdir", "r2"); check("layout round 2 (per-solute + shared)", rc == 0, out[-160:] if rc else "")
-sim("loop_round2", proto_with(os.path.join(T, "r2", "ot_input_round2.csv")))
-for p in (1, 2, 3):
-    fake_reader(os.path.join(T, "r2", "plate_map_round2.csv"), os.path.join(T, "r2", f"plate{p}.csv"), 10 + p)
-args = ["merge", "--plate-map", "r2/plate_map_round2.csv", "--reader", "r2/plate1.csv", "r2/plate2.csv", "r2/plate3.csv", "--dataset", "ds.csv"]
-rc, out = sh(B, *args); check("merge round 2", rc == 0)
+rc, out = sh(B, "layout", "--round", "1", "--suggestions", "s1.csv", "--outdir", "r1"); check("layout round 1 (per-solute + shared)", rc == 0, out[-160:] if rc else "")
+sim("loop_round1", proto_with(os.path.join(T, "r1", "ot_input_round1.csv")))
+for p in (0, 1, 2):
+    fake_reader(os.path.join(T, "r1", "plate_map_round1.csv"), os.path.join(T, "r1", f"plate{p}.csv"), 10 + p)
+args = ["merge", "--plate-map", "r1/plate_map_round1.csv", "--reader", "r1/plate0.csv", "r1/plate1.csv", "r1/plate2.csv", "--dataset", "ds.csv"]
+rc, out = sh(B, *args); check("merge round 1", rc == 0)
 n1 = len(open(os.path.join(T, "ds.csv")).readlines())
 rc, out = sh(B, *args); n2 = len(open(os.path.join(T, "ds.csv")).readlines())
 check("re-merge is idempotent", rc == 0 and n1 == n2, f"{n1 - 1} rows")
 ds = list(csv.DictReader(open(os.path.join(T, "ds.csv"))))
-check("dataset has both rounds", {r["round"] for r in ds} == {"1", "2"}, f"{len(ds)} rows")
+check("dataset has both rounds", {r["round"] for r in ds} == {"0", "1"}, f"{len(ds)} rows")
 sh_rows = list(csv.DictReader(open(os.path.join(T, "ds_shared.csv"))))
-check("shared dataset: 24 (r1) + 6 (r2 incl. DMF)", len(sh_rows) == 30, f"{len(sh_rows)} rows")
-check("fractions sum to 1 in dataset", all(abs(sum(float(r[f"frac_{s}"]) for s in ["DMF","2MeTHF","EtOAc","DMC","CPME","MeCN","iPrOAc"]) - 1) < 1e-3 for r in ds))
+check("shared dataset: 24 (r0) + 6 (r1 incl. DMF)", len(sh_rows) == 30, f"{len(sh_rows)} rows")
+check("fractions sum to 1 in dataset", all(abs(sum(float(r[f"frac_{s}"]) for s in ["DMF","acetone","EtOH","iPrOH","water","iPrOAc","tBuOAc"]) - 1) < 1e-3 for r in ds))
 check("DMF reference rel = 1", all(abs(float(r["rel_mean"]) - 1) < 1e-9 for r in ds if r["is_reference"] == "1"))
-rc, _ = sh(B, "plate-svg", "--plate-map", "r2/plate_map_round2.csv", "-o", "r2.svg"); check("plate-svg", rc == 0)
+rc, _ = sh(B, "plate-svg", "--plate-map", "r1/plate_map_round1.csv", "-o", "r1.svg"); check("plate-svg", rc == 0)
 
 # --- layout generality --------------------------------------------------------------
 for name, extra in [("replicates2", ["--replicates", "2"]), ("3solutes_2ctrl", ["--solutes", "A,B,C", "--controls-per-solute", "2"])]:

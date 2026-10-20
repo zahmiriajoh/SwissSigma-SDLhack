@@ -9,19 +9,24 @@ solvents in the ratio BO picks. DMF controls get 300 µL of pure DMF.
 
 ![Plate map](maps/plate_layout.svg)
 
-Default layout, configurable in `bo_bridge.py`:
-- **Solutes:** 4 solutes (S1–S4), each with an equal block of consecutive wells in row
-  order. With 4 solutes that's 24 wells, i.e. **2 rows per solute**.
+Default layout; solutes, solvents, troughs, volumes and numbering come from
+[`../production/config.toml`](../production/config.toml), the rest from `bo_bridge.py`:
+- **Solutes:** 4 solutes (Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide), each
+  with an equal block of consecutive wells in row order. With 4 solutes that's 24 wells,
+  i.e. **2 rows per solute**.
 - **Controls:** each block starts with **1 DMF-only control**, the reference used to
   compute relative solubility.
 - **BO conditions:** the other **23 wells** of each block are **BO conditions**, each a
-  mixture of 1–3 of the 6 green solvents: 2-MeTHF, EtOAc, DMC, CPME, MeCN and iPrOAc.
+  mixture of 1–3 of the 6 green solvents: acetone, EtOH, i-PrOH, water, i-PrOAc and t-BuOAc
+  (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`).
+- **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`), condition
+  counters (`R0_grid00`) and replicates. Well names stay `A1`–`H12`.
 
 Change the layout with flags on `grid` and `layout` (or the constants at the top of `bo_bridge.py`):
 
 | flag | default | effect |
 |---|---|---|
-| `--solutes S1,S2,S3,S4` | 4 solutes | wells per solute = 96 / number of solutes |
+| `--solutes A,B,...` | the 4 config solutes | wells per solute = 96 / number of solutes |
 | `--controls-per-solute` | 1 | DMF wells per solute per plate |
 | `--replicates` | 1 | wells per condition per plate (2 → 11 conditions per solute) |
 | `--total-ul` (layout) | 300 | liquid per well |
@@ -31,7 +36,7 @@ Conditions per solute = (wells per solute − controls) ÷ replicates. The robot
 every well, so the protocol needs no changes when the layout changes. Draw any layout with:
 
 ```bash
-python bo_bridge.py plate-svg --plate-map ../data/runs/round1/plate_map_round1.csv -o ../data/runs/round1/plate_map.svg
+python bo_bridge.py plate-svg --plate-map ../data/runs/round0/plate_map_round0.csv -o ../data/runs/round0/plate_map.svg
 ```
 
 ## Loop
@@ -46,16 +51,16 @@ bo_bridge.py merge           ──► bo_dataset.csv           (one row per sol
 ```
 
 ```bash
-python bo_bridge.py grid --round 1 -o ../data/runs/suggestions_round1.csv
+python bo_bridge.py grid --round 0 -o ../data/runs/suggestions_round0.csv
 ```
 ```bash
-python bo_bridge.py layout --round 1 --suggestions ../data/runs/suggestions_round1.csv --outdir ../data/runs/round1
+python bo_bridge.py layout --round 0 --suggestions ../data/runs/suggestions_round0.csv --outdir ../data/runs/round0
 ```
 ```bash
-python bo_bridge.py merge --plate-map ../data/runs/round1/plate_map_round1.csv --reader ../data/runs/round1/plate1.csv ../data/runs/round1/plate2.csv ../data/runs/round1/plate3.csv --dataset ../data/runs/bo_dataset.csv
+python bo_bridge.py merge --plate-map ../data/runs/round0/plate_map_round0.csv --reader ../data/runs/round0/plate0.csv ../data/runs/round0/plate1.csv ../data/runs/round0/plate2.csv --dataset ../data/runs/bo_dataset.csv
 ```
 
-`bo_bridge.py` uses only the standard library. See `examples/` for a complete round-1 set.
+`bo_bridge.py` uses only the standard library (Python 3.11+). See `examples/` for a complete round-0 set.
 
 ## File formats
 
@@ -99,12 +104,12 @@ also turns full-spectrum exports into the single-value files this command takes.
 
 1. **Fill all plates in one pass:** for each solvent, one tip per pipette. The P20 handles
    volumes under 20 µL and the P300 everything from 20 µL up. Each tip aspirates enough for
-   several dispenses and fills the **same well on plates 1, 2, 3 back to back**, dispensing
+   several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
    touch their own solvent, so a full round uses about 7 tips.
-2. **Pause:** you seal all plates by hand straight away, so plates 2–3 don't evaporate while
-   plate 1 shakes.
-3. **For plate 1, 2, 3 in turn:** the app prompts you to move the plate onto the
+2. **Pause:** you seal all plates by hand straight away, so plates 1–2 don't evaporate while
+   plate 0 shakes.
+3. **For plate 0, 1, 2 in turn:** the app prompts you to move the plate onto the
    heater-shaker. It shakes (default 20 min, 800 rpm), then you're prompted to put it back,
    and it can go to the UV-Vis reader.
 
@@ -114,7 +119,7 @@ read and BO, so 3 rounds fit in about 10 h. These are estimates (the simulator d
 report run time), so time a dry run with water first. Refill the solvent troughs between
 rounds using the fill sheet from `layout`, when you load the next solid plates.
 
-**App settings:** identical plates (1–3), start at (fill / shake plate 1–3, to resume),
+**App settings:** identical plates (1–3), start at (fill / shake plate 0–2, to resume),
 shake speed, shake time, temperature.
 
 ## Deck (OT-2)
@@ -126,15 +131,16 @@ shake speed, shake time, temperature.
 | **back (10–12)** | heater-shaker + universal flat adapter (10) | – (11) | trash (12) |
 | **7–9** | – (7) | P300 tips (8) | P20 tips (9) |
 | **4–6** | – (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | – (6) |
-| **front (1–3)** | readout plate 1 | readout plate 2 | readout plate 3 |
+| **front (1–3)** | readout plate 0 | readout plate 1 | readout plate 2 |
 
 Pipettes: P300 GEN2 single on the left mount, P20 GEN2 single on the right (`PIPETTES` in
 the protocol).
 
-Reservoir troughs (25 mL each): A1 DMF, B1 2-MeTHF, C1 EtOAc, D1 DMC, E1 CPME, F1 MeCN,
-G1 iPrOAc, H1 diluent. With this volume model the diluent isn't used. The protocol fills
-from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
-needs per round; round 1 needs up to about 14.4 mL per solvent.
+Reservoir troughs (25 mL each, from `production/config.toml`; `SOLVENT_TROUGHS` in the protocol
+is a hand-kept mirror checked by the tests): A1 DMF, B1 acetone, C1 EtOH, D1 i-PrOH, E1 water,
+F1 i-PrOAc, G1 t-BuOAc, H1 diluent. With this volume model the diluent isn't used. The protocol
+fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
+needs per round; round 0 needs up to about 14.4 mL per solvent.
 
 Slots 7 and 11, next to the heater-shaker, are kept free of tall labware.
 
@@ -153,9 +159,10 @@ Slots 7 and 11, next to the heater-shaker, are kept free of tall labware.
 
 **Polystyrene readout plates (possible confounder).** The readout plate,
 `sarstedt_96_wellplate_390ul_flat`, is Sarstedt 83.3924, a polystyrene (PS)
-tissue-culture plate. Most solvents in this screen can attack polystyrene:
-- **Strong attack:** esters (EtOAc, iPrOAc), ethers (2-MeTHF, CPME) and DMF.
-- **Probably milder:** MeCN and DMC.
+tissue-culture plate. Several solvents in this screen can attack polystyrene
+(`attacks_polystyrene` in `production/config.toml`):
+- **Strong attack:** acetone, the esters (i-PrOAc, t-BuOAc) and DMF.
+- **No attack expected:** EtOH, i-PrOH and water.
 
 Attack shows up as clouding, crazing or softening of the well bottom. That raises the
 measured absorbance without any extra solute dissolving, so affected solvents can look
@@ -172,14 +179,14 @@ UV-transparent.
 To limit and measure the effect:
 - **Blank wells:** the QC plate (`python -m analysis qc-layout`, one extra 1-plate run per
   round) holds solvent-only wells; `analysis reduce` combines them into a per-well blank for
-  `merge --blank`, and `analysis qc` checks whether ester- and ether-rich blanks read high
+  `merge --blank`, and `analysis qc` checks whether acetone- and ester-rich blanks read high
   and whether they grow with the read delay. A full solvent-only copy of the sample plate
   (same `ot_input` CSV, no solids) also works as `--blank` and sees exactly the same solvent
   and contact time per well.
 - **Consistent timing:** read each plate soon after shaking, and keep the timing the same
   every round.
 - **Check plates by eye:** look for cloudy or warped wells before reading, and note any.
-- **Report it:** treat results for ester- and ether-rich mixtures with caution, and report
+- **Report it:** treat results for acetone- and ester-rich mixtures with caution, and report
   the plate material as a limitation.
 - **Better fix:** a quartz or glass-bottom plate with a custom labware definition
   (change `READOUT_PLATE` in the protocol).

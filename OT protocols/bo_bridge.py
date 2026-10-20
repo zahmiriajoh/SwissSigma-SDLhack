@@ -1,10 +1,12 @@
 """Glue between the OT-2 protocol (sdl_solubility_ot2.py) and the (external) Bayesian optimization loop.
 
-Runs on a laptop, not on the robot. Standard library only.
+Runs on a laptop, not on the robot. Standard library only (Python 3.11+ for tomllib). Solvents, solutes, troughs,
+volumes and the numbering convention come from ../production/config.toml (see ../production/README.md); rounds,
+plates and condition counters start at FIRST_ROUND / FIRST_PLATE / FIRST_CONDITION (0).
 
 Closed loop, one round = one well-level CSV run on up to 3 identical readout plates:
 
-    grid    -> suggestions_round1.csv          (baseline design for round 1)
+    grid    -> suggestions_round0.csv          (baseline design for the first round)
     BO      -> suggestions_roundN.csv          (frac_<solvent> columns, optional solute column)
     layout  -> ot_input_roundN.csv             (upload to sdl_solubility_ot2.py as the CSV parameter)
                plate_map_roundN.csv            (well -> solute / condition / role, used by merge)
@@ -14,17 +16,17 @@ Closed loop, one round = one well-level CSV run on up to 3 identical readout pla
                bo_dataset_shared.csv           (conditions run on every solute: min/mean objective)
     plate-svg -> picture of any plate map
 
-Plate layout (all configurable, see SOLUTES / CONTROLS_PER_SOLUTE / REPLICATES or the
+Plate layout (all configurable, see SOLUTES in the config, CONTROLS_PER_SOLUTE / REPLICATES or the
 layout flags): the plate is split into equal consecutive blocks of wells in row order,
 one per solute. With 4 solutes that is 24 wells = 2 rows each. Each block starts with its
 DMF controls, followed by the conditions (x replicate wells). Default: 1 DMF control +
 23 conditions per solute.
 
 Usage:
-    python bo_bridge.py grid   --round 1 -o runs/suggestions_round1.csv
-    python bo_bridge.py layout --round 1 --suggestions runs/suggestions_round1.csv --outdir runs/round1
-    python bo_bridge.py merge  --plate-map runs/round1/plate_map_round1.csv \\
-                               --reader runs/round1/plate1.csv runs/round1/plate2.csv runs/round1/plate3.csv \\
+    python bo_bridge.py grid   --round 0 -o runs/suggestions_round0.csv
+    python bo_bridge.py layout --round 0 --suggestions runs/suggestions_round0.csv --outdir runs/round0
+    python bo_bridge.py merge  --plate-map runs/round0/plate_map_round0.csv \\
+                               --reader runs/round0/plate0.csv runs/round0/plate1.csv runs/round0/plate2.csv \\
                                --dataset runs/bo_dataset.csv
 """
 
@@ -39,37 +41,18 @@ import statistics
 import sys
 
 # ---------------------------------------------------------------------------
-# Experiment configuration - keep solvent names / troughs in sync with sdl_solubility_ot2.py
+# Experiment configuration: ../production/config.toml. sdl_solubility_ot2.py mirrors SOLVENT_TROUGHS by hand
+# (the robot cannot import the repo); tests/test_interfaces.py checks the mirror.
 # ---------------------------------------------------------------------------
 
-REFERENCE_SOLVENT = "DMF"
-GREEN_SOLVENTS = ["2MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc"]
-ALL_SOLVENTS = [REFERENCE_SOLVENT] + GREEN_SOLVENTS
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+from production.config import (  # noqa: E402
+    ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, MAX_SOLVENTS_PER_MIX, MIN_UL, N_PLATES,
+    REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL,
+)
 
-SOLUTES = ["S1", "S2", "S3", "S4"]
-# Wavelength to read each solute at, only needed if the reader export has several wavelengths.
-SOLUTE_WAVELENGTH_NM = {s: None for s in SOLUTES}
-
-CONTROLS_PER_SOLUTE = 1   # DMF-only wells per solute per plate
+CONTROLS_PER_SOLUTE = 1   # reference-solvent wells per solute per plate
 REPLICATES = 1            # wells per condition per plate (plates are replicates too)
-
-TOTAL_UL = 300            # solvent per well: the 1-3 chosen solvents in BO's ratio fill it
-MIN_UL = 5                # smallest solvent component (P20 single); smaller ones are snapped
-MAX_SOLVENTS_PER_MIX = 3
-
-# Copy of SOLVENT_TROUGHS in sdl_solubility_ot2.py (for the fill sheet). H1 holds the diluent,
-# which this volume model doesn't use.
-SOLVENT_TROUGHS = {
-    "DMF": ["A1"],
-    "2MeTHF": ["B1"],
-    "EtOAc": ["C1"],
-    "DMC": ["D1"],
-    "CPME": ["E1"],
-    "MeCN": ["F1"],
-    "iPrOAc": ["G1"],
-}
-TROUGH_USABLE_UL = 25000 - 1000  # fill - dead volume, as in the protocol
-N_PLATES = 3                     # identical plates per run (protocol setting), for the fill sheet
 
 ROWS = "ABCDEFGH"
 N_COLS = 12
@@ -182,7 +165,7 @@ def layout_args(p):
 
 
 # ---------------------------------------------------------------------------
-# grid: baseline design for round 1
+# grid: baseline design for the first round
 # ---------------------------------------------------------------------------
 
 def pick_balanced(candidates, k):
@@ -218,7 +201,7 @@ def cmd_grid(args):
     # no solute column: every condition is run on every solute (shared conditions)
     header = ["condition_id"] + [f"frac_{s}" for s in GREEN_SOLVENTS]
     rows = [
-        [f"R{args.round}_grid{i + 1:02d}"] + [fmt(d.get(s, 0.0)) for s in GREEN_SOLVENTS]
+        [f"R{args.round}_grid{i + FIRST_CONDITION:02d}"] + [fmt(d.get(s, 0.0)) for s in GREEN_SOLVENTS]
         for i, d in enumerate(designs)
     ]
     write_csv(args.output, header, rows)
@@ -262,9 +245,8 @@ def read_suggestions(path, solutes, round_):
         if solute and solute not in out:
             sys.exit(f"{path} line {i}: unknown solute '{solute}'; known: {solutes}")
         key = solute or "shared"
-        counters[key] = counters.get(key, 0) + 1
-        cond_id = rec.get("condition_id") or (
-            f"R{round_}_{solute}_C{counters[key]:02d}" if solute else f"R{round_}_C{counters[key]:02d}")
+        n = counters[key] = counters.get(key, FIRST_CONDITION - 1) + 1
+        cond_id = rec.get("condition_id") or (f"R{round_}_{solute}_C{n:02d}" if solute else f"R{round_}_C{n:02d}")
         for s in ([solute] if solute else solutes):
             out[s].append((cond_id, fracs))
     return out
@@ -282,12 +264,12 @@ def cmd_layout(args):
 
     ref_vols, _ = fractions_to_volumes({REFERENCE_SOLVENT: 1.0}, args.total_ul)
     ref_id = f"R{args.round}_{REFERENCE_SOLVENT}ref"
-    wells = []  # (well, solute, condition_id, role, replicate, vols)
+    wells = []  # (well, solute, condition_id, role, replicate, vols); replicates count from FIRST_CONDITION
     seen_ids = {}
     for s in solutes:
         block = blocks[s]
         for c in range(args.controls_per_solute):
-            wells.append((block[c], s, ref_id, "control", c + 1, ref_vols))
+            wells.append((block[c], s, ref_id, "control", c + FIRST_CONDITION, ref_vols))
         conds = suggestions[s]
         for k, (cond_id, fracs) in enumerate(conds):
             vols, warnings = fractions_to_volumes(fracs, args.total_ul)
@@ -298,7 +280,7 @@ def cmd_layout(args):
             for r in range(args.replicates):
                 # replicate r of condition k: replicate blocks follow each other
                 idx = args.controls_per_solute + r * len(conds) + k
-                wells.append((block[idx], s, cond_id, "sample", r + 1, vols))
+                wells.append((block[idx], s, cond_id, "sample", r + FIRST_CONDITION, vols))
     wells.sort(key=lambda w: PLATE_WELLS.index(w[0]))
 
     tag = f"round{args.round}"
@@ -425,11 +407,11 @@ def cmd_merge(args):
 
     # per well and plate: background-corrected absorbance
     obs = []  # (plate_no, map_row, raw, blank, corrected)
-    for p_no, absorbance in enumerate(plates, start=1):
+    for p_no, absorbance in enumerate(plates, start=FIRST_PLATE):
         for m in plate_map:
             raw = absorbance(m["well"], m["solute"])
             if raw is None:
-                sys.exit(f"{args.reader[p_no - 1]}: no reading for well {m['well']}")
+                sys.exit(f"{args.reader[p_no - FIRST_PLATE]}: no reading for well {m['well']}")
             blank = statistics.mean(b(m["well"], m["solute"]) for b in blanks) if blanks else 0.0
             obs.append((p_no, m, raw, blank, raw - blank))
 
@@ -523,7 +505,7 @@ def cmd_plate_svg(args):
     for m in pm:  # number conditions per solute in plate order
         if m["role"] == "sample":
             cond_no.setdefault((m["solute"], m["condition_id"]), len(
-                [k for k in cond_no if k[0] == m["solute"]]) + 1)
+                [k for k in cond_no if k[0] == m["solute"]]) + FIRST_CONDITION)
     cell, x0, y0 = 46, 56, 92
     W, H = x0 + 12 * cell + 30, y0 + 8 * cell + 150
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
@@ -579,7 +561,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     g = sub.add_parser("grid", help="baseline design (pure solvents + binary/ternary mixtures)")
-    g.add_argument("--round", type=int, default=1)
+    g.add_argument("--round", type=int, default=FIRST_ROUND)
     g.add_argument("--n", type=int, help="number of conditions (default: as many as fit per solute)")
     g.add_argument("--seed", type=int, default=0)
     g.add_argument("-o", "--output", required=True)
