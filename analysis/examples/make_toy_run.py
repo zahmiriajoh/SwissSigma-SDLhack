@@ -4,9 +4,10 @@
 
 Later rounds use random (seeded) suggestions in SDL_BO's id scheme (R<n>_exploit00.., R<n>_explore00.., re-tests under
 their first ids), so no Gaussian-process fitting is needed and the whole run takes seconds. Names and numbering come
-from production/config.toml. The fake chemistry spans the reader's range on purpose (PLAN.md Q-b): the first solute
-saturates in good solvents, the last sits near the noise floor, and the plate-attacking solvents make blank wells grow
-with the read delay.
+from production/config.toml. The fake chemistry spans the reader's range on purpose (PLAN.md Q-b): the second solute
+saturates in good solvents, the last sits near the noise floor, the first solute's band is hidden under acetone's UV
+cut-off (so it is read on a shoulder and declared not measurable), and the plate-attacking solvents make blank wells
+grow with the read delay.
 
 Run from the repo root in the `sdlhack` environment:
     python analysis/examples/make_toy_run.py --outdir runs/toy [--rounds 3] [--fixed-wavelengths] [--seed 0]
@@ -31,8 +32,9 @@ BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 N_PLATES = 3
 N_EXPLOIT, N_EXPLORE, N_RETEST = 12, 6, 5
 SOLVENT_BUDGET = 0.95 * 24000 / (300 * N_PLATES * 4)  # sum of a solvent's fractions over a round's conditions that one trough can feed
-BAND_HEIGHTS = dict(zip(SOLUTES, [2.6, 1.2, 0.5, 0.06]))  # saturating, normal, modest, near the noise
+BAND_HEIGHTS = dict(zip(SOLUTES, [1.2, 2.6, 0.5, 0.06]))  # normal (but under acetone's cut-off), saturating, modest, near the noise
 ATTACK_PER_MIN = {s: 4e-4 for s in PLATE_ATTACKERS}  # polystyrene attack by the solvents flagged in the config
+CUTOFF_NM = {"DMF": 270, "acetone": 330}  # the two opaque solvents; the first solute's 275 nm band then sits under acetone's cut-off
 PLATES = list(range(FIRST_PLATE, FIRST_PLATE + N_PLATES))
 FIXED_NM = sorted(set(fpr.PEAK_NM.values()) | {700})  # solute peaks + a scattering reference
 
@@ -125,6 +127,7 @@ def main(argv=None):
     outdir.mkdir(parents=True, exist_ok=True)
     fpr.BAND_HEIGHTS.update(BAND_HEIGHTS)
     fpr.ATTACK_PER_MIN.update(ATTACK_PER_MIN)
+    fpr.CUTOFF_NM.update({k: v for k, v in CUTOFF_NM.items() if k in fpr.ALL_SOLVENTS})
     rng = np.random.default_rng(args.seed)
     for r in range(FIRST_ROUND, FIRST_ROUND + args.rounds):
         one_round(r, outdir, rng, args.fixed_wavelengths)

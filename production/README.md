@@ -51,10 +51,16 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
 - Zero-based numbering applies to rounds, plates, replicates and condition counters (`round0`, `plate0`, `R0_seed00`),
   not to well names; each solute block starts with its DMF control as item 0, so A1 is the control of solute 0 and A2 is
   condition 0 (confirmed by the user).
-- **UV readout concern.** DMF is opaque below about 270 nm and acetone below about 330 nm, while glutarimide,
-  succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only phthalimide (about 295 nm) has a
-  comfortable band. A UV absorbance readout of the other three solutes, especially in acetone-containing mixtures, may
-  not be measurable. Please check the solutes' spectra and the solvent cut-offs before the first run.
+- **UV readout concern and the conservative answer.** DMF is opaque below about 270 nm and acetone below about
+  330 nm, while glutarimide, succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only
+  phthalimide (about 295 nm) has a comfortable band. Since the plan cannot change once the campaign starts,
+  `analysis reduce` reads every solute only inside the wavelength window where **every** solvent is transparent
+  (blank below 1.0 absorbance), on the band's shoulder if its maximum is hidden, and declares a solute
+  **not measurable** when its DMF-control signal there is within 3 x the noise (`wavelengths_roundN.csv`, column
+  `measurable`; PLAN decision 15). Measurements therefore stay valid in every well, at the cost of sensitivity.
+  **Before round 0, run one QC plate alone** (`analysis qc-layout`, then `reduce` on it): the wavelength report tells
+  you which solutes the UV readout can follow at all, while there is still time to change solutes, readout or plate.
+  Prefer full-spectrum exports; if the reader must use fixed wavelengths, take them from that QC-plate run.
 - ~~Immiscible pairs~~: decided, see "Forbidden solvent pairs" above.
 
 ## Who reads it

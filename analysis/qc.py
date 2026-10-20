@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from production.config import PLATE_ATTACKERS, REFERENCE_SOLVENT
 
 from .plots import (OKABE_ITO, PLATE_MARKERS, colors_for, identity_line, panel_grid, plate_heatmap, save)
-from .spectra import DEFAULT_NM_RANGE, blank_correct
+from .spectra import ABS_MAX_DEFAULT, DEFAULT_NM_RANGE, blank_correct
 from .summary import Summary
 
 # Solvents that craze polystyrene: the production list (production/config.toml) plus the fake toy-run solvents.
@@ -18,7 +18,6 @@ PLATE_OFFSET_FLAG = 0.05       # a plate whose median deviates from the others b
 SCATTER_NM = (600.0, 800.0)    # no solute absorbs here: signal = scattering by undissolved solid
 MIN_ABS_FOR_PEAK = 0.05     # peak position is only meaningful for wells whose corrected band is at least this high
 LINEAR_RESIDUAL = 0.05         # calibration: a level is "linear" while its residual is within 5 % of the fit
-ABS_MAX_DEFAULT = 2.5          # reader linear range (PLAN Q-b unknown; placeholder)
 
 
 def _lin_fit(x, y):

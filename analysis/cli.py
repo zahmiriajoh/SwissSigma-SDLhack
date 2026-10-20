@@ -10,9 +10,9 @@ from pathlib import Path
 
 from production.config import FIRST_PLATE
 
-from .qc import ABS_MAX_DEFAULT
 from .qc_layout import LOADINGS
-from .spectra import DEFAULT_NM_RANGE, SpectraError, read_plate_map, read_spectra, reduce_round, synthetic_blank
+from .spectra import (ABS_MAX_DEFAULT, BLANK_MAX_DEFAULT, DEFAULT_NM_RANGE, MIN_SIGNAL_SIGMAS, SpectraError, pure_blanks,
+                      read_plate_map, read_spectra, reduce_round, synthetic_blank)
 
 
 def _parse_overrides(items):
@@ -45,6 +45,9 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="search peaks only in this range (default %(default)s)")
     reduce.add_argument("--bandwidth", type=float, default=0.0,
                         help="average absorbance over +/- this many nm around the wavelength (default 0)")
+    reduce.add_argument("--blank-max", type=float, default=BLANK_MAX_DEFAULT,
+                        help="read only where every solvent blank is below this absorbance (default %(default)s)")
+    reduce.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="flag wells whose raw absorbance exceeds this")
     reduce.add_argument("--plots", action="store_true", help="also write QC figures (spectra, plate heat maps)")
 
     layout = commands.add_parser("qc-layout", help="QC plate map + robot CSV for a round (blanks and calibration series)")
@@ -95,13 +98,16 @@ def _run_reduce(args) -> None:
     plate_map = read_plate_map(args.plate_map)
     plates = [read_spectra(p) for p in args.reader]
     blank = read_spectra(args.blank) if args.blank else None
+    pure = None
     if args.qc_reader:
         if not args.qc_map:
             raise SpectraError("--qc-reader needs --qc-map")
         import pandas as pd
-        blank = synthetic_blank(read_spectra(args.qc_reader), pd.read_csv(args.qc_map, index_col="well"), plate_map)
-    wavelengths, endpoints, corrected = reduce_round(
-        plate_map, plates, blank, _parse_overrides(args.wavelength), tuple(args.nm_range), args.bandwidth)
+        qc_spectra, qc_map = read_spectra(args.qc_reader), pd.read_csv(args.qc_map, index_col="well")
+        blank, pure = synthetic_blank(qc_spectra, qc_map, plate_map), pure_blanks(qc_spectra, qc_map)
+    wavelengths, endpoints, corrected, report = reduce_round(
+        plate_map, plates, blank, _parse_overrides(args.wavelength), tuple(args.nm_range), args.bandwidth,
+        args.blank_max, args.abs_max, pure)
 
     round_ = plate_map["round"].iloc[0]
     outdir = Path(args.outdir or Path(args.plate_map).parent)
@@ -112,9 +118,16 @@ def _run_reduce(args) -> None:
         names.append(f"endpoint_round{round_}_blank.csv")
     for name, ep in zip(names, endpoints):
         ep.to_csv(outdir / name, index=False)
-    wavelengths.round(1).to_csv(outdir / f"wavelengths_round{round_}.csv")
+    report.round(3).to_csv(outdir / f"wavelengths_round{round_}.csv")
 
-    print("Wavelength per solute (nm):", ", ".join(f"{s} {nm:.0f}" for s, nm in wavelengths.items()))
+    print("Wavelength per solute:")
+    for solute, r in report.iterrows():
+        where = "band maximum" if r["at_band_max"] else f"shoulder, band maximum at {r['band_max_nm']:.0f} nm, {r['signal_fraction']:.0%} of its signal left"
+        verdict = "" if r["measurable"] else f" -> NOT MEASURABLE: control signal {r['control_signal']:.3f} is below {MIN_SIGNAL_SIGMAS:g} x noise {r['noise']:.3f}"
+        print(f"  {solute:<20} {r['wavelength_nm']:.0f} nm ({where}; usable window {r['window_min_nm']:.0f}-{r['window_max_nm']:.0f} nm){verdict}")
+    flagged = sum((ep["flag"] != "").sum() for ep in endpoints[:len(plates)])
+    if flagged:
+        print(f"  {flagged} sample well reading(s) flagged saturated/opaque (see the flag column of the endpoint files)")
     if blank is None:
         print("  note: no --blank or --qc-reader, so peaks were picked on raw spectra (solvent baseline included)")
     elif args.qc_reader:

@@ -67,6 +67,8 @@ class Run:
         self.solutes = list(dict.fromkeys(self.dataset["solute"]))
         self.solvents = solvent_names(self.dataset)
         self.green_solvents = [s for s in self.solvents if s != REFERENCE_SOLVENT]
+        self.unmeasurable = self._unmeasurable_solutes()  # declared by `analysis reduce` (wavelengths_roundN.csv, column measurable)
+        self.measurable_solutes = [s for s in self.solutes if s not in self.unmeasurable]
 
     # ----- per-round optional files -----------------------------------------------------------
     def _optional(self, name):
@@ -76,6 +78,20 @@ class Run:
     def wavelengths(self, r):
         path = self._optional(f"wavelengths_round{r}.csv")
         return pd.read_csv(path, index_col=0)["wavelength_nm"] if path else None
+
+    def wavelength_report(self, r):
+        """The full per-solute table written by `analysis reduce` (wavelength, window, signal, measurable), or None."""
+        path = self._optional(f"wavelengths_round{r}.csv")
+        return pd.read_csv(path, index_col=0) if path else None
+
+    def _unmeasurable_solutes(self) -> list:
+        """Solutes marked not measurable in any round's wavelength report; their values are noise and leave the objective."""
+        out = set()
+        for r in self.rounds:
+            rep = self.wavelength_report(r)
+            if rep is not None and "measurable" in rep.columns:
+                out |= set(rep.index[~rep["measurable"].astype(bool)])
+        return sorted(out)
 
     def plates(self, r) -> list:
         """Plate numbers with a results row in round r."""
@@ -174,9 +190,13 @@ class Run:
         return pd.concat([out.drop(columns=["within", "between", "norm"]), fr], axis=1).reset_index()
 
     def pooled_objective(self) -> pd.DataFrame:
-        """One row per mixture measured on every solute: rel_<solute>, obj_min_rel, its error, n_solvents, fractions."""
+        """One row per mixture measured on every measurable solute: rel_<solute>, obj_min_rel (worst measurable solute),
+        its error, n_solvents, fractions. Solutes declared not measurable by `analysis reduce` are left out."""
+        if not self.measurable_solutes:
+            raise SpectraError("no solute is measurable (wavelengths_roundN.csv), so there is no objective to report")
         p = self.pooled()
-        wide = p.pivot(index="mixture", columns="solute", values="rel").dropna()
+        p = p[p["solute"].isin(self.measurable_solutes)]
+        wide = p.pivot(index="mixture", columns="solute", values="rel")[self.measurable_solutes].dropna()
         err = p.pivot(index="mixture", columns="solute", values="rel_err").loc[wide.index]
         worst = wide.idxmin(axis=1)
         out = wide.add_prefix("rel_")

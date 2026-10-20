@@ -53,7 +53,7 @@ def r1_per_solute(run, outdir):
         ax.axvline(1.0, color="k", lw=0.8, ls=":", label="DMF")
         ax.set_yticks(y, show["mixture"], fontsize=6.5)
         ax.set_xlabel("Relative solubility (DMF = 1)", fontsize=9)
-        ax.set_title(solute, fontsize=10)
+        ax.set_title(solute + ("  (NOT measurable: values are noise)" if solute in run.unmeasurable else ""), fontsize=10)
         ax.tick_params(axis="x", labelsize=8)
         ax.legend(fontsize=6.5, frameon=False, loc="lower right")
         if len(mixes) and best_pure is not None:
@@ -65,6 +65,8 @@ def r1_per_solute(run, outdir):
     fig.suptitle("Pure solvents and the best mixtures per solute", fontsize=11)
     fig.tight_layout()
     notes = [f"z = difference over the combined error (within-plate and between-round spread); a mixture beats the best pure solvent when z > {Z_BETTER:g}."]
+    if run.unmeasurable:
+        notes.append(f"{run.unmeasurable}: declared not measurable by `analysis reduce` (see wavelengths_roundN.csv); shown for completeness, values are noise.")
     return pd.DataFrame(rows), notes, [save(fig, outdir / "report_R1_per_solute.png")]
 
 
@@ -93,7 +95,8 @@ def r2_objective(run, outdir):
     obj["worst_solute"] = obj[rel_cols].idxmin(axis=1).str[len("rel_"):]
     table = obj.head(TOP_N)[["mixture", "obj_min_rel", "obj_err", "worst_solute", "n_solvents", "first_round"]].copy()
     table.insert(0, "rank", range(1, len(table) + 1))
-    notes = []
+    notes = [f"Objective over the measurable solutes {run.measurable_solutes}; excluded as NOT measurable by `analysis reduce` "
+             f"(control signal within the noise at every usable wavelength): {run.unmeasurable}."] if run.unmeasurable else []
     if best_pure is not None and len(obj):
         best = obj.iloc[0]
         z = _z(best["obj_min_rel"], best["obj_err"], best_pure["obj_min_rel"], best_pure["obj_err"])
@@ -108,9 +111,10 @@ def r2_objective(run, outdir):
 def per_round_objective(run) -> pd.DataFrame:
     """One row per round x condition: obj (min over solutes of rel_mean), kind, mixture."""
     s = run.samples()
+    s = s[s["solute"].isin(run.measurable_solutes)]
     g = s.groupby(["round", "condition_id"])
     out = g.agg(obj=("rel_mean", "min"), kind=("kind", "first"), mixture=("mixture", "first"), n_solutes=("solute", "nunique"))
-    return out[out["n_solutes"] == len(run.solutes)].reset_index()
+    return out[out["n_solutes"] == len(run.measurable_solutes)].reset_index()
 
 
 def r3_progress(run, outdir):
@@ -208,7 +212,7 @@ def r4_gp(run, outdir, trios, seed=0):
         X = np.zeros((len(grid3), len(order)))
         for k, s in enumerate(trio):
             X[:, order.index(s)] = grid3[:, k]
-        means, stds = zip(*(fitted[s].gp.predict(X, return_std=True) for s in run.solutes if s in fitted))
+        means, stds = zip(*(fitted[s].gp.predict(X, return_std=True) for s in run.measurable_solutes if s in fitted))
         maps.append((np.min(means, axis=0), np.mean(stds, axis=0)))
     x, y = barycentric(grid3[:, 0], grid3[:, 1], grid3[:, 2])
     for row, (label, idx, cmap) in enumerate((("GP posterior mean of the objective", 0, "viridis"), ("GP posterior std (mean over solutes)", 1, "cividis"))):
@@ -341,20 +345,21 @@ def r5_synergy(run, outdir):
 
 def r6_solute_agreement(run, outdir):
     obj = run.pooled_objective()
-    rel = obj[[f"rel_{s}" for s in run.solutes]].rename(columns=lambda c: c[len("rel_"):])
+    solutes = run.measurable_solutes
+    rel = obj[[f"rel_{s}" for s in solutes]].rename(columns=lambda c: c[len("rel_"):])
     corr = rel.corr()
     fig, axes = panel_grid(2, 2, (5.2, 4.2))
-    im = annotated_matrix(axes[0], corr.to_numpy(), run.solutes, "cividis", vmin=-1, vmax=1)
+    im = annotated_matrix(axes[0], corr.to_numpy(), solutes, "cividis", vmin=-1, vmax=1)
     fig.colorbar(im, ax=axes[0], shrink=0.8).set_label("Pearson correlation across mixtures", fontsize=9)
     axes[0].set_title("Do solutes prefer the same mixtures?", fontsize=10)
     ax = axes[1]
     top = obj.nlargest(TOP_N, "obj_min_rel")
     cmap = plt.get_cmap("viridis")
     for k, (_, row) in enumerate(top.iterrows()):
-        ax.plot(range(len(run.solutes)), [row[f"rel_{s}"] for s in run.solutes], "o-", ms=3, lw=1,
+        ax.plot(range(len(solutes)), [row[f"rel_{s}"] for s in solutes], "o-", ms=3, lw=1,
                 color=cmap(1 - k / max(len(top) - 1, 1)), label=f"{k + 1}. {row['mixture']}")
     ax.axhline(1.0, color="k", ls=":", lw=0.8)
-    ax.set_xticks(range(len(run.solutes)), run.solutes)
+    ax.set_xticks(range(len(solutes)), solutes)
     ax.set_ylabel("Relative solubility", fontsize=9)
     ax.set_title(f"Top {TOP_N} mixtures across solutes", fontsize=10)
     ax.legend(fontsize=6, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=2)

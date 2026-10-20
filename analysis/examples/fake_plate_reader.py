@@ -22,6 +22,8 @@ WIDTH_NM = dict(zip(SOLUTES, [18, 25, 22, 35]))
 BAND_HEIGHT = 1.2  # peak absorbance of a fully dissolved solute
 BAND_HEIGHTS = {}  # per-solute override of BAND_HEIGHT, e.g. {SOLUTES[0]: 2.6} to saturate, {SOLUTES[3]: 0.06} to sit near the noise
 ATTACK_PER_MIN = {}  # solvent -> absorbance gained per minute of contact at 300 nm (polystyrene attack); default none
+CUTOFF_NM = {}  # solvent -> UV cut-off: the solvent itself absorbs strongly below this wavelength; default none
+CUTOFF_ABS = 3.0  # absorbance a pure solvent reaches well below its cut-off (the reader clips at READER_MAX)
 NOISE = 0.004
 READER_MAX = 3.5  # the reader cannot report more than this absorbance
 SYNERGY = 0.4  # bonus for balanced mixtures: 0 for a pure solvent, up to SYNERGY * 2/3 for an equal ternary
@@ -53,6 +55,12 @@ def band_height(row, solids=True) -> float:
     return height * dissolved_fraction(row[FRACTION_COLUMNS], row["solute"]) if solids else 0.0
 
 
+def solvent_absorbance(fractions, wavelength_nm):
+    """Solvent cut-offs: each solvent's own absorbance rises sigmoidally below CUTOFF_NM[solvent], weighted by its fraction."""
+    wl = np.asarray(wavelength_nm, dtype=float)
+    return sum(f * CUTOFF_ABS / (1 + np.exp((wl - CUTOFF_NM[s]) / 8.0)) for f, s in zip(fractions, ALL_SOLVENTS) if s in CUTOFF_NM)
+
+
 def attack(fractions, delay_min, wavelength_nm):
     """Plate attack: solvent-weighted absorbance growing with contact time, rising into the UV like the baseline."""
     rate = sum(f * ATTACK_PER_MIN.get(s, 0.0) for f, s in zip(fractions, ALL_SOLVENTS))
@@ -67,7 +75,7 @@ def _band(solute, height):
 def spectrum(row, rng, solids=True, delay_min=0.0) -> np.ndarray:
     """Absorbance at every wavelength for one well."""
     fractions = row[FRACTION_COLUMNS].to_numpy(dtype=float)
-    return np.minimum(baseline(WAVELENGTHS) + _band(row["solute"], band_height(row, solids)) + attack(fractions, delay_min, WAVELENGTHS)
+    return np.minimum(baseline(WAVELENGTHS) + solvent_absorbance(fractions, WAVELENGTHS) + _band(row["solute"], band_height(row, solids)) + attack(fractions, delay_min, WAVELENGTHS)
                       + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
 
 
@@ -93,7 +101,8 @@ def qc_spectrum(row, rng, delay_min=0.0) -> np.ndarray:
     if row["role"] == "calibration":
         solubility = dissolved_fraction(fractions, row["solute"])  # as a fraction of the nominal mass
         band = _band(row["solute"], BAND_HEIGHTS.get(row["solute"], BAND_HEIGHT) * min(float(row["loading"]), solubility))
-    return np.minimum(baseline(WAVELENGTHS) + band + attack(fractions, delay_min, WAVELENGTHS) + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
+    return np.minimum(baseline(WAVELENGTHS) + solvent_absorbance(fractions, WAVELENGTHS) + band + attack(fractions, delay_min, WAVELENGTHS)
+                      + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
 
 
 def qc_export(qc_map, rng, delay_min=0.0) -> pd.DataFrame:

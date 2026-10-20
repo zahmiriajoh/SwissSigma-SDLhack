@@ -69,10 +69,15 @@ def test_qc_summary_recovers_the_fake_data(toy_run, tmp_path):
         assert f"## {q}" in summary
     r0, p0 = FIRST_ROUND, FIRST_PLATE
     assert (outdir / f"qc_Q7_calibration_round{r0}.png").exists() and (outdir / f"qc_Q4_peakshift_round{r0}.png").exists()
-    # the first solute saturates (band 2.6 > 2.5) only in its DMF control well A1; the last is near the noise
-    assert f"P{p0}:A1" in summary and f"P{p0}:A2" not in summary
-    wl = toy_run.wavelengths(r0)
-    assert abs(wl[SOLUTES[0]] - 275) <= 2 and abs(wl[SOLUTES[3]] - 410) <= 5
+    # the second solute saturates (band 2.6 > 2.5) only in its DMF control well; the last is near the noise
+    pm = toy_run.plate_maps[r0]
+    ctrl = pm.index[(pm["solute"] == SOLUTES[1]) & (pm["role"] == "control")][0]
+    assert f"P{p0}:{ctrl}" in summary and f"P{p0}:A2" not in summary
+    # acetone's fake cut-off (330 nm) hides the first solute's 275 nm band: read on the shoulder, flagged not measurable
+    report = pd.read_csv(toy_run.folder / f"wavelengths_round{r0}.csv", index_col=0)
+    assert report.loc[SOLUTES[0], "wavelength_nm"] >= 330 and not report.loc[SOLUTES[0], "at_band_max"] and not report.loc[SOLUTES[0], "measurable"]
+    assert report.loc[SOLUTES[3], "at_band_max"] and abs(report.loc[SOLUTES[3], "wavelength_nm"] - 410) <= 5 and report.loc[SOLUTES[3], "measurable"]
+    assert (report["window_min_nm"] >= 330).all()
     # the plate log gives the read-delay panel its data
     plates = {str(p) for p in range(p0, p0 + 3)} | {"qc"}
     assert toy_run.plate_log() is not None and set(toy_run.plate_log()["plate"].astype(str)) >= plates
@@ -87,12 +92,15 @@ def test_toy_run_has_no_forbidden_pairs(toy_run):
 def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     outdir = tmp_path / "figs"
     summary = run_report(toy_run, outdir, with_gp=False).read_text()
-    assert "a mixture beats every single solvent" in summary  # the toy chemistry rewards balanced mixtures
+    assert toy_run.unmeasurable == [SOLUTES[0]] and SOLUTES[0] not in toy_run.measurable_solutes  # hidden under acetone's cut-off
+    assert "excluded as NOT measurable" in summary and SOLUTES[0] in summary
     syn = synergy_table(toy_run)
     assert (syn.groupby("solute")["synergy"].mean() > 0).all()
     assert {"synergy_err", "z", "significant"} <= set(syn.columns) and syn["significant"].any()
     assert (syn.loc[syn["significant"], "z"].abs() > 2).all()
-    obj = toy_run.pooled_objective()
+    obj = toy_run.pooled_objective().sort_values("obj_min_rel", ascending=False)
+    assert set(c[len("rel_"):] for c in obj.columns if c.startswith("rel_")) == set(toy_run.measurable_solutes)
+    assert obj.iloc[0]["n_solvents"] > 1  # the toy chemistry rewards balanced mixtures: a mixture tops the measurable objective
     assert obj["obj_min_rel"].max() > obj.loc[obj["n_solvents"] == 1, "obj_min_rel"].max()
     for name in ("R1_per_solute", "R2_objective", "R3_progress", "R4_ternary", "R4_binaries", "R5_synergy", "R6_solutes", "R7_dataset"):
         assert (outdir / f"report_{name}.png").exists()

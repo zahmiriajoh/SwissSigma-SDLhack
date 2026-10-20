@@ -54,11 +54,19 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | `--wavelength Glutarimide=275 ...` | picked | fix a solute's wavelength instead of picking it |
 | `--nm-range MIN MAX` | 230 800 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
+| `--blank-max` | 1.0 | usable window: read only where every solvent blank is below this absorbance |
+| `--abs-max` | 2.5 | flag wells whose raw absorbance exceeds this (reader linear range) |
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |
 
 Each solute is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, blank subtracted,
-5 nm smoothing, maximum inside `--nm-range`). With a reader set to a few fixed wavelengths the peak is simply the
-best of those. Pass `--wavelength` to override, or to read later rounds at the round-1 values.
+5 nm smoothing), restricted to the **usable window**: wavelengths where every pure-solvent blank (QC plate) or every
+blank well stays below `--blank-max`, so no well is read where its own solvent saturates the detector. If a band
+maximum lies outside the window (acetone is opaque below about 330 nm, DMF below about 270 nm) the solute is read on
+its shoulder; `wavelengths_roundN.csv` records `band_max_nm`, `at_band_max`, the window, `signal_fraction` and a
+`measurable` verdict (control signal above 3 x the 600–800 nm noise). With a reader set to a few fixed wavelengths the
+peak is simply the best usable one. Pass `--wavelength` to override, or to read later rounds at the round-0 values.
+Endpoint files carry `blank_abs` and a `flag` column (`saturated`, `opaque`); `bo_bridge.py merge` reads only the
+absorbance. See PLAN.md decision 15.
 
 **Blank handling.** The blank is used in `reduce` only to find the peaks. The endpoint files keep raw absorbance for the
 plates and the blank alike, so `bo_bridge.py merge --blank` does the one and only subtraction.

@@ -99,3 +99,17 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
     `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check,
     the QC plate's mixture blanks (89 wells used) and the toy generator. See `production/README.md`.
+15. **Conservative readout: read only where every solvent is transparent** (user request, since the plan cannot change
+    once the campaign starts). `analysis reduce` derives a usable wavelength window from the blank spectra: wavelengths
+    where the worst pure-solvent blank (QC plate) or the worst blank well stays below `--blank-max` (default 1.0
+    absorbance, leaving headroom for the solute below the reader's limit). Each solute's wavelength is the peak of its
+    DMF-control spectrum **inside that window**; if the band maximum lies outside (e.g. under acetone's 330 nm cut-off)
+    the solute is read on its shoulder and `wavelengths_roundN.csv` records `at_band_max = False`, the band maximum,
+    the window and `signal_fraction`. A solute whose control signal at that wavelength is below 3 x the spectral noise
+    (600-800 nm spread) is marked `measurable = False`, and the console says so. Endpoint files carry `blank_abs` and a
+    `flag` column (`saturated` above `--abs-max`, `opaque` above `--blank-max`) that bo_bridge merge ignores.
+    Consequences: measurements stay valid in every well at the cost of sensitivity; a solute that cannot be measured is
+    declared unmeasurable up front rather than reported as insoluble. **Run one QC plate before round 0** and read
+    `wavelengths_round0.csv`: it says which solutes the UV readout can follow at all. Prefer full-spectrum exports; with
+    fixed wavelengths, choose them from that QC-plate run (band maximum where allowed, else the first usable wavelength
+    above the cut-off, plus 700 nm).

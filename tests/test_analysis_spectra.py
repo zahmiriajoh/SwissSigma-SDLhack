@@ -39,15 +39,16 @@ def test_read_spectra_long_and_wide_agree(plates, tmp_path):
 
 
 def test_picked_wavelengths_hit_the_fake_peaks(plates, blank, plate_map):
-    wavelengths, endpoints, _ = reduce_round(plate_map, plates, blank)
+    wavelengths, endpoints, _, report = reduce_round(plate_map, plates, blank)
     for solute, nm in TRUE_PEAKS.items():
         assert abs(wavelengths[solute] - nm) <= 2
     assert len(endpoints) == 4 and all(len(e) == 96 for e in endpoints)
-    assert list(endpoints[0].columns) == ["well", "absorbance"]
+    assert list(endpoints[0].columns)[:2] == ["well", "absorbance"] and (endpoints[0]["flag"] == "").all()
+    assert report["at_band_max"].all() and (report["signal_fraction"] > 0.99).all()
 
 
 def test_override_wins_and_missing_control_is_an_error(plates, plate_map):
-    wavelengths, _, _ = reduce_round(plate_map, plates[:1], overrides={SOLUTES[1]: 300})
+    wavelengths, _, _, _ = reduce_round(plate_map, plates[:1], overrides={SOLUTES[1]: 300})
     assert wavelengths[SOLUTES[1]] == 300
     no_controls = plate_map[plate_map["role"] != "control"]
     with pytest.raises(SpectraError, match="no DMF control"):
@@ -68,7 +69,8 @@ def test_cli_output_feeds_bo_bridge_merge(tmp_path):
     out = run("-m", "analysis", "reduce", "--plate-map", PLATE_MAP,
               "--reader", *(EXAMPLES / f"reader_round{R}_plate{i}.csv" for i in PLATES),
               "--blank", EXAMPLES / f"reader_round{R}_blank.csv", "--outdir", tmp_path)
-    assert f"{SOLUTES[0]} 275" in out
+    line = next(l for l in out.splitlines() if SOLUTES[0] in l)
+    assert "275 nm (band maximum" in line
     run(REPO / "OT protocols" / "bo_bridge.py", "merge", "--plate-map", PLATE_MAP,
         "--reader", *(tmp_path / f"endpoint_round{R}_plate{i}.csv" for i in PLATES),
         "--blank", tmp_path / f"endpoint_round{R}_blank.csv",
