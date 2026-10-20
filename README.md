@@ -20,11 +20,11 @@ python examples/toy_additive_pipeline.py   # whole loop on fake additive chemist
 |---|---|
 | `OT protocols/` | **Source of truth for the experiment and all CSV formats.** OT-2 protocol `sdl_solubility_ot2.py` (one round = 3 identical plates), `bo_bridge.py` (suggestions → robot CSV + plate map; plate-reader exports → `bo_dataset.csv`), custom labware, deck/plate maps, `tools/check_all.py`. |
 | `OTFlex analog/` | Same liquid handling replayed on a Flex, for timing a round before the real run. |
-| `analysis/` | Plate-reader spectra → one absorbance per well per plate (`python -m analysis reduce`), in the format `bo_bridge.py merge` takes. |
+| `analysis/` | `python -m analysis qc-layout / reduce / qc / report`: QC plate per round (blanks + calibration series), plate-reader spectra → one absorbance per well per plate in the format `bo_bridge.py merge` takes, experiment-quality figures (`qc_summary.md`) and study-aim figures (`report_summary.md`). |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
 | `examples/` | `toy_additive_pipeline.py`: runs the whole loop with fake additive solubility and checks BO homes in on the best pure solvent. Its outputs (every CSV of every round) are kept in `examples/toy_additive_output/` as debugging material. |
-| `analysis/examples/` | Fake plate reader and synthetic full-spectrum exports (3 plates + blank) for the round-1 example plate map. |
+| `analysis/examples/` | Fake plate reader; synthetic round-1 exports (3 plates, blank, QC plate) for the example plate map; `make_toy_run.py` builds a fake multi-round campaign folder for `analysis qc / report` without SDL_BO. |
 | `data/Opentrons_Example_Files/` | Reference protocols and labware provided by the organisers (read-only). |
 | `data/project_proposal/` | Project proposal (read-only). |
 
@@ -33,11 +33,15 @@ python examples/toy_additive_pipeline.py   # whole loop on fake additive chemist
 ```
 python -m SDL_BO init                       ──► suggestions_round1.csv
 python bo_bridge.py layout                  ──► ot_input_round1.csv (robot) + plate_map_round1.csv
-OT-2 run (3 identical plates) ──► plate reader ──► reader_round1_plate{1,2,3}.csv (+ blank)
-python -m analysis reduce                   ──► endpoint_round1_plate{1,2,3}.csv (one absorbance per well)
+python -m analysis qc-layout                ──► qc_plate_map_round1.csv + ot_input_round1_qc.csv (blanks + calibration)
+OT-2 run (3 sample plates + 1 QC plate) ──► plate reader ──► reader_round1_plate{1,2,3}.csv + reader_round1_qc.csv
+python -m analysis reduce                   ──► endpoint_round1_plate{1,2,3}.csv + endpoint_round1_blank.csv (one absorbance per well)
 python bo_bridge.py merge                   ──► bo_dataset.csv
 python -m SDL_BO suggest                    ──► suggestions_round2.csv   ... repeat
+python -m analysis qc / report              ──► figures + qc_summary.md / report_summary.md (any time, all rounds so far)
 ```
+
+Keep every round of a campaign in one folder: `analysis qc` and `report` find the rounds from the `plate_map_roundN.csv` files there.
 
 ## Experiment definition (from `bo_bridge.py`)
 
