@@ -1,6 +1,6 @@
 """Build a complete fake campaign folder for developing and testing `analysis qc` / `analysis report`.
 
-    bo_bridge grid/layout -> fake spectra (3 plates + QC plate + plate log) -> analysis reduce -> bo_bridge merge, per round
+    bo_bridge grid/layout -> fake spectra (3 plates + plate log) -> analysis reduce -> bo_bridge merge, per round
 
 Later rounds use random (seeded) suggestions in SDL_BO's id scheme (R<n>_exploit01.., R<n>_explore01.., re-tests under
 their first ids), so no Gaussian-process fitting is needed and the whole run takes seconds. Names and numbering come
@@ -24,7 +24,6 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "analysis" / "examples")]
 import fake_plate_reader as fpr  # noqa: E402
 
-from analysis.qc_layout import write_qc_layout  # noqa: E402
 from analysis.spectra import read_plate_map  # noqa: E402
 from production.config import FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, PLATE_ATTACKERS, SOLUTES, is_allowed  # noqa: E402
 
@@ -92,14 +91,12 @@ def suggestions(round_, outdir, rng) -> Path:
 
 
 def measure(round_, outdir, rng, fixed):
-    """Fake spectra for the 3 sample plates, the QC plate and the plate log."""
+    """Fake spectra for the 3 sample plates and the plate log."""
     plate_map = read_plate_map(outdir / f"plate_map_round{round_}.csv")
-    qc_map = write_qc_layout(plate_map, outdir)
-    log = fpr.plate_log([*PLATES, "qc"], rng)
+    log = fpr.plate_log(list(PLATES), rng)
     log.to_csv(outdir / f"plate_log_round{round_}.csv", index=False)
     delays = dict(zip(log["plate"].astype(str), log["read_delay_min"]))
     exports = [(f"reader_round{round_}_plate{p}.csv", fpr.spectra_export(plate_map, rng, delay_min=delays[str(p)])) for p in PLATES]
-    exports.append((f"reader_round{round_}_qc.csv", fpr.qc_export(qc_map, rng, delay_min=delays["qc"])))
     for name, df in exports:
         (fpr.fixed_wavelength_export(df, FIXED_NM) if fixed else df).to_csv(outdir / name, index=False)
 
@@ -109,11 +106,10 @@ def one_round(round_, outdir, rng, fixed):
     run(BO_BRIDGE, "layout", "--round", round_, "--suggestions", sug, "--outdir", outdir)
     measure(round_, outdir, rng, fixed)
     readers = [outdir / f"reader_round{round_}_plate{p}.csv" for p in PLATES]
-    run("-m", "analysis", "reduce", "--plate-map", outdir / f"plate_map_round{round_}.csv", "--reader", *readers,
-        "--qc-reader", outdir / f"reader_round{round_}_qc.csv", "--qc-map", outdir / f"qc_plate_map_round{round_}.csv", "--outdir", outdir)
+    run("-m", "analysis", "reduce", "--plate-map", outdir / f"plate_map_round{round_}.csv", "--reader", *readers, "--wavelength", *[f"{s}={fpr.PEAK_NM[s]:g}" for s in SOLUTES], "--outdir", outdir)
     endpoints = [outdir / f"endpoint_round{round_}_plate{p}.csv" for p in PLATES]
     run(BO_BRIDGE, "merge", "--plate-map", outdir / f"plate_map_round{round_}.csv", "--reader", *endpoints,
-        "--blank", outdir / f"endpoint_round{round_}_blank.csv", "--dataset", outdir / "bo_dataset.csv")
+        "--dataset", outdir / "bo_dataset.csv")
 
 
 def main(argv=None):

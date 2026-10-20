@@ -7,8 +7,7 @@ DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at
 
 Blank handling: the solvent-only readings are used here only to find the peaks. The endpoint files keep the
 raw absorbance (plates and blank alike), so `bo_bridge.py merge --blank` does the one and only subtraction.
-The blank can be a full solvent-only copy of the sample plate, or a QC plate (qc_layout.py) whose pure-solvent
-blank wells are combined per sample well in its volume fractions (synthetic_blank).
+The blank is optional: a full solvent-only copy of the sample plate. Without one (the current plan) nothing is subtracted.
 """
 import re
 
@@ -97,28 +96,6 @@ def _is_full_spectrum(index) -> bool:
     return len(index) >= 20 and float(pd.Series(index).diff().median()) <= 2.0
 
 
-def pure_blanks(qc_spectra, qc_map) -> pd.DataFrame:
-    """Wide table (wavelength x solvent) of the QC plate's pure-solvent blank spectra."""
-    blanks = qc_map[(qc_map["role"] == "blank") & qc_map["solvent"].notna() & (qc_map["solvent"].astype(str) != "")]
-    return pd.DataFrame({row["solvent"]: qc_spectra[well] for well, row in blanks.iterrows() if well in qc_spectra.columns})
-
-
-def synthetic_blank(qc_spectra, qc_map, plate_map) -> pd.DataFrame:
-    """Blank spectrum per sample well = sum over solvents of (volume fraction x pure-solvent blank spectrum from the QC plate).
-
-    Returns a wide table (wavelength x plate-map wells) usable wherever a blank plate is, so the sample layout needs
-    no solvent-only copy. Requires one pure-solvent blank well per solvent used in the plate map.
-    """
-    pure = pure_blanks(qc_spectra, qc_map)
-    cols = [c for c in plate_map.columns if c.startswith("frac_")]
-    missing = {c[len("frac_"):] for c in cols if (plate_map[c] > 0).any()} - set(pure.columns)
-    if missing:
-        raise SpectraError(f"QC plate has no pure-solvent blank well for {sorted(missing)}")
-    out = {well: sum(row[f"frac_{s}"] * pure[s] for s in pure.columns if row.get(f"frac_{s}", 0) > 0)
-           for well, row in plate_map.iterrows()}
-    return pd.DataFrame(out, index=qc_spectra.index)
-
-
 def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
     """True at wavelengths where the worst blank column (pure solvent or blank well) stays below blank_max.
 
@@ -193,18 +170,17 @@ def reduce_plate(spectra, plate_map, wavelengths, bandwidth_nm=0.0, blank=None, 
 
 
 def reduce_round(plate_map, plates, blank=None, overrides=None, nm_range=DEFAULT_NM_RANGE, bandwidth_nm=0.0,
-                 blank_max=BLANK_MAX_DEFAULT, abs_max=ABS_MAX_DEFAULT, pure=None):
+                 blank_max=BLANK_MAX_DEFAULT, abs_max=ABS_MAX_DEFAULT):
     """Full step for one round.
 
     Returns (wavelengths, endpoints, corrected, report): wavelengths per solute; endpoint tables for each plate and
     (last, if given) the blank, in input order; the blank-corrected spectra used to pick the peaks; the wavelength report.
-    The usable window comes from `pure` (wavelength x pure solvent, from the QC plate) or else from the blank plate.
+    The usable window comes from the blank plate; without one every wavelength in nm_range is usable.
     """
     for i, s in enumerate(plates, start=1):
         check_wells(s, plate_map, f"plate {i}")
     corrected = [blank_correct(s, blank) for s in plates] if blank is not None else list(plates)
-    window_source = pure if pure is not None else blank
-    usable = usable_mask(window_source, blank_max) if window_source is not None else None
+    usable = usable_mask(blank, blank_max) if blank is not None else None
     wavelengths, report = pick_wavelengths(corrected, plate_map, nm_range, overrides, usable)
     to_reduce = plates + ([blank] if blank is not None else [])
     endpoints = [reduce_plate(s, plate_map, wavelengths, bandwidth_nm, blank, abs_max, blank_max) for s in to_reduce]

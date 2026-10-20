@@ -5,9 +5,8 @@
 #
 # CSV_DIR is the folder exchanged with the lab (production/README.md, "Folder structure"):
 #   CSV_DIR/ratios/   robot inputs we write:  suggestions_roundN.csv, ot_input_roundN.csv, plate_map_roundN.csv,
-#                                            qc_plate_map_roundN.csv, ot_input_roundN_qc.csv
 #   CSV_DIR/uvvis/    results the lab uploads: reader_roundN_plate0.csv, reader_roundN_plate1.csv, reader_roundN_plate2.csv,
-#                                            reader_roundN_qc.csv, plate_log_roundN.csv (optional)
+#                                            plate_log_roundN.csv (optional)
 #   CSV_DIR/          what the analysis derives: endpoint_roundN_*.csv, wavelengths_roundN.csv, results_roundN_wells.csv,
 #                                            bo_dataset.csv, bo_dataset_shared.csv, figures/
 #
@@ -15,7 +14,7 @@
 #   nothing yet                      -> round 0 seed design (SDL_BO init) and its robot files into ratios/
 #   ratios for round N, no uvvis     -> stops and lists the reader files it is waiting for
 #   uvvis for round N present        -> analysis reduce -> bo_bridge merge -> SDL_BO suggest -> bo_bridge layout
-#                                       -> analysis qc-layout for round N+1 into ratios/, then analysis qc + report into figures/
+#                                       -> robot files for round N+1 into ratios/, then analysis qc + report into figures/
 #   ratios for N+1 already written   -> nothing to do (re-run after the lab uploads round N+1)
 # Every step refuses to overwrite a finished round, so the script can be re-run safely.
 set -euo pipefail
@@ -65,19 +64,16 @@ latest_round() {  # highest N with ratios/plate_map_roundN.csv, or empty
 reader_files() {  # the uvvis files round $1 needs
   local r=$1 p
   for ((p = FIRST_PLATE; p < FIRST_PLATE + N_PLATES; p++)); do echo "$UVVIS/reader_round${r}_plate${p}.csv"; done
-  echo "$UVVIS/reader_round${r}_qc.csv"
 }
-layout_round() {  # suggestions -> robot CSV + plate map + QC plate for round $1
+layout_round() {  # suggestions -> robot CSV + plate map for round $1
   local r=$1
   python "$BRIDGE" layout --round "$r" --suggestions "$RATIOS/suggestions_round${r}.csv" --outdir "$RATIOS"
-  python -m analysis qc-layout --plate-map "$RATIOS/plate_map_round${r}.csv" --outdir "$RATIOS"
   echo
   echo "Round $r is ready for the lab. Upload to the Opentrons app:"
   echo "  $RATIOS/ot_input_round${r}.csv      (3 identical sample plates)"
-  echo "  $RATIOS/ot_input_round${r}_qc.csv   (1 QC plate: solvent blanks + calibration series; weigh loading x nominal mass)"
   echo "Then ask the lab to save the plate-reader exports as:"
   reader_files "$r" | sed 's/^/  /'
-  echo "  $UVVIS/plate_log_round${r}.csv      (optional: plate,read_delay_min for plates $FIRST_PLATE-$((FIRST_PLATE + N_PLATES - 1)) and qc)"
+  echo "  $UVVIS/plate_log_round${r}.csv      (optional: plate,read_delay_min for plates $FIRST_PLATE-$((FIRST_PLATE + N_PLATES - 1)))"
 }
 
 # ----- round 0: seed design ------------------------------------------------------------------------------------
@@ -111,10 +107,11 @@ endpoints=(); for ((p = FIRST_PLATE; p < FIRST_PLATE + N_PLATES; p++)); do endpo
 if [[ ! -f "$CSV_DIR/results_round${N}_wells.csv" ]]; then
   echo "== Round $N: spectra -> one absorbance per well (analysis reduce)"
   python -m analysis reduce --plate-map "$RATIOS/plate_map_round${N}.csv" --reader "${readers[@]}" \
-    --qc-reader "$UVVIS/reader_round${N}_qc.csv" --qc-map "$RATIOS/qc_plate_map_round${N}.csv" --outdir "$CSV_DIR" --plots
+    --outdir "$CSV_DIR" --plots
   echo "== Round $N: merge into bo_dataset.csv (bo_bridge merge)"
+  blank=(); [[ -f "$CSV_DIR/endpoint_round${N}_blank.csv" ]] && blank=(--blank "$CSV_DIR/endpoint_round${N}_blank.csv")  # no blanks run for now
   python "$BRIDGE" merge --plate-map "$RATIOS/plate_map_round${N}.csv" --reader "${endpoints[@]}" \
-    --blank "$CSV_DIR/endpoint_round${N}_blank.csv" --dataset "$CSV_DIR/bo_dataset.csv" --wells-out "$CSV_DIR/results_round${N}_wells.csv"
+    ${blank[@]+"${blank[@]}"} --dataset "$CSV_DIR/bo_dataset.csv" --wells-out "$CSV_DIR/results_round${N}_wells.csv"
 else
   echo "== Round $N already merged (results_round${N}_wells.csv exists)"
 fi

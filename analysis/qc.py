@@ -1,31 +1,17 @@
-"""Experiment quality (PLAN.md Q1-Q7): reproducibility, control drift, blank/plate attack, spectra, precision,
-re-tests and calibration. Each check returns (summary table, notes, figure paths); run_qc writes qc_summary.md.
+"""Experiment quality (PLAN.md Q1, Q2, Q4-Q6; Q3 blanks and Q7 calibration were dropped with the QC plate): reproducibility,
+control drift, spectra, precision and re-tests. Each check returns (summary table, notes, figure paths); run_qc writes qc_summary.md.
 """
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from production.config import PLATE_ATTACKERS, REFERENCE_SOLVENT
-
-from .plots import (OKABE_ITO, PLATE_MARKERS, colors_for, identity_line, panel_grid, plate_heatmap, save)
-from .spectra import ABS_MAX_DEFAULT, DEFAULT_NM_RANGE, blank_correct
+from .plots import (PLATE_MARKERS, colors_for, identity_line, panel_grid, plate_heatmap, save)
+from .spectra import ABS_MAX_DEFAULT, DEFAULT_NM_RANGE, MIN_SIGNAL_SIGMAS, blank_correct
 from .summary import Summary
 
-# Solvents that craze polystyrene: the production list (production/config.toml) plus the fake toy-run solvents.
-PLATE_ATTACKERS = list(dict.fromkeys(PLATE_ATTACKERS + ["EtOAc", "iPrOAc", "2MeTHF", "CPME"]))
-PLATE_ATTACKERS = [s for s in PLATE_ATTACKERS if s != REFERENCE_SOLVENT]  # the control is pure DMF anyway
 PLATE_OFFSET_FLAG = 0.05       # a plate whose median deviates from the others by more than this is flagged
 SCATTER_NM = (600.0, 800.0)    # no solute absorbs here: signal = scattering by undissolved solid
 MIN_ABS_FOR_PEAK = 0.05     # peak position is only meaningful for wells whose corrected band is at least this high
-LINEAR_RESIDUAL = 0.05         # calibration: a level is "linear" while its residual is within 5 % of the fit
-
-
-def _lin_fit(x, y):
-    """Least-squares y = a x (through the origin): returns (slope, R^2)."""
-    x, y = np.asarray(x, float), np.asarray(y, float)
-    a = (x @ y) / (x @ x) if (x @ x) > 0 else np.nan
-    ss_res, ss_tot = ((y - a * x) ** 2).sum(), ((y - y.mean()) ** 2).sum()
-    return a, 1 - ss_res / ss_tot if ss_tot > 0 else np.nan
 
 
 # ----- Q1 plate-to-plate reproducibility ----------------------------------------------------------
@@ -105,104 +91,12 @@ def q2_control_stability(run, outdir):
     return pd.DataFrame(rows), notes, [fig_path]
 
 
-# ----- Q3 blank plate and polystyrene attack --------------------------------------------------------
+# ----- detection limit (used by Q5) -----------------------------------------------------------------
 
-def blank_model(run):
-    """abs_blank ~ sum_s frac_s * b_s per solute (least squares): coefficients, residual std and R^2."""
-    cols = [f"frac_{s}" for s in run.solvents]
-    pm = pd.concat([m.assign(round=r) for r, m in run.plate_maps.items()])
-    w = run.wells.drop_duplicates(["round", "well", "solute"]).merge(
-        pm.reset_index()[["round", "well"] + cols], on=["round", "well"])
-    out = {}
-    for solute, g in w.groupby("solute"):
-        X, y = g[cols].to_numpy(float), g["abs_blank"].to_numpy(float)
-        coef, *_ = np.linalg.lstsq(X, y, rcond=None)
-        resid = y - X @ coef
-        r2 = 1 - (resid ** 2).sum() / ((y - y.mean()) ** 2).sum() if y.std() > 0 else np.nan
-        out[solute] = {"coef": pd.Series(coef, index=run.solvents), "resid_std": float(resid.std()), "r2": float(r2)}
-    return w, out
-
-
-def qc_blank_additivity(run) -> pd.DataFrame:
-    """QC-plate mixture blanks: measured absorbance (at each solute's wavelength) against the pure-solvent prediction."""
-    rows = []
-    for r in run.rounds:
-        qc_map, spec, wl = run.qc_map(r), run.qc_spectra(r), run.wavelengths(r)
-        if qc_map is None or spec is None or wl is None:
-            continue
-        blanks = qc_map[qc_map["role"] == "blank"]
-        cols = [c for c in blanks.columns if c.startswith("frac_")]
-        is_pure = blanks["solvent"].notna() & (blanks["solvent"].astype(str) != "")
-        pure = {row["solvent"]: spec[w] for w, row in blanks[is_pure].iterrows()}
-        for w, row in blanks[~is_pure].iterrows():
-            predicted = sum(row[c] * pure[c[len("frac_"):]] for c in cols if row[c] > 0)
-            for solute, nm in wl.items():
-                rows.append({"round": r, "well": w, "solute": solute, "n_solvents": int((row[cols] > 0).sum()),
-                             "measured": float(spec.loc[nm, w]), "predicted": float(predicted.loc[nm])})
-    return pd.DataFrame(rows)
-
-
-def q3_blank_and_attack(run, outdir):
-    w, model = blank_model(run)
-    additivity = qc_blank_additivity(run)
-    colors = colors_for(run.solutes)
-    cols = [f"frac_{s}" for s in run.solvents]
-    w["dominant"] = w[cols].idxmax(axis=1).str[len("frac_"):]
-    w["ester_ether"] = w[[f"frac_{s}" for s in PLATE_ATTACKERS if s in run.solvents]].sum(axis=1)
-    log = run.plate_log()
-    panels = 2 + (log is not None) + (not additivity.empty)
-    fig, axes = panel_grid(panels, panels, (4.6, 3.6))
-    ax = axes[0]
-    x_of = {s: i for i, s in enumerate(run.solvents)}
-    for j, solute in enumerate(run.solutes):
-        g = w[w["solute"] == solute]
-        jitter = (j - (len(run.solutes) - 1) / 2) * 0.15
-        ax.plot(g["dominant"].map(x_of) + jitter, g["abs_blank"], "o", ms=3, color=colors[solute], alpha=0.6, label=solute)
-    ax.set_xticks(range(len(run.solvents)), run.solvents, fontsize=8, rotation=30)
-    ax.set_ylabel("Blank absorbance at solute wavelength", fontsize=9)
-    ax.set_title("By dominant solvent", fontsize=10)
-    ax.legend(fontsize=7, frameon=False)
-    ax = axes[1]
-    for solute in run.solutes:
-        g = w[w["solute"] == solute]
-        ax.plot(g["ester_ether"], g["abs_blank"], "o", ms=3, color=colors[solute], alpha=0.6)
-    ax.set_xlabel("Fraction of plate-attacking solvents", fontsize=9)
-    ax.set_ylabel("Blank absorbance", fontsize=9)
-    ax.set_title("Polystyrene-attacking solvents", fontsize=10)
-    if log is not None:
-        ax = axes[2]
-        plate_mean = run.wells.groupby(["round", "plate", "solute"])["abs_corrected"].median().reset_index()
-        plate_mean["rel"] = plate_mean["abs_corrected"] / plate_mean.groupby(["round", "solute"])["abs_corrected"].transform("mean") - 1
-        d = plate_mean.assign(plate=plate_mean["plate"].astype(str)).merge(log.assign(plate=log["plate"].astype(str)), on=["round", "plate"])
-        for solute in run.solutes:
-            g = d[d["solute"] == solute]
-            ax.plot(g["read_delay_min"], g["rel"] * 100, "o", ms=4, color=colors[solute])
-        ax.axhline(0, color="k", lw=0.6)
-        ax.set_xlabel("Shake end to read (min)", fontsize=9)
-        ax.set_ylabel("Plate median vs round mean (%)", fontsize=9)
-        ax.set_title("Read delay effect on sample plates", fontsize=10)
-    if not additivity.empty:
-        ax = axes[-1]
-        for solute in run.solutes:
-            g = additivity[additivity["solute"] == solute]
-            ax.plot(g["predicted"], g["measured"], "o", ms=3, color=colors[solute], alpha=0.7)
-        identity_line(ax)
-        ax.set_xlabel("Predicted from pure-solvent blanks", fontsize=9)
-        ax.set_ylabel("Measured mixture blank", fontsize=9)
-        ax.set_title("QC plate: is the blank additive?", fontsize=10)
-    for ax in axes:
-        ax.tick_params(labelsize=8)
-    fig.suptitle("Blank wells: solvent background and plate attack", fontsize=11)
-    fig.tight_layout()
-    fig_path = save(fig, outdir / "qc_Q3_blank.png")
-    table = pd.DataFrame([{"solute": s, **{f"b_{k}": v for k, v in m["coef"].items()},
-                           "resid_std": m["resid_std"], "r2": m["r2"]} for s, m in model.items()])
-    notes = ["b_<solvent>: blank absorbance of the pure solvent at that solute's wavelength (additive fit over all blank wells).",
-             *([f"QC-plate mixture blanks: measured minus additive prediction = {additivity['measured'].sub(additivity['predicted']).abs().mean():.4f} "
-                f"absorbance on average (n = {len(additivity)})."] if not additivity.empty else []),
-             "Low R^2 or large residuals mean the blank is not additive in composition, i.e. plate attack or solvent interaction.",
-             "Read-delay panel appears only when plate_log_roundN.csv files exist."]
-    return table, notes, [fig_path]
+def detection_limits(run) -> dict:
+    """{solute: MIN_SIGNAL_SIGMAS x reader noise}, the noise being the std of the control spectrum's far-red tail (wavelengths_roundN.csv)."""
+    reports = [rep["noise"] for r in run.rounds if (rep := run.wavelength_report(r)) is not None]
+    return (MIN_SIGNAL_SIGMAS * pd.concat(reports, axis=1).mean(axis=1)).to_dict() if reports else {}
 
 
 # ----- Q4 spectral QC -------------------------------------------------------------------------------
@@ -251,19 +145,18 @@ def q4_spectral(run, outdir, abs_max=ABS_MAX_DEFAULT, nm_range=DEFAULT_NM_RANGE)
 # ----- Q5 precision against signal ------------------------------------------------------------------
 
 def q5_precision(run, outdir):
-    _, model = blank_model(run)
+    lods = detection_limits(run)
     s = run.samples()
     if not (s["abs_std"] > 0).any():
-        lod = {sol: 3 * m["resid_std"] for sol, m in model.items()}
         table = pd.DataFrame([{"solute": sol, "detection_limit_abs": v,
-                               "frac_below_lod": float((s.loc[s["solute"] == sol, "abs_mean"] < v).mean())} for sol, v in lod.items()])
+                               "frac_below_lod": float((s.loc[s["solute"] == sol, "abs_mean"] < v).mean())} for sol, v in lods.items()])
         return table, ["No replicate plates, so there is no within-condition spread to plot; detection limits only."], []
     colors = colors_for(run.solutes)
     fig, ax = plt.subplots(figsize=(5.5, 4))
     rows = []
     for solute in run.solutes:
         g = s[(s["solute"] == solute) & (s["abs_std"] > 0) & (s["abs_mean"] > 0)]
-        lod = 3 * model[solute]["resid_std"]
+        lod = lods.get(solute, np.nan)
         ax.plot(g["abs_mean"], g["abs_std"], "o", ms=3.5, alpha=0.7, color=colors[solute], label=solute)
         ax.axvline(lod, color=colors[solute], ls="--", lw=0.8)
         slope = np.polyfit(np.log(g["abs_mean"]), np.log(g["abs_std"]), 1)[0] if len(g) > 2 else np.nan
@@ -271,13 +164,13 @@ def q5_precision(run, outdir):
                      "log_slope_std_vs_mean": float(slope)})
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Mean absorbance (blank-corrected)", fontsize=9)
+    ax.set_xlabel("Mean absorbance", fontsize=9)
     ax.set_ylabel("Std across replicate wells", fontsize=9)
-    ax.set_title("Precision against signal (dashed = 3 x blank noise)", fontsize=11)
+    ax.set_title("Precision against signal (dashed = 3 x reader noise)", fontsize=11)
     ax.tick_params(labelsize=8)
     ax.legend(fontsize=8, frameon=False)
     fig.tight_layout()
-    notes = ["Detection limit = 3 x residual std of the blank model (Q3).",
+    notes = [f"Detection limit = {MIN_SIGNAL_SIGMAS:g} x the reader noise (std of the control spectrum beyond the absorption bands, wavelengths_roundN.csv).",
              "log slope near 0: constant (reader) noise; near 1: proportional (pipetting/dissolution) noise."]
     return pd.DataFrame(rows), notes, [save(fig, outdir / "qc_Q5_precision.png")]
 
@@ -321,66 +214,6 @@ def q6_retests(run, outdir, cv_table=None):
     return pd.DataFrame(rows), notes, [save(fig, outdir / "qc_Q6_retests.png")]
 
 
-# ----- Q7 calibration (QC plate) ------------------------------------------------------------------
-
-def calibration_table(qc_map, qc_spectra, wavelengths):
-    """Per (solvent, solute): absorbance at the solute's wavelength minus that solvent's pure blank, slope through the origin,
-    R^2 and the linear range (largest loading whose residual is within LINEAR_RESIDUAL of the fit). Also the per-well table."""
-    blanks = qc_map[(qc_map["role"] == "blank") & qc_map["solvent"].notna() & (qc_map["solvent"].astype(str) != "")]
-    blank_at = {(row["solvent"], solute): float(qc_spectra.loc[nm, w]) for w, row in blanks.iterrows() for solute, nm in wavelengths.items()}
-    cal = qc_map[qc_map["role"] == "calibration"].copy()
-    cal["absorbance"] = [float(qc_spectra.loc[wavelengths[row["solute"]], w]) for w, row in cal.iterrows()]
-    cal["corrected"] = [a - blank_at.get((row["solvent"], row["solute"]), 0.0) for a, (_, row) in zip(cal["absorbance"], cal.iterrows())]
-    rows = []
-    for (solvent, solute), g in cal.groupby(["solvent", "solute"]):
-        g = g.sort_values("loading")
-        lo, hi = g.iloc[0], g.iloc[-1]
-        slope = lo["corrected"] / lo["loading"]  # response per unit mass at the lowest loading, the one most likely fully dissolved
-        resid = (g["corrected"] - slope * g["loading"]).abs() / max(abs(slope * lo["loading"]), 1e-9)
-        linear = g["loading"][resid <= LINEAR_RESIDUAL]
-        ratio = (hi["corrected"] / lo["corrected"]) / (hi["loading"] / lo["loading"]) if lo["corrected"] > 0 and len(g) > 1 else np.nan
-        rows.append({"solvent": solvent, "solute": solute, "slope_per_loading": slope, "top_to_bottom_linearity": ratio,
-                     "linear_up_to": float(linear.max()) if len(linear) else 0.0, "n_levels": len(g)})
-    return pd.DataFrame(rows), cal
-
-
-def q7_calibration(run, outdir):
-    rows, figs = [], []
-    for r in run.rounds:
-        qc_map, qc_spec, wl = run.qc_map(r), run.qc_spectra(r), run.wavelengths(r)
-        if qc_map is None or qc_spec is None or wl is None:
-            continue
-        table, cal = calibration_table(qc_map, qc_spec, wl)
-        table["round"] = r
-        ctrl = run.wells[(run.wells["round"] == r) & (run.wells["role"] == "control")].groupby("solute")["abs_corrected"].mean()
-        dmf = table[table["solvent"] == REFERENCE_SOLVENT].set_index("solute")["slope_per_loading"]
-        table["dmf_control_recovery"] = table["solute"].map(lambda s: ctrl.get(s, np.nan) / dmf.get(s, np.nan))
-        rows.append(table)
-        colors = colors_for(run.solvents)
-        fig, axes = panel_grid(len(run.solutes), 2, (5, 3.4))
-        for ax, solute in zip(axes, run.solutes):
-            for k, solvent in enumerate(run.solvents):
-                g = cal[(cal["solute"] == solute) & (cal["solvent"] == solvent)].sort_values("loading")
-                if g.empty:
-                    continue
-                ax.plot([0, *g["loading"]], [0, *g["corrected"]], PLATE_MARKERS[k % len(PLATE_MARKERS)] + "-", ms=4, lw=0.8,
-                        color=colors[solvent], label=solvent, mfc="none" if k >= len(PLATE_MARKERS) else colors[solvent])
-            ax.set_title(f"{solute} at {wl.get(solute, np.nan):.0f} nm", fontsize=10)
-            ax.set_xlabel("Loading (fraction of nominal mass)", fontsize=9)
-            ax.set_ylabel("Absorbance minus solvent blank", fontsize=9)
-            ax.tick_params(labelsize=8)
-        axes[0].legend(fontsize=7, frameon=False, ncol=2)
-        fig.suptitle(f"Round {r}: calibration series per solvent (QC plate)", fontsize=11)
-        fig.tight_layout()
-        figs.append(save(fig, outdir / f"qc_Q7_calibration_round{r}.png"))
-    if not rows:
-        return pd.DataFrame(), ["No QC plate (qc_plate_map_roundN.csv + reader_roundN_qc.csv) found."], []
-    notes = ["slope_per_loading: blank-corrected absorbance per unit of nominal solid mass, from the lowest loading (most likely fully dissolved).",
-             "top_to_bottom_linearity: 1.0 = the highest loading reads in proportion to the lowest; well below 1 = solubility-limited (the series bends over). linear_up_to: largest loading within 5 % of that line.",
-             "dmf_control_recovery: sample-plate DMF control / DMF calibration slope; 1.0 means the control is fully dissolved."]
-    return pd.concat(rows, ignore_index=True), notes, figs
-
-
 # ----- driver ---------------------------------------------------------------------------------------
 
 QUESTIONS = {  # what each check is for, printed under its heading in qc_summary.md
@@ -388,16 +221,12 @@ QUESTIONS = {  # what each check is for, printed under its heading in qc_summary
           "The spread sets the noise floor: a mixture must beat the best single solvent by more than this to count.",
     "Q2": "Does the DMF control, the denominator of every relative value, stay constant across plates and rounds? "
           "Drift would rescale a whole round and make rounds incomparable.",
-    "Q3": "How much absorbance comes from the solvent and the plate rather than the solute, does it grow with ester/ether "
-          "content or read delay, and does it add up linearly so that the per-well blank is valid?",
     "Q4": "Are any wells saturated, scattering (undissolved solid) or absorbing at the wrong wavelength? "
           "Each would inflate or bias that well's solubility without any extra solute dissolving.",
     "Q5": "Which conditions are measurable at all, and is the noise constant (reader) or proportional to the signal "
           "(pipetting and dissolution)?",
     "Q6": "Does a mixture measured again in a later round, on new solid and a new plate, give the same answer? "
           "This is the only check that rounds can be pooled.",
-    "Q7": "Is absorbance proportional to the amount of solute, in which solvents does the solute stop dissolving at the "
-          "working loading, and is the DMF control fully dissolved?",
 }
 
 
@@ -406,9 +235,8 @@ def run_qc(run, outdir, abs_max=ABS_MAX_DEFAULT):
     summary = Summary(f"QC summary: {run.folder.name} (rounds {', '.join(map(str, run.rounds))})")
     q1 = q1_plate_reproducibility(run, outdir)
     checks = [("Q1 plate-to-plate reproducibility", q1), ("Q2 control stability", q2_control_stability(run, outdir)),
-              ("Q3 blank wells and plate attack", q3_blank_and_attack(run, outdir)),
               ("Q4 spectral QC", q4_spectral(run, outdir, abs_max)), ("Q5 precision against signal", q5_precision(run, outdir)),
-              ("Q6 cross-round re-tests", q6_retests(run, outdir, q1[0])), ("Q7 calibration", q7_calibration(run, outdir))]
+              ("Q6 cross-round re-tests", q6_retests(run, outdir, q1[0]))]
     for title, (table, notes, figs) in checks:
         summary.section(title, notes, table, figs, QUESTIONS[title.split()[0]])
     return summary.write(outdir / "qc_summary.md")
