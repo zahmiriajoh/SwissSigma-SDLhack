@@ -3,50 +3,44 @@ import numpy as np
 import pandas as pd
 
 from . import space
-from .history import load_history, ratio_columns, score_mixtures
+from .dataset import load_dataset, ratio_columns, score_mixtures
 
 N_PARETO_ROWS_SHOWN = 10
 
 
 def describe_mixture(mixture_key) -> str:
-    """Human-readable composition, e.g. '47.5% acetone + 50% EtOH + 2.5% water'."""
-    parts = [f"{units * 100 / space.GRID_STEPS:g}% {solvent}"
-             for solvent, units in zip(space.GREEN_SOLVENTS, mixture_key) if units > 0]
-    return " + ".join(parts)
+    """Human-readable composition, e.g. '50% 2MeTHF + 50% EtOAc'."""
+    return " + ".join(f"{ul * 100 / space.TOTAL_UL:g}% {solvent}"
+                      for solvent, ul in zip(space.GREEN_SOLVENTS, mixture_key) if ul > 0)
 
 
 def is_pure_solvent(mixture_key) -> bool:
-    """True if the mixture has a single solvent."""
-    return sum(units > 0 for units in mixture_key) == 1
+    return sum(ul > 0 for ul in mixture_key) == 1
 
 
 def _is_dominated(ratios: np.ndarray, this_one: np.ndarray) -> bool:
     """True if some mixture is at least as good on every solute and better on at least one."""
-    at_least_as_good = (ratios >= this_one).all(axis=1)
-    better_somewhere = (ratios > this_one).any(axis=1)
-    return bool((at_least_as_good & better_somewhere).any())
+    return bool(((ratios >= this_one).all(axis=1) & (ratios > this_one).any(axis=1)).any())
 
 
 def pareto_front(mixtures: pd.DataFrame) -> pd.DataFrame:
-    """Mixtures (from score_mixtures) that no other mixture beats on every solute's ratio_<solute>."""
-    ratios = mixtures[ratio_columns(mixtures)].to_numpy()
-    return mixtures[[not _is_dominated(ratios, this_one) for this_one in ratios]]
+    """Fully measured mixtures (from score_mixtures) that no other mixture beats on every solute."""
+    complete = mixtures.dropna(subset=ratio_columns(mixtures))
+    ratios = complete[ratio_columns(complete)].to_numpy()
+    return complete[[not _is_dominated(ratios, row) for row in ratios]]
 
 
-def _best_lines(mixtures: pd.DataFrame) -> list:
-    position = int(np.argmax(mixtures["score"].to_numpy()))
-    row = mixtures.iloc[position]  # by position: the index holds tuples, which pandas reads as multi-axis labels
-    return [f"Best mixture: {describe_mixture(mixtures.index[position])}  "
-            f"score={row['score']:.3f} (n={int(row['n'])})"]
+def _best_line(mixtures: pd.DataFrame, label: str) -> str:
+    position = int(np.nanargmax(mixtures["score"].to_numpy()))  # by position: the index holds tuples
+    row = mixtures.iloc[position]
+    return f"{label}: {describe_mixture(mixtures.index[position])}  score={row['score']:.3f} (n={int(row['n'])})"
 
 
 def _pure_solvent_lines(mixtures: pd.DataFrame) -> list:
     pure = mixtures.iloc[[i for i, key in enumerate(mixtures.index) if is_pure_solvent(key)]]
-    if pure.empty:
+    if pure["score"].isna().all():
         return []
-    position = int(np.argmax(pure["score"].to_numpy()))
-    lines = [f"Best pure solvent: {describe_mixture(pure.index[position])}  "
-             f"score={pure['score'].iloc[position]:.3f}"]
+    lines = [_best_line(pure, "Best pure solvent")]
     for column in ratio_columns(mixtures):
         lines.append(f"  {column}: best pure={pure[column].max():.3g}  best overall={mixtures[column].max():.3g}")
     return lines
@@ -61,9 +55,11 @@ def _pareto_lines(mixtures: pd.DataFrame) -> list:
     return lines
 
 
-def make_report(history_path) -> str:
-    """Summarize the history file as text."""
-    mixtures = score_mixtures(load_history(history_path))
-    footer = ("(ratio_<solute> = absorbance relative to the DMF control on the same plate; "
+def make_report(dataset_path) -> str:
+    """Summarize bo_dataset.csv as text."""
+    mixtures = score_mixtures(load_dataset(dataset_path))
+    if mixtures["score"].isna().all():
+        return "No mixture has been measured on every solute yet."
+    footer = ("(ratio_<solute> = absorbance relative to the DMF control of the same round; "
               "score = the worst solute's ratio; 1.0 = DMF parity)")
-    return "\n".join([*_best_lines(mixtures), *_pure_solvent_lines(mixtures), *_pareto_lines(mixtures), footer])
+    return "\n".join([_best_line(mixtures, "Best mixture"), *_pure_solvent_lines(mixtures), *_pareto_lines(mixtures), footer])

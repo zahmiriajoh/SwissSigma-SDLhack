@@ -1,18 +1,14 @@
 """Command line interface:  python -m SDL_BO <command> [options]
 
-    init        write the round-1 design (candidates CSV)
-    merge       add one round's measured wells (history format) to the history CSV
-    suggest     read the history CSV, write the next round's candidates CSV
-    report      print a summary of the history CSV
+    init      write the round-1 suggestions CSV (for `bo_bridge.py layout`)
+    suggest   read bo_dataset.csv (from `bo_bridge.py merge`), write the next round's suggestions CSV
+    report    print a summary of bo_dataset.csv
 """
 import argparse
 from pathlib import Path
 
-import pandas as pd
-
 from .campaign import seed_design, suggest_next_round
-from .history import HistoryError
-from .merge import MergeError, append_round_to_history
+from .dataset import DatasetError
 from .report import make_report
 
 
@@ -21,57 +17,46 @@ def _build_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    init = commands.add_parser("init", help="write the round-1 design")
-    init.add_argument("--out", default="candidates.csv", help="candidates CSV to write")
-    init.add_argument("--force", action="store_true", help="overwrite --out if it already exists")
+    init = commands.add_parser("init", help="write the round-1 suggestions")
+    init.add_argument("--out", default="suggestions_round1.csv")
+    init.add_argument("--force", action="store_true", help="overwrite --out if it exists")
 
-    merge = commands.add_parser("merge", help="add one round's measured wells to the history")
-    merge.add_argument("--round-data", required=True, help="CSV of the round's measured wells, in history format")
-    merge.add_argument("--history", default="history.csv", help="history CSV to append to (created if absent)")
+    suggest = commands.add_parser("suggest", help="design the next round from bo_dataset.csv")
+    suggest.add_argument("--dataset", default="bo_dataset.csv", help="bo_dataset.csv written by bo_bridge.py merge")
+    suggest.add_argument("--out", help="suggestions CSV to write (default suggestions_round<N>.csv)")
+    suggest.add_argument("--seed", type=int, default=0, help="seed for the random fallbacks")
 
-    suggest = commands.add_parser("suggest", help="design the next round from the history")
-    suggest.add_argument("--history", default="history.csv", help="history CSV to read")
-    suggest.add_argument("--out", default="candidates.csv", help="candidates CSV to write (overwritten each round)")
-    suggest.add_argument("--seed", type=int, default=0, help="seed for the random fallbacks (default 0)")
-
-    report = commands.add_parser("report", help="summarize the history")
-    report.add_argument("--history", default="history.csv", help="history CSV to read")
+    report = commands.add_parser("report", help="summarize bo_dataset.csv")
+    report.add_argument("--dataset", default="bo_dataset.csv")
     return parser
 
 
 def _run_init(args) -> None:
-    out_path = Path(args.out)
-    if out_path.exists() and not args.force:
-        raise SystemExit(f"{out_path} already exists; pass --force to overwrite it")
-    seed_design().to_csv(out_path, index=False)
-    print(f"wrote {out_path}")
-
-
-def _run_merge(args) -> None:
-    round_rows = pd.read_csv(args.round_data)
-    combined = append_round_to_history(args.history, round_rows)
-    print(f"added {len(round_rows)} wells (round {int(round_rows['round'].iloc[0])}) to {args.history}; "
-          f"it now has {len(combined)} wells")
+    out = Path(args.out)
+    if out.exists() and not args.force:
+        raise SystemExit(f"{out} already exists; pass --force to overwrite it")
+    seed_design().to_csv(out, index=False)
+    print(f"wrote {out}")
 
 
 def _run_suggest(args) -> None:
-    candidates, info = suggest_next_round(args.history, seed=args.seed)
-    candidates.to_csv(args.out, index=False)
-    print(f"wrote {args.out}: round {info['round']}, kernels={info['kernels']}, "
-          f"n_training_wells={info['n_training_wells']}")
+    suggestions, info = suggest_next_round(args.dataset, seed=args.seed)
+    out = Path(args.out or f"suggestions_round{info['round']}.csv")
+    suggestions.to_csv(out, index=False)
+    print(f"wrote {out}: round {info['round']}, {len(suggestions)} conditions, "
+          f"incumbent score {info['incumbent_score']:.3f}, kernels={info['kernels']}")
 
 
 def _run_report(args) -> None:
-    print(make_report(args.history))
+    print(make_report(args.dataset))
 
 
-COMMANDS = {"init": _run_init, "merge": _run_merge,
-            "suggest": _run_suggest, "report": _run_report}
+COMMANDS = {"init": _run_init, "suggest": _run_suggest, "report": _run_report}
 
 
 def main(argv=None) -> None:
     args = _build_parser().parse_args(argv)
     try:
         COMMANDS[args.command](args)
-    except (HistoryError, MergeError, FileNotFoundError) as error:
+    except (DatasetError, ValueError, FileNotFoundError) as error:
         raise SystemExit(f"error: {error}") from None  # a one-line message, not a traceback

@@ -1,10 +1,10 @@
-"""A Gaussian process (GP) per solute, and the two ways we pick new mixtures from them (details: HOW_IT_WORKS.md).
+"""A Gaussian process (GP) per solute, and the two ways we pick new mixtures from them.
 
 * One GP per solute predicts its ratio to DMF from the six green-solvent fractions; the kernel is chosen by cross-validation.
 * A mixture's score is its worst solute. "Exploit" picks use batch expected improvement (qEI) to beat the best score so far;
   "explore" picks take the mixtures the models are least sure about.
 
-Notation: fractions (n_wells, 6) model input; ratios (n_wells, n_solutes) absorbance / DMF absorbance;
+Notation: fractions (n_rows, 6) model input; targets (n_rows,) rel_mean = absorbance / DMF absorbance;
 candidates (n_candidates, 6) the mixtures we choose among.
 """
 import warnings
@@ -100,11 +100,6 @@ def fit_best_gp(fractions, targets, mixture_ids, seed=0) -> FittedModel:
     return FittedModel(gp, best_kernel_name, cv_rmse_by_kernel)
 
 
-def fit_gp_per_solute(fractions, ratios, mixture_ids, seed=0) -> list:
-    """One FittedModel per solute (per column of `ratios`), each choosing its own kernel."""
-    return [fit_best_gp(fractions, ratios[:, solute], mixture_ids, seed=seed)
-            for solute in range(ratios.shape[1])]
-
 
 # --------------------------------------------------------------------------------------------
 # Posterior of the underlying (noise-free) function
@@ -112,7 +107,7 @@ def fit_gp_per_solute(fractions, ratios, mixture_ids, seed=0) -> list:
 class LatentPosterior:
     """A GP's belief about the noise-free ratio at `points` (`mean`, `variance`: (n_points,)), with cross-point covariances.
 
-    Relies on scikit-learn internals (kernel_.k1, _y_train_mean/_std); tests/test_model.py checks them.
+    Relies on scikit-learn internals (kernel_.k1, _y_train_mean/_std); tests/test_sdl_bo.py checks them.
     """
 
     def __init__(self, gp, points):
@@ -140,6 +135,25 @@ class LatentPosterior:
 # --------------------------------------------------------------------------------------------
 # Picking new mixtures
 # --------------------------------------------------------------------------------------------
+class Budget:
+    """Per-solvent volume still available this round; a pick spends its cost and may rule out later candidates."""
+
+    def __init__(self, remaining_ul):
+        self.remaining = np.asarray(remaining_ul, dtype=float).copy()
+
+    def fits(self, cost_ul) -> np.ndarray:
+        """Boolean mask over rows of `cost_ul` (n, n_solvents): True where every solvent still fits."""
+        return (np.asarray(cost_ul) <= self.remaining + 1e-9).all(axis=1)
+
+    def spend(self, cost_ul) -> None:
+        self.remaining -= np.asarray(cost_ul, dtype=float)
+
+
+def _no_budget(n_candidates, cost):
+    """A budget that never rules anything out, with a zero cost table, for callers without volume limits."""
+    return Budget(np.zeros(1)), (np.zeros((n_candidates, 1)) if cost is None else cost)
+
+
 def _pick_setup(n_picks: int, n_candidates: int, rng):
     """Validated (n_picks capped at n_candidates, rng defaulting to a fixed seed)."""
     if n_picks < 0:
@@ -174,10 +188,16 @@ def _sampled_scores(posteriors, picks, standard_normals):
     return scores
 
 
-def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=None,
+def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=None, cost=None, budget=None,
                        min_improvement=MIN_IMPROVEMENT, n_samples=N_SAMPLES) -> list:
-    """Greedy qEI: indices into `candidates` that add most expected improvement over `incumbent_score` (random if none do)."""
+    """Greedy qEI: indices into `candidates` that add most expected improvement over `incumbent_score` (random if none do).
+
+    `cost` (n_candidates, n_solvents) and `budget` (a Budget) limit the batch's solvent use; picking stops early if
+    nothing affordable is left.
+    """
     n_picks, rng = _pick_setup(n_picks, len(candidates), rng)
+    if budget is None:
+        budget, cost = _no_budget(len(candidates), cost)
     posteriors = [LatentPosterior(gp, candidates) for gp in solute_gps]
 
     # standard_normals[k] is the fresh randomness of pick k: every candidate is evaluated as "the next pick" with it
@@ -189,6 +209,9 @@ def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=Non
     batch_improvement = np.zeros(n_samples)
 
     for _ in range(n_picks):
+        still_available &= budget.fits(cost)
+        if not still_available.any():
+            break
         sampled_scores = _sampled_scores(posteriors, picks, standard_normals)  # (n_samples, n_candidates)
         improvement = np.maximum(sampled_scores - incumbent_score - min_improvement, 0.0)
         # gain = average rise of the per-sample best improvement
@@ -200,6 +223,7 @@ def pick_exploit_batch(solute_gps, candidates, n_picks, incumbent_score, rng=Non
             best_candidate = int(rng.choice(np.flatnonzero(still_available)))
         picks.append(best_candidate)
         still_available[best_candidate] = False
+        budget.spend(cost[best_candidate])
         batch_improvement = np.maximum(batch_improvement, improvement[:, best_candidate])
     return picks
 
@@ -217,27 +241,40 @@ def _average_uncertainty(solute_gps, points, known_fractions) -> np.ndarray:
     return total / len(solute_gps)
 
 
-def pick_explore_batch(solute_gps, fixed_fractions, candidates, n_picks, rng=None,
+def pick_explore_batch(solute_gps, fixed_fractions, candidates, n_picks, rng=None, cost=None, budget=None,
                        min_uncertainty=MIN_EXPLORE_UNCERTAINTY) -> list:
     """Indices into `candidates` the models know least about, each treated as measured once picked; leftovers are random.
 
-    `fixed_fractions` = everything already measured or picked this round.
+    `fixed_fractions` = everything already measured or picked this round. `cost`/`budget` as in pick_exploit_batch.
     """
     n_picks, rng = _pick_setup(n_picks, len(candidates), rng)
+    if budget is None:
+        budget, cost = _no_budget(len(candidates), cost)
+
+    def pick(index):
+        picks.append(int(index))
+        budget.spend(cost[index])
 
     known_fractions = fixed_fractions.copy()
     remaining = np.arange(len(candidates))  # indices of candidates not picked yet
     picks = []
-    while len(picks) < n_picks and len(remaining):
+    while len(picks) < n_picks:
+        remaining = remaining[budget.fits(cost[remaining])]
+        if not len(remaining):
+            return picks
         uncertainty = _average_uncertainty(solute_gps, candidates[remaining], known_fractions)
         most_uncertain = int(np.argmax(uncertainty))
         if uncertainty[most_uncertain] <= min_uncertainty:
             break  # everything left is already well determined by the data
-        picks.append(int(remaining[most_uncertain]))
+        pick(remaining[most_uncertain])
         known_fractions = np.vstack([known_fractions, candidates[remaining[most_uncertain]]])
         remaining = np.delete(remaining, most_uncertain)
 
-    if len(picks) < n_picks:  # not enough uncertain candidates: fill with random ones
-        not_picked = np.setdiff1d(np.arange(len(candidates)), picks)
-        picks += [int(i) for i in rng.choice(not_picked, n_picks - len(picks), replace=False)]
+    while len(picks) < n_picks:  # not enough uncertain candidates: fill with affordable random ones
+        affordable = remaining[budget.fits(cost[remaining])]
+        if not len(affordable):
+            break
+        chosen = int(rng.choice(affordable))
+        pick(chosen)
+        remaining = remaining[remaining != chosen]
     return picks

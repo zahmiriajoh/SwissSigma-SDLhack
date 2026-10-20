@@ -1,140 +1,91 @@
 # SDL_BO
 
-**History CSV in, candidates CSV out.** `SDL_BO` knows nothing about the robot or plate reader and keeps no state between calls: the history file is the only state.
+Bayesian optimisation for the green-solvent screen. **`bo_dataset.csv` in, suggestions CSV out.** It knows
+nothing about the robot or the plate reader: `OT protocols/bo_bridge.py` owns every file format, and SDL_BO
+reads and writes exactly those. The dataset file is the only state.
 
 ## Install
 
-`SDL_BO/` is self-contained (it imports nothing from outside itself). It needs Python 3.12+ and `numpy`, `pandas`, `scikit-learn` and `scipy`. Put the folder's parent directory on the path (or run from there) and use `python -m SDL_BO ...` or `import SDL_BO`.
+Use the repo environment (`mamba env create -f environment.yml`, `mamba activate sdlhack`). Run from the
+repo root: `python -m SDL_BO ...` or `import SDL_BO`.
 
 ## The loop
 
 ```
-init ──► candidates.csv ──► run in lab, read plates ──► measured_wells.csv
-                                                              │
-        suggest ◄── history.csv ◄── merge ◄───────────────────┘
-          │
-          └──► candidates.csv (next round) ──► ... repeat
+python -m SDL_BO init                 ──► suggestions_round1.csv
+python bo_bridge.py layout            ──► ot_input_round1.csv + plate_map_round1.csv
+OT-2 run, plate reader, analysis      ──► one absorbance per well per plate
+python bo_bridge.py merge             ──► bo_dataset.csv
+python -m SDL_BO suggest              ──► suggestions_round2.csv   ... repeat layout / run / merge / suggest
 ```
 
 ```bash
-python -m SDL_BO init    --out candidates.csv                                    # 1. round-1 design
-python -m SDL_BO merge   --round-data measured_wells.csv --history history.csv   # 2. add measured round
-python -m SDL_BO suggest --history history.csv --out candidates.csv              # 3. next round's design
-python -m SDL_BO report  --history history.csv                                   # summary, any time
+python -m SDL_BO init    --out runs/suggestions_round1.csv
+python -m SDL_BO suggest --dataset runs/bo_dataset.csv --out runs/suggestions_round2.csv
+python -m SDL_BO report  --dataset runs/bo_dataset.csv
 ```
-
-Repeat steps 2 and 3 for every round. Turning the instrument output into `measured_wells.csv` is **your** step; `SDL_BO` does not do it.
 
 | Command | What it does |
 |---|---|
-| `init [--out FILE] [--force]` | Writes the round-1 design. Refuses to overwrite `--out` without `--force`. |
-| `merge --round-data FILE [--history FILE]` | Appends one round's wells to the history (created if absent). Refuses a round already present, and writes nothing on any error. |
-| `suggest [--history FILE] [--out FILE] [--seed N]` | Designs the next round from the history. Overwrites `--out`. `--seed` makes the random fallbacks reproducible. |
-| `report [--history FILE]` | Prints the best mixture, best single solvent and the Pareto front. |
+| `init [--out FILE] [--force]` | Round-1 design: the 6 pure green solvents + 17 space-filling mixtures. Refuses to overwrite without `--force`. |
+| `suggest --dataset FILE [--out FILE] [--seed N]` | Next round from the dataset: 3 re-tests + 12 exploit + 8 explore. Default output `suggestions_round<N>.csv`. |
+| `report --dataset FILE` | Best mixture, best pure solvent, Pareto front. |
 
-Defaults: `--out candidates.csv`, `--history history.csv`, `--seed 0`. Errors print as one line starting `error:`.
+`bo_bridge.py grid` is an alternative round-1 design (random balanced binaries/ternaries); `init` picks maximin-spread mixtures instead.
 
-## Input: `measured_wells.csv` (one round) and `history.csv` (all rounds)
+## Formats (all defined by bo_bridge.py)
 
-One row per measured **well**; a design run in triplicate is 3 rows. The history is these files stacked.
-
-| Column | Meaning |
-|---|---|
-| `round` | Positive whole number: 1, 2, 3, ... |
-| `DMF`, `acetone`, `EtOH`, `iPrOH`, `water`, `iPrOAc`, `tBuOAc` | Volume fractions of the well; each row sums to 1. |
-| `abs_<solute>` | One column per solute (any name after `abs_`): the absorbance reading. |
-
-Extra columns (well position, replicate number, ...) are allowed and ignored.
+**Output, `suggestions_roundN.csv`**: one row per condition, run on every solute (no `solute` column).
 
 ```csv
-round,DMF,acetone,EtOH,iPrOH,water,iPrOAc,tBuOAc,replicate,abs_proxy1,abs_proxy2
-1,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1,1.52,1.31
-1,0.0,0.0,0.25,0.0,0.75,0.0,0.0,1,0.88,0.79
+condition_id,frac_2MeTHF,frac_EtOAc,frac_DMC,frac_CPME,frac_MeCN,frac_iPrOAc
+R2_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 ```
 
-Rules (a breach is refused with an explanatory message and the CSV line number):
-- **Every round needs its own pure-DMF control wells** (`DMF = 1`), and they must read above zero. Each plate is divided by its own control.
-- DMF only ever appears as a pure control, never mixed.
-- Fractions are multiples of 2.5% (1/40), with at most 3 solvents per mixture.
-- Every solute column is numeric and finite. Wells with a missing reading are dropped for all solutes, with a warning. Negative absorbances are set to 0, with a warning.
-- Do not use the names `score`, `is_dmf_control`, `mixture_key` or anything starting `ratio_` as columns.
-- `merge` takes exactly one round per file and the same `abs_` columns as the existing history.
+- 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
+- Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
+- Per round, the conditions use at most 1960 µL of any one solvent in a single well set, so 3 plates × 4 solutes fit one 25 mL trough (24 mL usable, 2 % margin). Re-tests, exploit and explore picks are chosen within this budget; if fewer fit, fewer rows are written (bo_bridge leaves wells empty).
+- `condition_id`: `R<round>_seed01`, `R<round>_exploit01`, `R<round>_explore01`; a re-test keeps the id it was first run under.
 
-## Output: `candidates.csv`
-
-32 designs to run, one per row: `round`, the 7 solvent fractions to dispense, and `type`.
-
-```csv
-round,DMF,acetone,EtOH,iPrOH,water,iPrOAc,tBuOAc,type
-2,0.0,0.5,0.075,0.425,0.0,0.0,0.0,bo_exploit
-```
-
-| `type` | Count | Meaning |
-|---|---|---|
-| `seed` | 31 (round 1 only) | The 6 pure green solvents plus 25 well-spread mixtures. |
-| `bo_exploit` | 16 | Untested mixtures most likely to beat the best score so far. |
-| `bo_explore` | 10 | Untested mixtures the models are least sure about. |
-| `retest` | 5 | Repeats of the 5 highest-scoring mixtures so far. |
-| `reference` | 1 | Pure DMF control (`DMF = 1`). |
-
-Round 1 has no `bo_*` or `retest` rows. Measuring each design in triplicate (96 wells per plate, one plate per solute) is the intended design; `SDL_BO` accepts any number of wells per design.
+**Input, `bo_dataset.csv`** (from `bo_bridge.py merge`): one row per round × solute × condition with `round, solute,
+condition_id, is_reference, frac_<solvent>..., rel_mean, ...`. SDL_BO uses `rel_mean` (absorbance relative to the
+round's DMF control for that solute) and drops `is_reference = 1` rows. Rows without `rel_mean` are dropped with a
+warning. Malformed files (fractions not summing to 1, DMF in a mixture, non-integer µL, more than 3 solvents) are refused with the CSV line numbers.
 
 ## How results are scored
 
-- **ratio** = a well's absorbance / the mean DMF-control absorbance of the same round. 1.0 means as good as DMF.
-- **score** of a mixture = its worst solute's ratio, after averaging each solute's ratio over the mixture's wells. The optimizer maximizes it.
+- **ratio_\<solute\>** = `rel_mean`, averaged over every condition row with the same composition (re-tests across rounds).
+- **score** of a mixture = its worst solute's ratio. 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
 
 ## Use from Python
 
 ```python
 from SDL_BO.campaign import seed_design, suggest_next_round
-from SDL_BO.merge import append_round_to_history
 from SDL_BO.report import make_report
 
-candidates = seed_design()                                    # DataFrame, round 1
-measured_wells = run_and_measure(candidates)                  # YOUR code: DataFrame in history format
-append_round_to_history("history.csv", measured_wells)        # returns the combined history DataFrame
-candidates, info = suggest_next_round("history.csv")          # (DataFrame, dict)
-print(make_report("history.csv"))                             # str
+seed_design()                                         # DataFrame, round 1 suggestions
+suggestions, info = suggest_next_round("bo_dataset.csv")  # info: round, kernels, cv_rmse, incumbent_score
+print(make_report("bo_dataset.csv"))
 ```
 
-| Function | Returns |
-|---|---|
-| `seed_design()` | Round-1 candidates DataFrame. |
-| `append_round_to_history(history_path, round_rows)` | The combined history DataFrame; raises `MergeError` and writes nothing if the round is unusable. |
-| `suggest_next_round(history_path, n_exploit=16, n_explore=10, n_retests=5, seed=0)` | `(candidates, info)`; `info` has `round`, `kernels` and `cv_rmse` (both keyed by solute) and `n_training_wells`. |
-| `make_report(history_path)` | Text summary. |
+`DatasetError` (a `ValueError`) is raised for bad data.
 
-`HistoryError` and `MergeError` (both `ValueError` subclasses) are raised for bad data.
+## Examples
 
-## Try it on the example files
-
-`examples/` holds invented data (not real results), run from the folder that contains `SDL_BO/`:
-
-```bash
-python -m SDL_BO merge   --round-data SDL_BO/examples/example_round1_measured_wells.csv --history history.csv
-python -m SDL_BO suggest --history SDL_BO/examples/example_history.csv --out next_candidates.csv
-python -m SDL_BO report  --history SDL_BO/examples/example_history.csv
-```
-
-| File | What it is |
-|---|---|
-| `example_round1_candidates.csv` | Output of `init`: the round-1 design (what to run). |
-| `example_round1_measured_wells.csv` | Round 1 as measured: 96 wells, 4 solutes (what `merge` takes). |
-| `example_history.csv` | A 4-round history (what `suggest` and `report` read). |
+`examples/make_examples.py` runs the real loop (SDL_BO → `bo_bridge.py layout` → fake plate reader from
+`data/debug_analysis/fake_plate_reader.py` → `bo_bridge.py merge` → SDL_BO) for 3 rounds and leaves the files in
+`examples/`: `suggestions_round1..4.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results.
 
 ## What is inside
 
 | File | Role |
 |---|---|
-| `space.py` | Solvents, the 2.5% grid and all 15,411 allowed mixtures. |
-| `history.py` | Reads and validates the history; per-plate DMF normalization; per-well and per-mixture scores. |
-| `merge.py` | Safe, atomic append of one round to the history file. |
-| `model.py` | One Gaussian process per solute with cross-validated kernel choice; exploit (batch expected improvement) and explore picking. |
+| `space.py` | Solvents, 5 µL grid (35,111 allowed mixtures), trough budget. Constants mirror `bo_bridge.py`. |
+| `dataset.py` | Reads and validates `bo_dataset.csv`; per-mixture scores. |
+| `model.py` | One Gaussian process per solute (kernel by cross-validation); exploit (batch expected improvement) and explore picks under a solvent `Budget`. |
 | `campaign.py` | Round-1 design and `suggest_next_round`. |
 | `report.py` | Text report and Pareto front. |
 | `cli.py`, `__main__.py` | Command line. |
-| `examples/` | Invented example input and output files. |
 
-To change the solvent list, grid, or plate composition, edit the constants in `space.py` (`ALL_SOLVENTS`, `GRID_STEPS`, `MAX_SOLVENTS_PER_MIXTURE`) and `campaign.py` (`N_RETESTS`, `N_EXPLOIT`, `N_EXPLORE`). Fix them before recording data: changing the grid afterwards makes an existing history invalid.
-
+To change the plate composition, edit `N_RETESTS`, `N_EXPLOIT`, `N_EXPLORE` in `campaign.py`. Solvents, volumes and
+trough sizes must stay in step with `bo_bridge.py`.
