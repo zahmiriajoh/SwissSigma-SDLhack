@@ -23,7 +23,7 @@ trap 'echo "run_bo.sh: failed at line $LINENO (see the message above)" >&2' ERR
 
 usage() { sed -n '2,20p' "$0"; exit "${1:-0}"; }
 [[ $# -ge 1 ]] || usage 1
-CSV_DIR=$(realpath "$1"); shift
+mkdir -p "$1"; CSV_DIR=$(cd "$1" && pwd); shift  # not realpath: macOS's fails on a folder that does not exist yet
 SEED=0; FIGURES=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
