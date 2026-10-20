@@ -73,7 +73,7 @@ print(make_report("bo_dataset.csv"))
 ## Examples
 
 `examples/make_examples.py` runs the real loop (SDL_BO → `bo_bridge.py layout` → fake plate reader from
-`data/debug_analysis/fake_plate_reader.py` → `bo_bridge.py merge` → SDL_BO) for 3 rounds and leaves the files in
+`analysis/examples/fake_plate_reader.py` → `bo_bridge.py merge` → SDL_BO) for 3 rounds and leaves the files in
 `examples/`: `suggestions_round1..4.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results.
 
 ## What is inside

@@ -1,37 +1,45 @@
 # SwissSigma-SDLhack
 
 Self-driving-lab code for finding green-solvent mixtures that dissolve PROTAC-like building
-blocks (proposal: `data/project_proposal/`). An Opentrons robot builds solvent mixtures in
+blocks (proposal: `data/project_proposal/`). An Opentrons OT-2 builds solvent mixtures in
 96-well plates, a UV-Vis plate reader measures absorbance as a solubility proxy, and Bayesian
 optimisation (BO) picks the next round of mixtures. Each subfolder has its own README.
+
+## Setup
+
+```bash
+mamba env create -f environment.yml   # Python 3.12, opentrons 8.8.2, numpy, pandas, scipy, scikit-learn, matplotlib, pytest
+mamba activate sdlhack
+pytest tests/                         # unit + interface tests, ~15 s
+```
 
 ## Folders
 
 | Folder | What it holds |
 |---|---|
-| `OT protocols/` | OT-2 protocol `sdl_solubility_ot2.py` (one round = up to 3 identical plates), `bo_bridge.py` (suggestions → robot CSV + plate map; plate-reader exports → `bo_dataset.csv`), custom labware, deck/plate maps, `tools/check_all.py`. |
+| `OT protocols/` | **Source of truth for the experiment and all CSV formats.** OT-2 protocol `sdl_solubility_ot2.py` (one round = 3 identical plates), `bo_bridge.py` (suggestions → robot CSV + plate map; plate-reader exports → `bo_dataset.csv`), custom labware, deck/plate maps, `tools/check_all.py`. |
 | `OTFlex analog/` | Same liquid handling replayed on a Flex, for timing a round before the real run. |
-| `SDL_BO/` | Standalone BO package: `python -m SDL_BO init / merge / suggest / report`. History CSV in, candidates CSV out; one Gaussian process per solute. |
-| `data/debug_analysis/` | Synthetic plate maps and UV-Vis spectra (200-800 nm, one column per well) for developing the analysis code. |
+| `analysis/` | Plate-reader spectra → one absorbance per well per plate (`python -m analysis reduce`), in the format `bo_bridge.py merge` takes. |
+| `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
+| `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
+| `data/debug_analysis/` | Fake plate reader and synthetic full-spectrum exports (3 plates + blank) for the round-1 example plate map. |
 | `data/Opentrons_Example_Files/` | Reference protocols and labware provided by the organisers (read-only). |
 | `data/project_proposal/` | Project proposal (read-only). |
 
 ## The loop
 
 ```
-BO suggestions ──► bo_bridge.py layout ──► robot CSV ──► OT-2 run ──► plate reader exports
-       ▲                                                                       │
-       └──── SDL_BO suggest ◄── history CSV ◄── analysis (to be written) ◄─────┘
+python -m SDL_BO init                       ──► suggestions_round1.csv
+python bo_bridge.py layout                  ──► ot_input_round1.csv (robot) + plate_map_round1.csv
+OT-2 run (3 identical plates) ──► plate reader ──► reader_round1_plate{1,2,3}.csv (+ blank)
+python -m analysis reduce                   ──► endpoint_round1_plate{1,2,3}.csv (one absorbance per well)
+python bo_bridge.py merge                   ──► bo_dataset.csv
+python -m SDL_BO suggest                    ──► suggestions_round2.csv   ... repeat
 ```
 
-The analysis step (plate-reader spectra → per-well absorbance → BO history) is the part
-still being built on `main`.
+## Experiment definition (from `bo_bridge.py`)
 
-## Open inconsistencies between the merged branches
-
-These need a decision before the pieces can be chained together:
-
-- **Solvent set.** `OT protocols` and `data/debug_analysis` use 2-MeTHF, EtOAc, DMC, CPME, MeCN, iPrOAc (as in the proposal). `SDL_BO` uses acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc.
-- **Plate layout.** `OT protocols`: 4 solutes per plate, 24 wells each (1 DMF control + 23 conditions), 3 identical plates. `SDL_BO`: one plate per solute, 32 designs in triplicate. `data/debug_analysis`: 3 proxies, 20 mixtures, pure-solvent, blank and calibration wells.
-- **Composition grid.** `bo_bridge.py` snaps volumes to 5 µL of 300 µL. `SDL_BO` requires fractions on a 2.5 % grid.
-- **CSV formats.** `bo_bridge.py merge` writes `bo_dataset.csv` (one row per solute × condition); `SDL_BO merge` expects one row per well with `abs_<solute>` columns. Plate-reader parsing in `bo_bridge.py` takes a long table or an 8×12 grid, not the wavelength × well matrix used in `data/debug_analysis`.
+- **Solvents:** 2MeTHF, EtOAc, DMC, CPME, MeCN, iPrOAc as mixture components; DMF only as the pure reference control.
+- **Plate layout:** 4 solutes (S1-S4) × 24 wells each: 1 DMF control + 23 shared conditions, run on 3 identical plates per round.
+- **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
+- **Objective:** absorbance relative to the DMF control per solute; a mixture's score is its worst solute's ratio.
