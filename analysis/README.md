@@ -1,13 +1,12 @@
 # analysis
 
 **Plate-reader spectra in; endpoint files for `bo_bridge.py merge`, QC figures and the study report out.**
-Four commands, all run from the repo root with `python -m analysis ...`:
+Three commands, all run from the repo root with `python -m analysis ...`:
 
 | Command | In | Out |
 |---|---|---|
-| `qc-layout` | `plate_map_roundN.csv` | QC plate map + robot CSV (blanks and calibration series) |
-| `reduce` | reader exports of the sample plates + QC plate (or blank plate), plate map | one `(well, absorbance)` file per plate at each solute's wavelength, `wavelengths_roundN.csv` |
-| `qc` | a campaign folder | experiment-quality figures Q1–Q7 and `qc_summary.md` |
+| `reduce` | reader exports of the sample plates (optionally a solvent-only blank plate), plate map | one `(well, absorbance)` file per plate at each solute's wavelength, `wavelengths_roundN.csv` |
+| `qc` | a campaign folder | experiment-quality figures Q1, Q2, Q4–Q6 and `qc_summary.md` |
 | `report` | a campaign folder | study-aim figures R1–R7 and `report_summary.md` |
 
 What each figure shows and the decisions behind them are in [`PLAN.md`](PLAN.md).
@@ -20,20 +19,18 @@ Part of the repo-wide uv environment (`bash setup.sh` at the repo root; run comm
 ## One round
 
 ```
-bo_bridge.py layout ──► plate_map_roundN.csv ──► analysis qc-layout ──► qc_plate_map_roundN.csv, ot_input_roundN_qc.csv
-OT-2: 3 sample plates (ot_input_roundN.csv) + 1 QC plate (ot_input_roundN_qc.csv, 1-plate run)
-plate reader ──► reader_roundN_plate{1,2,3}.csv, reader_roundN_qc.csv        lab ──► plate_log_roundN.csv
-analysis reduce ──► endpoint_roundN_plate{1,2,3}.csv, endpoint_roundN_blank.csv, wavelengths_roundN.csv
-bo_bridge.py merge --reader endpoint_... --blank endpoint_roundN_blank.csv ──► results_roundN_wells.csv, bo_dataset.csv
+bo_bridge.py layout ──► plate_map_roundN.csv, ot_input_roundN.csv
+OT-2: 3 sample plates (ot_input_roundN.csv)
+plate reader ──► reader_roundN_plate{0,1,2}.csv                              lab ──► plate_log_roundN.csv (optional)
+analysis reduce ──► endpoint_roundN_plate{0,1,2}.csv, wavelengths_roundN.csv
+bo_bridge.py merge --reader endpoint_... ──► results_roundN_wells.csv, bo_dataset.csv
 analysis qc / report (any time, all rounds so far)
 ```
 
 ```bash
-python -m analysis qc-layout --plate-map runs/prod/plate_map_round0.csv
-python -m analysis reduce --plate-map runs/prod/plate_map_round0.csv --reader runs/prod/reader_round0_plate{0,1,2}.csv \
-    --qc-reader runs/prod/reader_round0_qc.csv --qc-map runs/prod/qc_plate_map_round0.csv --plots
+python -m analysis reduce --plate-map runs/prod/plate_map_round0.csv --reader runs/prod/reader_round0_plate{0,1,2}.csv --plots
 python "OT protocols/bo_bridge.py" merge --plate-map runs/prod/plate_map_round0.csv \
-    --reader runs/prod/endpoint_round0_plate{0,1,2}.csv --blank runs/prod/endpoint_round0_blank.csv --dataset runs/prod/bo_dataset.csv
+    --reader runs/prod/endpoint_round0_plate{0,1,2}.csv --dataset runs/prod/bo_dataset.csv
 python -m analysis qc --run runs/prod
 python -m analysis report --run runs/prod
 ```
@@ -51,28 +48,28 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | Flag | Default | Effect |
 |---|---|---|
 | `--reader` | required | one reader export per sample plate, in plate order |
-| `--qc-reader`, `--qc-map` | none | QC plate export and map: each sample well's blank is the volume-weighted sum of the pure-solvent blank wells |
-| `--blank` | none | alternative: export of a solvent-only copy of the sample plate |
+| `--blank` | none | optional export of a solvent-only copy of the sample plate (no blanks are run at the moment) |
 | `--outdir` | next to the plate map | where the outputs go |
-| `--wavelength Glutarimide=275 ...` | picked | fix a solute's wavelength instead of picking it |
+| `--wavelength Glutarimide=275 ...` | config, else picked | fix a solute's wavelength (wins over `wavelength_nm` in `production/config.toml`) |
 | `--nm-range MIN MAX` | 230 800 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
-| `--blank-max` | 1.0 | usable window: read only where every solvent blank is below this absorbance |
+| `--blank-max` | 1.0 | with `--blank`: read only where every solvent blank is below this absorbance |
 | `--abs-max` | 2.5 | flag wells whose raw absorbance exceeds this (reader linear range) |
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |
 
-Each solute is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, blank subtracted,
-5 nm smoothing), restricted to the **usable window**: wavelengths where every pure-solvent blank (QC plate) or every
-blank well stays below `--blank-max`, so no well is read where its own solvent saturates the detector. If a band
-maximum lies outside the window (acetone is opaque below about 330 nm, DMF below about 270 nm) the solute is read on
-its shoulder; `wavelengths_roundN.csv` records `band_max_nm`, `at_band_max`, the window, `signal_fraction` and a
-`measurable` verdict (control signal above 3 x the 600–800 nm noise). With a reader set to a few fixed wavelengths the
-peak is simply the best usable one. Pass `--wavelength` to override, or to read later rounds at the round-0 values.
+Each solute is read at its **fixed wavelength** (`wavelength_nm` in `production/config.toml`, or `--wavelength`). When none
+is set it is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, 5 nm smoothing).
+**With no blanks that peak is the raw spectrum's, and DMF's own UV edge (below about 270 nm) can win**: the run prints a
+warning, so set the wavelengths before the first real round. With a `--blank` plate, the peak is restricted to the
+**usable window** (wavelengths where every solvent blank stays below `--blank-max`; acetone is opaque below about
+330 nm), and a band maximum outside it is read on its shoulder. `wavelengths_roundN.csv` records `band_max_nm`,
+`at_band_max`, the window, `signal_fraction` and a `measurable` verdict (control signal above 3 x the 600–800 nm noise).
 Endpoint files carry `blank_abs` and a `flag` column (`saturated`, `opaque`); `bo_bridge.py merge` reads only the
 absorbance. See PLAN.md decision 15.
 
-**Blank handling.** The blank is used in `reduce` only to find the peaks. The endpoint files keep raw absorbance for the
-plates and the blank alike, so `bo_bridge.py merge --blank` does the one and only subtraction.
+**Blank handling.** **No blanks are run for now** (decision of the user, 2026-10-20; to be revisited): nothing is
+subtracted, and the solvent's own absorbance stays in every well. If a solvent-only plate is read later, pass it as
+`--blank`: it is used in `reduce` only to find the peaks, and `bo_bridge.py merge --blank` does the one subtraction.
 
 ### `qc` and `report` options
 
@@ -92,11 +89,7 @@ name), or a wide matrix with `wavelength_nm` in the first column and one column 
 check has data. These shapes were chosen before any real export existed: run the instrument's first file through
 `reduce` before the first round (PLAN.md, decision 13).
 
-**QC plate map** (`qc-layout`): `well, round, role (calibration | blank), solvent, solute, loading, condition_id,
-frac_<solvent>, vol_<solvent>_ul`. Calibration wells carry `loading` × the nominal solid mass in one pure solvent;
-blank wells carry no solid (pure solvents, equal binaries and ternaries).
-
-**Plate log** (lab notes, optional): `plate_log_roundN.csv` with `plate` (1, 2, 3, qc) and `read_delay_min`.
+**Plate log** (lab notes, optional): `plate_log_roundN.csv` with `plate` (0, 1, 2) and `read_delay_min`.
 
 **Endpoint exports** (output of `reduce`): `well`, `absorbance`, the "well table" format `bo_bridge.py merge` reads.
 
@@ -106,7 +99,7 @@ blank wells carry no solid (pure solvents, equal binaries and ternaries).
 from analysis.run import Run
 from analysis.qc import run_qc
 from analysis.report import run_report
-run = Run("runs/r1")                 # plate maps, per-well results, datasets, spectra, QC plate, plate log
+run = Run("runs/r1")                 # plate maps, per-well results, datasets, spectra, plate log
 run_qc(run, Path("runs/r1/figures"))
 run_report(run, Path("runs/r1/figures"), with_gp=True)
 run.pooled()                         # one row per solute x mixture, pooled over rounds
@@ -117,13 +110,12 @@ run.pooled_objective()               # one row per mixture: rel per solute, wors
 
 | File | Role |
 |---|---|
-| `spectra.py` | Reading exports, blank correction, synthetic blank from the QC plate, wavelength picking, reduction to one value per well. |
-| `qc_layout.py` | The QC plate: map and robot CSV. |
+| `spectra.py` | Reading exports, optional blank correction, wavelength picking, reduction to one value per well. |
 | `run.py` | A campaign folder as one object; condition kinds from ids; pooling across rounds. |
-| `qc.py` | Q1–Q7 checks and figures, `qc_summary.md`. |
+| `qc.py` | Q1, Q2, Q4–Q6 checks and figures, `qc_summary.md`. |
 | `report.py` | R1–R7 analyses and figures, `report_summary.md`. |
 | `plots.py` | Palette, plate heat maps, ternary helpers, the `reduce` figures. |
 | `summary.py` | Markdown writer for the summaries. |
 | `cli.py`, `__main__.py` | Command line. |
-| `examples/` | Fake plate reader, round-1 example exports (3 plates, blank, QC plate, plate log) and `make_toy_run.py` for a whole fake campaign; see its README. |
+| `examples/` | Fake plate reader, round-0 example exports (3 plates, blank, plate log) and `make_toy_run.py` for a whole fake campaign; see its README. |
 | `PLAN.md` | What is analysed, why, and the decisions to review. |

@@ -42,9 +42,9 @@ The script looks at what is in `csvs/` and does the next thing:
 
 | State of `csvs/` | What the script does |
 |---|---|
-| empty | round 0 seed design (`SDL_BO init`), robot files and QC plate for round 0 into `ratios/` |
+| empty | round 0 seed design (`SDL_BO init`), robot files for round 0 into `ratios/` |
 | round N laid out, no exports in `uvvis/` | stops and lists the exact file names it is waiting for |
-| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest` → `bo_bridge layout` and `analysis qc-layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
+| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
 | round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
 
 It never overwrites a finished round, so it is safe to re-run. `--seed N` changes the BO's random fallbacks,
@@ -55,12 +55,9 @@ It never overwrites a finished round, so it is safe to re-run. `--seed N` change
 | File | Content |
 |---|---|
 | `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate: `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
-| `reader_roundN_qc.csv` | the same for the QC plate |
-| `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2 and `qc`: minutes from end of shaking to the read |
+| `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
-**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) and `ot_input_roundN_qc.csv`
-(1 QC plate, run separately; weigh `loading × nominal mass` of each solute into its calibration wells as listed in
-`qc_plate_map_roundN.csv`). `plate_map_roundN.csv` says what is in every well.
+**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (no QC or blank plate is run for now). `plate_map_roundN.csv` says what is in every well.
 
 Everything the analysis derives (`endpoint_roundN_*.csv`, `wavelengths_roundN.csv`, `results_roundN_wells.csv`,
 `bo_dataset.csv`, `bo_dataset_shared.csv`, `figures/`) lands in `csvs/` itself; `analysis qc` and `report` read the
@@ -73,7 +70,7 @@ the UV readout can follow (see "Interpretation notes").
 |---|---|---|
 | `numbering` | first round 0, first plate 0, first mixture condition 1 | a condition is one solvent or one mixture; the DMF control is condition 0; well names stay A1–H12 |
 | `well` | 300 µL per well, 5 µL minimum component, up to 3 solvents | the control well is 300 µL of pure DMF |
-| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | plus one QC plate per round (`analysis qc-layout`) |
+| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | no QC or blank plate for now |
 | `reference` | DMF | pure control in every solute block, never mixed |
 | `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; add `wavelength_nm` once the absorption maximum is known (absent = pick from data) |
 | `solvents` | DMF (A1), acetone (B1), EtOH (C1), i-PrOH (D1), water (E1), i-PrOAc (F1), t-BuOAc (G1) | `name` without hyphens is the CSV identifier, `label` the display name; H1 stays the diluent |
@@ -87,13 +84,12 @@ Water is immiscible with i-PrOAc and with t-BuOAc, so a well containing either p
 absorbance would mean nothing. The user therefore forbade these two pairs (2026-10-20); they are listed under
 `[[forbidden_pairs]]` and exposed as `FORBIDDEN_PAIRS` and `is_allowed(solvent_names)`. A mixture is forbidden
 when it contains **both** solvents of a pair at any fraction; ternaries such as water + EtOH + i-PrOAc are
-forbidden too, water + EtOH + acetone is fine. This is enforced in four places:
+forbidden too, water + EtOH + acetone is fine. This is enforced in three places:
 
 | Where | Effect |
 |---|---|
 | `SDL_BO/space.py` | the search space never contains a forbidden mixture, so the BO cannot propose one |
 | `OT protocols/bo_bridge.py` | the round-0 seed grid skips them, and `layout` refuses any suggestions file that contains one |
-| `analysis/qc_layout.py` | the QC plate's mixture blanks skip them (89 of 96 wells are then used) |
 | `analysis/examples/make_toy_run.py` | random toy suggestions skip them |
 
 To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester again, delete the entries.
@@ -110,15 +106,14 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
 - **UV readout concern and the conservative answer.** DMF is opaque below about 270 nm and acetone below about
   330 nm, while glutarimide, succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only
   phthalimide (about 295 nm) has a comfortable band. Since the plan cannot change once the campaign starts,
-  `analysis reduce` reads every solute only inside the wavelength window where **every** solvent is transparent
-  (blank below 1.0 absorbance), on the band's shoulder if its maximum is hidden, and declares a solute
-  **not measurable** when its DMF-control signal there is within 3 x the noise (`wavelengths_roundN.csv`, column
-  `measurable`; PLAN decision 15). A solute flagged in any round is dropped from the worst-solute objective both in
-  `analysis report` and in SDL_BO's scoring (still measured, fitted and listed, just not scored), so noise cannot steer
-  the campaign. Measurements therefore stay valid in every well, at the cost of sensitivity.
-  **Before round 0, run one QC plate alone** (`analysis qc-layout`, then `reduce` on it): the wavelength report tells
-  you which solutes the UV readout can follow at all, while there is still time to change solutes, readout or plate.
-  Prefer full-spectrum exports; if the reader must use fixed wavelengths, take them from that QC-plate run.
+  `analysis reduce` was built to read every solute only inside the wavelength window where **every** solvent is
+  transparent (blank below 1.0 absorbance) and to declare a solute **not measurable** when its DMF-control signal is
+  within 3 x the noise (`wavelengths_roundN.csv`, column `measurable`; PLAN decision 15). That window needs solvent
+  blanks, and **no blanks are run for now** (user decision, 2026-10-20, to be revisited), so it is inactive:
+  nothing is subtracted and the solvent's own absorbance stays in every well. **Set `wavelength_nm` for each solute in
+  `config.toml` before round 0**: left unset, the peak is picked on the raw DMF-control spectrum and lands on DMF's own
+  UV edge, saturated (`reduce` prints a warning). The `measurable` verdict still drops a solute from the worst-solute
+  objective in `analysis report` and in SDL_BO's scoring.
 - ~~Immiscible pairs~~: decided, see "Forbidden solvent pairs" above.
 
 ## Who reads it

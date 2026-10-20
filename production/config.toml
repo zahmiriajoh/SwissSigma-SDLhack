@@ -16,7 +16,7 @@ min_ul = 5                     # smallest dispensable component (P20)
 max_solvents_per_mixture = 3
 
 [plates]
-per_round = 3                  # identical sample plates per round (+ 1 QC plate, see analysis qc-layout)
+per_round = 3                  # identical sample plates per round (no QC or blank plate for now)
 trough_fill_ul = 25000         # loaded into every used reservoir trough
 trough_dead_ul = 1000          # left behind in the trough
 
@@ -84,8 +84,8 @@ trough = "G1"
 attacks_polystyrene = true
 
 # Solvent pairs that must never share a well: water is immiscible with the two esters, so such mixtures would
-# phase-separate (user decision, 2026-10-20). SDL_BO never proposes them, bo_bridge refuses them, and the QC plate
-# and toy generators skip them. A mixture is forbidden if it contains BOTH solvents of any pair, at any fraction.
+# phase-separate (user decision, 2026-10-20). SDL_BO never proposes them, bo_bridge refuses them, and the
+# toy generators skip them. A mixture is forbidden if it contains BOTH solvents of any pair, at any fraction.
 [[forbidden_pairs]]
 solvents = ["water", "iPrOAc"]
 

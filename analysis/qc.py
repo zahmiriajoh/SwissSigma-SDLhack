@@ -95,7 +95,7 @@ def q2_control_stability(run, outdir):
 
 def detection_limits(run) -> dict:
     """{solute: MIN_SIGNAL_SIGMAS x reader noise}, the noise being the std of the control spectrum's far-red tail (wavelengths_roundN.csv)."""
-    reports = [rep["noise"] for r in run.rounds if (rep := run.wavelength_report(r)) is not None]
+    reports = [rep["noise"] for r in run.rounds if (rep := run.wavelength_report(r)) is not None and "noise" in rep.columns]
     return (MIN_SIGNAL_SIGMAS * pd.concat(reports, axis=1).mean(axis=1)).to_dict() if reports else {}
 
 

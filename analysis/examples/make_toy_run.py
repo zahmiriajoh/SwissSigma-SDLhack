@@ -6,8 +6,8 @@ Later rounds use random (seeded) suggestions in SDL_BO's id scheme (R<n>_exploit
 their first ids), so no Gaussian-process fitting is needed and the whole run takes seconds. Names and numbering come
 from production/config.toml. The fake chemistry spans the reader's range on purpose (PLAN.md Q-b): the second solute
 saturates in good solvents, the last sits near the noise floor, the first solute's band is hidden under acetone's UV
-cut-off (so it is read on a shoulder and declared not measurable), and the plate-attacking solvents make blank wells
-grow with the read delay.
+cut-off (so acetone wells saturate at its read), and the plate-attacking solvents raise the absorbance with the read
+delay. No blanks are run, so each solute is read at its known peak.
 
 Run from the repo root (prefix with `uv run`):
     python analysis/examples/make_toy_run.py --outdir runs/toy [--rounds 3] [--fixed-wavelengths] [--seed 0]
