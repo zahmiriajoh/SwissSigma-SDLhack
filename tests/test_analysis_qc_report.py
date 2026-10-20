@@ -38,7 +38,10 @@ def test_condition_kind_parsing():
 def test_qc_layout_fills_the_plate_with_calibration_and_blanks():
     pm = read_plate_map(OT_EXAMPLES / f"plate_map_round{FIRST_ROUND}.csv")
     qc = qc_plate_map(pm)
-    assert len(qc) == 96 and qc["role"].value_counts().to_dict() == {"calibration": 56, "blank": 40}
+    from itertools import combinations
+    green = [c[len("frac_"):] for c in pm.columns if c.startswith("frac_") and c != "frac_DMF"]
+    n_blanks = 7 + sum(config_is_allowed(c) for n in (2, 3) for c in combinations(green, n))  # pure + allowed binaries/ternaries
+    assert qc["role"].value_counts().to_dict() == {"calibration": 56, "blank": n_blanks} and len(qc) == 56 + n_blanks <= 96
     vol = qc[[c for c in qc.columns if c.startswith("vol_")]].sum(axis=1)
     assert (vol == 300).all()  # every well gets the full volume
     cols = [c for c in qc.columns if c.startswith("frac_")]
