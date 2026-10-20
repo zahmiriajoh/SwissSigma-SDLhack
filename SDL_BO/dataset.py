@@ -17,6 +17,7 @@ from . import space
 
 RATIO_PREFIX = "ratio_"  # ratio_<solute> columns made by ratio_table / score_mixtures
 FRACTION_TOLERANCE = 1e-3
+UL_TOLERANCE = 0.1  # bo_bridge writes 4 decimals, i.e. at most 0.015 uL off a whole microlitre
 REQUIRED_COLUMNS = ["round", "solute", "condition_id", "is_reference", *space.FRACTION_COLUMNS, "rel_mean"]
 
 
@@ -59,7 +60,7 @@ def _check_fractions(samples: pd.DataFrame) -> None:
         raise DatasetError(f"{space.REFERENCE_SOLVENT} may only appear in reference rows (is_reference = 1); "
                            f"CSV lines: {_csv_lines(samples, with_dmf)}")
     green_ul = samples[space.GREEN_FRACTION_COLUMNS].to_numpy() * space.TOTAL_UL
-    off_grid = ~np.isclose(green_ul, np.rint(green_ul), atol=FRACTION_TOLERANCE * space.TOTAL_UL).all(axis=1)
+    off_grid = ~np.isclose(green_ul, np.rint(green_ul), atol=UL_TOLERANCE).all(axis=1)
     if off_grid.any():
         raise DatasetError(f"fractions must be whole uL of {space.TOTAL_UL}; CSV lines: {_csv_lines(samples, off_grid)}")
     too_many = (np.rint(green_ul) > 0).sum(axis=1) > space.MAX_SOLVENTS_PER_MIXTURE
