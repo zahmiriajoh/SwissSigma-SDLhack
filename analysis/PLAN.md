@@ -23,18 +23,18 @@ line-style cue wherever two categories meet, round number on every title.
 ### Q1. Plate-to-plate reproducibility
 The 3 identical plates per round are true replicates of every condition.
 - Figure: per solute, corrected absorbance on plate 1 vs 2, 1 vs 3 (scatter, identity line), plus a
-  histogram of the coefficient of variation per condition. One figure per round.
+  histogram of the coefficient of variation (CV) per condition. One figure per round.
 - Number: median CV per solute and per round. This is the noise floor BO has to beat.
 - Flags: a plate whose values are offset from the other two.
 
-**Decision:**
+**Decision:** OK. 
 
 ### Q2. Control stability
 - Figure: DMF-control absorbance per solute against plate and round (points joined by round).
 - Why: the control scales every relative value. Drift between rounds means different solid
   loading, evaporation or plate attack, and makes rounds hard to compare.
 
-**Decision:**
+**Decision:** OK. 
 
 ### Q3. Blank plate and polystyrene attack
 - Figure: blank-well absorbance at each solute's wavelength against solvent composition, grouped
@@ -43,7 +43,7 @@ The 3 identical plates per round are true replicates of every condition.
 - Why: a blank well with no solute that reads high is plate damage or solvent absorbance. It says
   how much to trust ester- and ether-rich mixtures and how large the blank correction is.
 
-**Decision:**
+**Decision:** OK. 
 
 ### Q4. Spectral QC
 - Figure A: peak position per well (argmax of the corrected spectrum) minus the picked wavelength,
@@ -52,7 +52,7 @@ The 3 identical plates per round are true replicates of every condition.
   High values mean undissolved solid in the light path, which inflates the reading.
 - Figure C: saturation flag for wells above the reader's linear range (threshold from Q-b below).
 
-**Decision:**
+**Decision:** OK. 
 
 ### Q5. Precision against signal
 - Figure: `abs_std` against `abs_mean` per condition and solute (log axes), with the detection
@@ -60,7 +60,7 @@ The 3 identical plates per round are true replicates of every condition.
 - Why: shows whether low-solubility conditions are measurable at all, and whether noise is
   proportional (pipetting) or constant (reader).
 
-**Decision:**
+**Decision:** OK.
 
 ### Q6. Cross-round reproducibility
 SDL_BO re-tests the 5 best mixtures each round, so the same composition is measured on new solid
@@ -69,14 +69,14 @@ and a new plate.
   identity line and the within-round CV band from Q1.
 - Why: the only check that rounds, solid batches and reservoir refills are comparable.
 
-**Decision:**
+**Decision:** OK. 
 
 ### Q7. Accuracy against a standard (only if calibration wells exist, see Q-a)
 - Figure: calibration series absorbance against concentration, linear fit, residuals.
 - Output: molar absorptivity per solute and the linear range, so relative solubility can be
   turned into an absolute concentration estimate for the DMF control.
 
-**Decision:**
+**Decision:** OK.
 
 ## Part 2: the BO study aims (`analysis report`)
 
@@ -86,7 +86,7 @@ and a new plate.
 - Table: best mixture, best single solvent, their ratio and whether the difference exceeds the
   Q1 noise floor.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R2. The "dissolves everything" objective
 - Figure: all shared conditions ranked by `obj_min_rel`, coloured by number of solvents, with
@@ -95,7 +95,7 @@ and a new plate.
 - Why: this is the hypothesis test. One mixture beating every single solvent on its worst solute
   is the proposal's success criterion.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R3. BO progress
 - Figure A: best `obj_min_rel` so far against round (step line), with the round-1 grid best as a
@@ -104,7 +104,7 @@ and a new plate.
   explore, re-test; parsed from `condition_id`) as strip plots.
 - Why: shows whether BO is learning, and whether exploit picks beat explore picks as they should.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R4. Composition landscape
 - Figure A: ternary plots for the 3–4 most-sampled solvent trios, measured conditions as points
@@ -114,7 +114,7 @@ and a new plate.
 - Figure C: 6×6 matrix of the round-1 50:50 binaries, `obj_min_rel` as colour, pure solvents on
   the diagonal. A compact view of the whole seed grid.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R5. Synergy
 - Measure: `rel_mean` of a mixture minus the fraction-weighted mean of its pure solvents' `rel_mean`
@@ -122,7 +122,7 @@ and a new plate.
 - Figure: synergy per condition and solute against mixture balance (1 − Σ fraction²), and a bar
   chart of mean synergy per solvent pair.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R6. Do the solutes agree?
 - Figure: correlation matrix of `rel_mean` between solutes across all conditions, plus a
@@ -130,7 +130,7 @@ and a new plate.
 - Why: low correlation means "dissolves everything" is a real trade-off and explains why the
   min objective is hard.
 
-**Decision:**
+**Decision:** OK. 
 
 ### R7. Deliverable dataset
 - Figure: heat map of all conditions (rows, grouped by round) × solutes (columns), `rel_mean` as
@@ -138,7 +138,7 @@ and a new plate.
 - Files: `bo_dataset.csv`, `bo_dataset_shared.csv`, plate maps and the QC summary table, as the
   open dataset the proposal promises.
 
-**Decision:**
+**Decision:** OK. 
 
 ## Questions
 
@@ -147,31 +147,31 @@ calibration series of a reference standard be run, and if so in which wells and 
 current layout has 1 DMF control + 23 conditions per solute and no calibration wells, so Q7 is
 impossible unless wells are given to it.
 
-**Answer:**
+**Answer:** Run one extra plate every round that contains solvent-only blanks and a calibration series for each pure solvent-solute pair. 
 
 **Q-b. Solutes and reader.** What are the real four solutes (names for `SOLUTES` in
 `bo_bridge.py`) and their expected absorption maxima? What is the plate reader's linear
 absorbance range (for the saturation flag) and does it export full spectra or fixed wavelengths?
 
-**Answer:**
+**Answer:** Unknown at the moment, remind me to check. For now, assume a variety of values that will allow you to test the full range. Assume fixed wavelengths. 
 
 **Q-c. Timing.** Will the time between end of shaking and plate reading be recorded per plate?
 Polystyrene attack and evaporation grow with contact time, so I would use it as a covariate in Q3.
 
-**Answer:**
+**Answer:** Yes. 
 
 **Q-d. Solid loading.** Is the same mass of each solute weighed into every well (so absorbance
 tracks dissolved fraction), or does it vary? If it varies, is the mass recorded per well?
 
-**Answer:**
+**Answer:** Same mass, recorded. 
 
 **Q-e. Priorities.** Which of Q1–Q7 and R1–R7 matter most for the hackathon write-up? My proposed
 order: Q1, Q2, R2, R1, R3, Q3, Q4, R4, R5, Q5, Q6, R6, R7, Q7.
 
-**Answer:**
+**Answer:** OK. 
 
 **Q-f. Output format.** Figures as PNG at 150 dpi in the run folder, plus a one-page
 `qc_summary.md` and `report_summary.md` with the key numbers? Anything else needed (SVG, a
 notebook, a slide-ready layout)?
 
-**Answer:**
+**Answer:** Use 300 dpi. OK for the md documents. Ask me again about slides later. 
