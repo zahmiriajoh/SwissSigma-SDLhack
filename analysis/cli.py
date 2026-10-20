@@ -8,6 +8,8 @@
 import argparse
 from pathlib import Path
 
+from production.config import FIRST_PLATE
+
 from .qc import ABS_MAX_DEFAULT
 from .qc_layout import LOADINGS
 from .spectra import DEFAULT_NM_RANGE, SpectraError, read_plate_map, read_spectra, reduce_round, synthetic_blank
@@ -104,7 +106,8 @@ def _run_reduce(args) -> None:
     round_ = plate_map["round"].iloc[0]
     outdir = Path(args.outdir or Path(args.plate_map).parent)
     outdir.mkdir(parents=True, exist_ok=True)
-    names = [f"endpoint_round{round_}_plate{i}.csv" for i in range(1, len(plates) + 1)]
+    plate_numbers = range(FIRST_PLATE, FIRST_PLATE + len(plates))
+    names = [f"endpoint_round{round_}_plate{i}.csv" for i in plate_numbers]
     if blank is not None:
         names.append(f"endpoint_round{round_}_blank.csv")
     for name, ep in zip(names, endpoints):
@@ -120,7 +123,7 @@ def _run_reduce(args) -> None:
     if args.plots:
         from .plots import plot_plates, plot_spectra  # matplotlib only when asked for
         plot_spectra(corrected, plate_map, wavelengths, outdir / f"spectra_round{round_}.png", tuple(args.nm_range))
-        labels = [f"Plate {i}" for i in range(1, len(plates) + 1)] + (["Blank"] if blank is not None else [])
+        labels = [f"Plate {i}" for i in plate_numbers] + (["Blank"] if blank is not None else [])
         plot_plates(endpoints, plate_map, outdir / f"plates_round{round_}.png", labels)
         print(f"wrote spectra_round{round_}.png, plates_round{round_}.png -> {outdir}")
     print(f"\nNext: python \"OT protocols/bo_bridge.py\" merge --plate-map {args.plate_map} "

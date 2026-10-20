@@ -1,6 +1,7 @@
 # Production experiment definition: the single place the real solutes, solvents, volumes and numbering are written down.
 # Everything else in the repo reads this file (see production/README.md). Source: user, 2026-10-20.
-# Toy runs under examples/ and analysis/examples/ keep their own fake names and are NOT governed by this file.
+# The fake plate reader and toy scripts take their names from here too; the three tracked toy output folders under
+# examples/ were made before this file existed and stay as frozen records of the earlier names and 1-based numbering.
 
 [numbering]
 # "Numbering for everything starts from zero": rounds, plates and condition counters.

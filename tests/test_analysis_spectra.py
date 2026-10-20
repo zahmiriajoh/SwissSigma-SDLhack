@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from conftest import DEBUG_DIR, OT_EXAMPLES, REPO
+from production.config import FIRST_PLATE
 from analysis.spectra import SpectraError, read_plate_map, read_spectra, reduce_round
 
 EXAMPLES = DEBUG_DIR
@@ -66,8 +67,9 @@ def test_cli_output_feeds_bo_bridge_merge(tmp_path):
               "--reader", *(EXAMPLES / f"reader_round1_plate{i}.csv" for i in (1, 2, 3)),
               "--blank", EXAMPLES / "reader_round1_blank.csv", "--outdir", tmp_path)
     assert "S1 275" in out
+    plates = range(FIRST_PLATE, FIRST_PLATE + 3)
     run(REPO / "OT protocols" / "bo_bridge.py", "merge", "--plate-map", PLATE_MAP,
-        "--reader", *(tmp_path / f"endpoint_round1_plate{i}.csv" for i in (1, 2, 3)),
+        "--reader", *(tmp_path / f"endpoint_round1_plate{i}.csv" for i in plates),
         "--blank", tmp_path / "endpoint_round1_blank.csv",
         "--dataset", tmp_path / "bo_dataset.csv", "--wells-out", tmp_path / "wells.csv")
     dataset = pd.read_csv(tmp_path / "bo_dataset.csv")

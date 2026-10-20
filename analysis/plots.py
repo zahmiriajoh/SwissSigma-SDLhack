@@ -5,6 +5,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from production.config import FIRST_PLATE
+
 from .spectra import CONTROL_ROLE, N_COLS, ROWS
 
 DPI = 300
@@ -131,7 +133,7 @@ def plot_spectra(corrected, plate_map, wavelengths, path, nm_range=None):
 
 def plot_plates(endpoints, plate_map, path, labels=None):
     """8x12 heat map of endpoint absorbance per plate; DMF controls ringed."""
-    labels = labels or [f"Plate {i}" for i in range(1, len(endpoints) + 1)]
+    labels = labels or [f"Plate {i}" for i in range(FIRST_PLATE, FIRST_PLATE + len(endpoints))]
     vmax = max(e["absorbance"].max() for e in endpoints)
     vmin = min(0.0, min(e["absorbance"].min() for e in endpoints))
     fig, axes = plt.subplots(1, len(endpoints), figsize=(4.6 * len(endpoints), 3.6), squeeze=False)

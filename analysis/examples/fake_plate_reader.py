@@ -1,31 +1,34 @@
 """Fake plate reader: synthetic absorbance data for a plate map written by `OT protocols/bo_bridge.py layout`.
 
-Solvent and solute names mirror bo_bridge.py. Each solute has one Gaussian absorption band whose height
-scales with a made-up "dissolved fraction" that rewards balanced mixtures, so a mixture can beat every
-pure solvent as the project hypothesis predicts. Debugging only: none of the numbers are real.
+Solvent and solute names come from production/config.toml so the fake data chains with bo_bridge and SDL_BO; the
+band positions and dissolving powers are invented. Each solute has one Gaussian absorption band whose height scales
+with a made-up "dissolved fraction" that rewards balanced mixtures, so a mixture can beat every pure solvent as the
+project hypothesis predicts. Debugging only: none of the numbers are real.
 """
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-GREEN_SOLVENTS = ["2MeTHF", "EtOAc", "DMC", "CPME", "MeCN", "iPrOAc"]
-ALL_SOLVENTS = ["DMF"] + GREEN_SOLVENTS
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from production.config import ALL_SOLVENTS, GREEN_SOLVENTS, PLATE_ATTACKERS, SOLUTES  # noqa: E402
+
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]
 WAVELENGTHS = np.arange(200, 801)  # nm, 1 nm steps
-PEAK_NM = {"S1": 275, "S2": 320, "S3": 350, "S4": 410}  # band centre per solute
-WIDTH_NM = {"S1": 18, "S2": 22, "S3": 25, "S4": 35}
+# Invented band centre / width per solute (production order); only the Phthalimide value is anywhere near reality.
+PEAK_NM = dict(zip(SOLUTES, [275, 350, 295, 410]))
+WIDTH_NM = dict(zip(SOLUTES, [18, 25, 22, 35]))
 BAND_HEIGHT = 1.2  # peak absorbance of a fully dissolved solute
-BAND_HEIGHTS = {}  # per-solute override of BAND_HEIGHT, e.g. {"S1": 2.6} to saturate, {"S4": 0.06} to sit near the noise
+BAND_HEIGHTS = {}  # per-solute override of BAND_HEIGHT, e.g. {SOLUTES[0]: 2.6} to saturate, {SOLUTES[3]: 0.06} to sit near the noise
 ATTACK_PER_MIN = {}  # solvent -> absorbance gained per minute of contact at 300 nm (polystyrene attack); default none
 NOISE = 0.004
 READER_MAX = 3.5  # the reader cannot report more than this absorbance
 SYNERGY = 0.4  # bonus for balanced mixtures: 0 for a pure solvent, up to SYNERGY * 2/3 for an equal ternary
 
-# Made-up dissolving power (0-1) of each solvent for each solute; DMF dissolves everything.
-POWER = pd.DataFrame(
-    {"S1": [1, .7, .4, .6, .5, .3, .4], "S2": [1, .3, .6, .5, .2, .7, .4],
-     "S3": [1, .5, .3, .4, .7, .6, .3], "S4": [1, .4, .5, .6, .3, .5, .7]},
-    index=ALL_SOLVENTS,
-)
+# Made-up dissolving power (0-1) of each solvent (production order, reference first) for each solute; DMF dissolves everything.
+_POWERS = [[1, .7, .4, .6, .5, .3, .4], [1, .3, .6, .5, .2, .7, .4], [1, .5, .3, .4, .7, .6, .3], [1, .4, .5, .6, .3, .5, .7]]
+POWER = pd.DataFrame({solute: col[: len(ALL_SOLVENTS)] for solute, col in zip(SOLUTES, _POWERS)}, index=ALL_SOLVENTS)
 
 
 def read_plate_map(path) -> pd.DataFrame:
