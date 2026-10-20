@@ -66,6 +66,39 @@ def identity_line(ax, color="k"):
     ax.set_ylim(lim)
 
 
+def barycentric(fa, fb, fc):
+    """Fractions of corner solvents a (left), b (right), c (top) -> x, y in a unit-side triangle."""
+    fa, fb, fc = (np.asarray(f, float) for f in (fa, fb, fc))
+    return fb + 0.5 * fc, (np.sqrt(3) / 2) * fc
+
+
+def ternary_frame(ax, labels, fontsize=8):
+    """Draw the triangle and corner labels; hide the cartesian axes."""
+    xs, ys = barycentric([1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0])
+    ax.plot(xs, ys, color="k", lw=0.8)
+    for (x, y), lab, (dx, dy) in zip(zip(*barycentric([1, 0, 0], [0, 1, 0], [0, 0, 1])), labels, [(-0.02, -0.04), (0.02, -0.04), (0, 0.03)]):
+        ax.text(x + dx, y + dy, lab, ha="center", va="center", fontsize=fontsize)
+    ax.set_aspect("equal")
+    ax.set_xlim(-0.12, 1.12)
+    ax.set_ylim(-0.1, 0.98)
+    ax.axis("off")
+
+
+def annotated_matrix(ax, matrix, labels, cmap, fmt="{:.2f}", fontsize=7, vmin=None, vmax=None):
+    """Square heat map with the value written in every cell (text colour flips on dark cells)."""
+    m = np.asarray(matrix, float)
+    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax)
+    norm = im.norm
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if not np.isnan(m[i, j]):
+                dark = norm(m[i, j]) < 0.5
+                ax.text(j, i, fmt.format(m[i, j]), ha="center", va="center", fontsize=fontsize, color="white" if dark else "black")
+    ax.set_xticks(range(len(labels)), labels, fontsize=fontsize, rotation=30, ha="right")
+    ax.set_yticks(range(len(labels)), labels, fontsize=fontsize)
+    return im
+
+
 # ----- figures of the `reduce` step --------------------------------------------------------------
 
 def plot_spectra(corrected, plate_map, wavelengths, path, nm_range=None):

@@ -43,7 +43,21 @@ def _build_parser() -> argparse.ArgumentParser:
     qc.add_argument("--run", required=True, help="folder with plate_map_roundN.csv, results_roundN_wells.csv, bo_dataset.csv, ...")
     qc.add_argument("--outdir", help="where figures and qc_summary.md go (default <run>/figures)")
     qc.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="reader linear range: flag raw absorbance above this")
+
+    report = commands.add_parser("report", help="study-aim figures and report_summary.md for a campaign folder")
+    report.add_argument("--run", required=True, help="campaign folder (see qc)")
+    report.add_argument("--outdir", help="default <run>/figures")
+    report.add_argument("--no-gp", action="store_true", help="skip the SDL_BO Gaussian-process posterior plots")
+    report.add_argument("--seed", type=int, default=0, help="seed for the GP fits")
     return parser
+
+
+def _run_report(args) -> None:
+    from .report import run_report
+    from .run import Run
+    run = Run(args.run)
+    path = run_report(run, Path(args.outdir or Path(args.run) / "figures"), not args.no_gp, args.seed)
+    print(f"wrote {path} and figures to {path.parent}")
 
 
 def _run_qc(args) -> None:
@@ -86,7 +100,7 @@ def _run_reduce(args) -> None:
           + (f" --blank {outdir / names[-1]}" if blank is not None else "") + " --dataset bo_dataset.csv")
 
 
-COMMANDS = {"reduce": _run_reduce, "qc": _run_qc}
+COMMANDS = {"reduce": _run_reduce, "qc": _run_qc, "report": _run_report}
 
 
 def main(argv=None) -> None:
