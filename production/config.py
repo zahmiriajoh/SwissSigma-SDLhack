@@ -15,6 +15,11 @@ from pathlib import Path
 CONFIG_PATH = Path(__file__).with_name("config.toml")
 
 
+def _as_list(trough) -> list:
+    """A solvent's `trough` is one well ("B1") or several ("B1", "H1") when a round needs more than one trough holds."""
+    return [trough] if isinstance(trough, str) else list(trough)
+
+
 def load(path=CONFIG_PATH) -> dict:
     """The validated config as a dict; raises ValueError on an inconsistent file."""
     with open(path, "rb") as f:
@@ -28,7 +33,7 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError("solvent names appear in CSV columns and ids: use labels for hyphens (e.g. name iPrOH, label i-PrOH)")
     if len(set(solvents)) != len(solvents) or len(set(solutes)) != len(solutes):
         raise ValueError("duplicate solvent or solute name")
-    troughs = [s["trough"] for s in cfg["solvents"]]
+    troughs = [t for s in cfg["solvents"] for t in _as_list(s["trough"])]
     if len(set(troughs)) != len(troughs):
         raise ValueError(f"two solvents share a trough: {troughs}")
     if cfg["reference"]["solvent"] not in solvents:
@@ -68,7 +73,7 @@ REFERENCE_SOLVENT = _cfg["reference"]["solvent"]
 ALL_SOLVENTS = [s["name"] for s in _cfg["solvents"]]                     # reference first, as in bo_bridge
 GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]
 SOLVENT_LABELS = {s["name"]: s["label"] for s in _cfg["solvents"]}
-SOLVENT_TROUGHS = {s["name"]: [s["trough"]] for s in _cfg["solvents"]}   # bo_bridge / protocol format (list per solvent)
+SOLVENT_TROUGHS = {s["name"]: _as_list(s["trough"]) for s in _cfg["solvents"]}   # bo_bridge / protocol format (list per solvent)
 PLATE_ATTACKERS = [s["name"] for s in _cfg["solvents"] if s["attacks_polystyrene"]]
 
 # Pairs of solvents that may not share a well (immiscible). See is_allowed().

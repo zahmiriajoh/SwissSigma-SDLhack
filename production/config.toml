@@ -20,8 +20,9 @@ per_round = 3                  # identical sample plates per round (no QC or bla
 trough_fill_ul = 25000         # loaded into every used reservoir trough
 trough_dead_ul = 1000          # left behind in the trough
 limit_solvent_to_trough = false  # false (user decision, 2026-10-20): the BO may ask for more of a solvent than one trough holds.
-                               # bo_bridge layout's fill sheet then says how much to load; add spare troughs to SOLVENT_TROUGHS (protocol + here)
-                               # before the run. true = the BO keeps every round within one trough per solvent.
+                               # bo_bridge layout's fill sheet then says how much to load. Give that solvent a spare trough before the run:
+                               # trough = ["B1", "H1"] below AND the same list in SOLVENT_TROUGHS of both protocols (drop their "diluent"
+                               # entry if H1 is used). true = the BO keeps every round within one trough per solvent.
 
 [reference]
 solvent = "DMF"                # pure control in every solute block; never mixed, never a BO input
@@ -53,7 +54,7 @@ name = "others"
 solutes = ["Glutarimide", "Boc-hydroxyproline", "Succinimide"]
 
 # Solvents. `name` is the identifier used in CSV columns (frac_<name>, vol_<name>_ul) and must not contain hyphens or
-# spaces; `label` is for figures and text. `trough` is the well of the 8-trough reservoir (H1 stays the diluent).
+# spaces; `label` is for figures and text. `trough` is the well of the 8-trough reservoir, or a list of wells (H1 stays the diluent unless used as a spare).
 # attacks_polystyrene marks solvents known to craze or dissolve the polystyrene readout plate (acetone, esters).
 [[solvents]]
 name = "DMF"

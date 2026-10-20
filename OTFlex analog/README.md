@@ -7,7 +7,7 @@ you can time one round of dispensing and shaking before the real run.
 ## What is identical
 
 The simulator confirms both protocols run the same **2,900 liquid-handling steps** on the
-round-1 plate: same volumes, wells, order, flow rates, delays, air gaps, pre-wet and blow-outs.
+round-0 example plate: same volumes, wells, order, flow rates, delays, air gaps, pre-wet and blow-outs.
 That's 531 aspirations, 636 dispenses and 7 tips (`../OT protocols/tools/check_all.py`
 re-checks this).
 

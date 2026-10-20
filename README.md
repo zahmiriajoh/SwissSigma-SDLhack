@@ -9,7 +9,7 @@ optimisation (BO) picks the next round of mixtures. Each subfolder has its own R
 
 ```bash
 bash setup.sh                         # macOS, Linux, Windows Git Bash: installs uv, Python 3.12 and every package, then checks
-uv run pytest tests/                  # unit + interface tests, ~40 s
+uv run pytest tests/                  # unit, interface and branched-campaign tests, ~30 s
 uv run python examples/toy_additive_pipeline.py   # whole loop on fake additive chemistry, ~1 min/round; outputs kept in examples/toy_additive_output/
 production/run_bo.sh production/csvs                  # the real campaign: one call per round, see production/README.md
 ```
@@ -48,14 +48,14 @@ Keep every round of a campaign in one folder: `analysis qc` and `report` find th
 Three complete fake campaigns are tracked in the repo, with every intermediate file and the analysis outputs. The first
 two come from `examples/toy_additive_pipeline.py` (real SDL_BO, additive chemistry in which DMC is the best solvent for
 every solute); the third from `analysis/examples/make_toy_run.py` (random seeded suggestions, no SDL_BO, synergistic
-chemistry that rewards balanced mixtures, and plate logs, band heights chosen so S1 saturates and S4 sits near
-the noise):
+chemistry that rewards balanced mixtures, and plate logs, band heights chosen so Boc-hydroxyproline saturates and
+Succinimide sits near the noise; its solutes are the production ones, the two additive runs predate the config and use S1-S4):
 
 | Folder | Rounds × plates | Look at |
 |---|---|---|
 | `examples/toy_additive_output/` | 3 × 3 | `figures/qc_summary.md` (Q1, Q2, Q4–Q6 with figures), `figures/report_summary.md` (R1–R7 with figures) |
-| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the 25 mL DMC trough runs out before the picks can get richer) |
-| `examples/toy_synergy_output/` | 3 × 3 | the contrasting case: a ternary beats every single solvent (R2, z = 4.9), every synergy is significant (R5), the GP landscape shows an interior optimum (R4); Q4 flags the saturated S1 controls and the acetone wells |
+| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the 25 mL DMC trough runs out before the picks can get richer; both runs were made with the old per-round solvent cap, which production has since turned off) |
+| `examples/toy_synergy_output/` | 3 × 3 | the contrasting case: the best mixture is a ternary that beats every single solvent (R2, z = 243), 177 of 180 synergies are significant (R5), the GP landscape shows an interior optimum (R4); Q4 flags the saturated Boc-hydroxyproline controls and the acetone wells read for glutarimide |
 
 Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
 `reader_roundN_plate{P}.csv` (+ blank) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
@@ -69,10 +69,10 @@ run). Regenerate the synergy run with
 
 - **Solutes:** Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide (plate-block order).
 - **Solvents:** acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc as mixture components (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`); DMF only as the pure reference control.
-- **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 shared conditions, run on 3 identical plates per round.
+- **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 conditions, run on 3 identical plates per round. In round 0 the 23 conditions are shared by all solutes; from round 1 the phthalimide block and the other three blocks hold different conditions (one set per arm).
 - **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps. It does **not** limit a round to one trough per solvent (see "Solvent trough volume" below).
 - **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
-- **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), so A1 is `round0_plate0_solute0_cond0`; well names stay `A1`–`H12`.
+- **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), so A1 would be named `round0_plate0_solute0_cond0` (the naming convention given by the user; no file carries that name yet, files use `condition_id` such as `R0_seed01`); well names stay `A1`–`H12`.
 - **Objective:** absorbance relative to the DMF control per solute. Round 0 is one shared design on all four solutes; from round 1 on the campaign splits into two independent arms (`[[arms]]` in the config): **phthalimide** alone, and the **minimum of glutarimide, Boc-hydroxyproline and succinimide**. Each arm has its own GPs trained on the seed round and its own wells, and its own plate blocks.
 
 **Solvent trough volume (no cap, user decision 2026-10-20).** Each solvent has one trough on the 8-trough reservoir (organiser

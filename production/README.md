@@ -6,7 +6,7 @@ values as constants for the rest of the repo. Change the experiment here, not in
 
 ```python
 from production.config import SOLUTES, ALL_SOLVENTS, GREEN_SOLVENTS, REFERENCE_SOLVENT, SOLVENT_TROUGHS, \
-    PLATE_ATTACKERS, TOTAL_UL, MIN_UL, N_PLATES, FIRST_ROUND, FIRST_PLATE, FIRST_CONDITION
+    PLATE_ATTACKERS, TOTAL_UL, MIN_UL, N_PLATES, FIRST_ROUND, FIRST_PLATE, FIRST_CONDITION, ARMS, LIMIT_SOLVENT_TO_TROUGH
 ```
 
 Standard library only (`tomllib`, Python 3.11+), so `OT protocols/bo_bridge.py` can load it as well. The OT-2
@@ -44,11 +44,11 @@ The script looks at what is in `csvs/` and does the next thing:
 |---|---|
 | empty | round 0 seed design (`SDL_BO init`), robot files for round 0 into `ratios/` |
 | round N laid out, no exports in `uvvis/` | stops and lists the exact file names it is waiting for |
-| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest --branch` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` and `report` into `csvs/figures/` |
+| round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest --branch` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` into `csvs/figures/` and one `analysis report` per arm into `csvs/figures/phthalimide/` and `csvs/figures/others/` |
 | round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
 
-It never overwrites a finished round, so it is safe to re-run. `--seed N` changes the BO's random fallbacks,
-`--no-figures` skips the QC and report figures.
+It never overwrites a finished round, so it is safe to re-run, and it exits with code 2 while it is still waiting for reader
+files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC and report figures.
 
 **What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2):
 
@@ -70,14 +70,14 @@ the UV readout can follow (see "Interpretation notes").
 |---|---|---|
 | `numbering` | first round 0, first plate 0, first mixture condition 1 | a condition is one solvent or one mixture; the DMF control is condition 0; well names stay A1–H12 |
 | `well` | 300 µL per well, 5 µL minimum component, up to 3 solvents | the control well is 300 µL of pure DMF |
-| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | no QC or blank plate for now |
+| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | no QC or blank plate for now; `limit_solvent_to_trough = false`: the BO is not held to one trough per solvent, so a round may need a spare trough (`bo_bridge.py layout` warns; add it to `SOLVENT_TROUGHS` here and in the protocol) |
 | `reference` | DMF | pure control in every solute block, never mixed |
 | `arms` | phthalimide: Phthalimide; others: Glutarimide, Boc-hydroxyproline, Succinimide | after the shared round-0 seed design the campaign splits into these independent trajectories, each optimising the minimum over its solutes with its own GPs; every solute is in exactly one arm (`SDL_BO/README.md`, "Arms") |
-| `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; add `wavelength_nm` once the absorption maximum is known (absent = pick from data) |
+| `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; set `wavelength_nm` to the absorption maximum before round 0 (absent = picked from the raw DMF-control spectrum, which lands on DMF's UV edge) |
 | `solvents` | DMF (A1), acetone (B1), EtOH (C1), i-PrOH (D1), water (E1), i-PrOAc (F1), t-BuOAc (G1) | `name` without hyphens is the CSV identifier, `label` the display name; H1 stays the diluent |
 
-`attacks_polystyrene` marks the solvents expected to craze the polystyrene readout plate (acetone and the esters);
-`analysis qc` uses it for the plate-attack check.
+`attacks_polystyrene` marks the solvents expected to craze the polystyrene readout plate (acetone and the esters). Only
+the fake plate reader and toy runs read it now: the plate-attack check went with the QC plate.
 
 ## Forbidden solvent pairs
 
@@ -121,8 +121,8 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
 
 | Consumer | What it takes |
 |---|---|
-| `OT protocols/bo_bridge.py` | solvents, solutes, troughs, volumes, numbering (sdl_merge wiring) |
+| `OT protocols/bo_bridge.py` | solvents, solutes, troughs, the trough-cap switch, volumes, numbering (sdl_merge wiring) |
 | `OT protocols/sdl_solubility_ot2.py` | `SOLVENT_TROUGHS` mirrored by hand; checked by `tests/` |
-| `SDL_BO/` | solvents, number of solutes, volumes, trough budget, first round (sdl_merge wiring) |
-| `analysis/` | reference solvent, polystyrene attackers, solvent labels |
+| `SDL_BO/` | solvents, number of solutes, volumes, arms, the optional trough cap, first round (sdl_merge wiring) |
+| `analysis/` | reference solvent, first plate, arms (`report --arms`), solute wavelengths; the toy examples also read the polystyrene attackers |
 | `tests/test_production_config.py` | that the file is consistent |

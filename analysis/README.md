@@ -32,7 +32,7 @@ python -m analysis reduce --plate-map runs/prod/plate_map_round0.csv --reader ru
 python "OT protocols/bo_bridge.py" merge --plate-map runs/prod/plate_map_round0.csv \
     --reader runs/prod/endpoint_round0_plate{0,1,2}.csv --dataset runs/prod/bo_dataset.csv
 python -m analysis qc --run runs/prod
-python -m analysis report --run runs/prod
+python -m analysis report --run runs/prod          # add --arms for a branched campaign: one report per arm
 ```
 
 Keep every round of a campaign in **one folder** (the `--outdir` of `layout`, `reduce` and `merge`): `qc` and `report`

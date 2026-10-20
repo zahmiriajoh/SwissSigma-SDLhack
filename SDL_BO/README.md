@@ -2,7 +2,7 @@
 
 Bayesian optimisation for the green-solvent screen. **`bo_dataset.csv` in, suggestions CSV out.** It knows
 nothing about the robot or the plate reader: `OT protocols/bo_bridge.py` owns every file format, and SDL_BO
-reads and writes exactly those. The dataset file is the only state.
+reads and writes exactly those. The dataset file is the only state (plus the `wavelengths_roundN.csv` files next to it, read for the `measurable` flags).
 
 ## Install
 
@@ -43,7 +43,7 @@ condition_id,frac_acetone,frac_EtOH,frac_iPrOH,frac_water,frac_iPrOAc,frac_tBuOA
 R1_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 ```
 
-- 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
+- 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). With `--branch` the file lists 23 conditions for each of the 4 solutes (92 rows). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
 - Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
 - Mixtures containing a forbidden (immiscible) pair from `production/config.toml` (water with i-PrOAc or t-BuOAc) are never enumerated, so neither the seed design nor any pick contains one.
 - **No solvent cap in production** (`limit_solvent_to_trough = false` in `production/config.toml`): picks are not limited by one trough per solvent, so `bo_bridge.py layout` may report a solvent that needs a spare trough (it warns and still writes the files). With `true`, the conditions use at most 1960 µL of any one solvent in a single well set (3 plates × 4 solutes fit one 25 mL trough: 24 mL usable, 2 % margin), and fewer rows are written if fewer fit.
@@ -57,7 +57,7 @@ warning. Malformed files (fractions not summing to 1, DMF in a mixture, non-inte
 ## How results are scored
 
 - **ratio_\<solute\>** = `rel_mean`, averaged over every condition row with the same composition (re-tests across rounds).
-- **score** of a mixture = its worst solute's ratio. 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
+- **score** of a mixture = its worst solute's ratio (in an arm: the worst among the arm's solutes). 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
 - Solutes flagged `measurable = False` in any `wavelengths_roundN.csv` next to the dataset (written by `analysis reduce` when a solute's DMF control is within the noise) stay in the data but are left out of the score, as in `analysis report`; `suggest` and `report` say which.
 
 ## Arms: one shared seed round, then independent trajectories
@@ -93,13 +93,14 @@ print(make_report("bo_dataset.csv"))
 
 `examples/make_examples.py` runs the real loop (SDL_BO → `bo_bridge.py layout` → fake plate reader from
 `analysis/examples/fake_plate_reader.py` → `bo_bridge.py merge` → SDL_BO) for 3 rounds and leaves the files in
-`examples/`: `suggestions_round0..3.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results.
+`examples/`: `suggestions_round0..3.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results. This is the shared, unbranched loop;
+the branched one (`suggest --branch` through `run_bo.sh`) is exercised by `tests/test_branched_campaign.py`.
 
 ## What is inside
 
 | File | Role |
 |---|---|
-| `space.py` | Solvents, 5 µL grid (35,111 allowed mixtures), trough budget. Constants mirror `bo_bridge.py`. |
+| `space.py` | Solvents, 5 µL grid (23,016 allowed mixtures), the optional trough cap. Constants mirror `bo_bridge.py`. |
 | `dataset.py` | Reads and validates `bo_dataset.csv`; per-mixture scores. |
 | `model.py` | One Gaussian process per solute (kernel by cross-validation); exploit (batch expected improvement) and explore picks under a solvent `Budget`. |
 | `campaign.py` | Round-0 design, `fit_per_solute` (GP per solute for plots), `suggest_next_round`, `suggest_arms` (one design per arm). |

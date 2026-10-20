@@ -30,7 +30,7 @@ def run_bridge(*args) -> subprocess.CompletedProcess:
 
 @pytest.fixture
 def coarse_grid(monkeypatch):
-    """50 uL steps (281 mixtures instead of 35,111) so GP-based picks run in seconds."""
+    """50 uL steps (201 mixtures instead of 23,016) so GP-based picks run in seconds."""
     from SDL_BO import space
     monkeypatch.setattr(space, "STEP_UL", 50)
     return 50

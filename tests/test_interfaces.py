@@ -36,6 +36,8 @@ def test_bo_bridge_and_sdl_bo_follow_the_config():
 def test_protocols_mirror_the_config_troughs(protocol):
     troughs = protocol_constant(protocol, "SOLVENT_TROUGHS")
     assert {k: v for k, v in troughs.items() if k != "diluent"} == config.SOLVENT_TROUGHS
+    used = {well for wells in config.SOLVENT_TROUGHS.values() for well in wells}
+    assert not used & set(troughs.get("diluent", []))  # a spare trough on H1 means dropping the protocol's diluent entry
     assert protocol_constant(protocol, "TROUGH_FILL_UL") == config.TROUGH_FILL_UL
     assert protocol_constant(protocol, "TROUGH_DEAD_UL") == config.TROUGH_DEAD_UL
 
