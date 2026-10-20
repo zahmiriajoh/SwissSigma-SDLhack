@@ -35,10 +35,11 @@ Change the layout with flags on `grid` and `layout` (or the constants at the top
 | `--plates` (layout) | 3 | identical plates, only for the reservoir fill sheet |
 
 Conditions per solute = (wells per solute − controls) ÷ replicates. The robot CSV lists
-every well, so the protocol needs no changes when the layout changes. Draw any layout with:
+every well, so the protocol needs no changes when the layout changes. Draw any layout with
+(solute blocks are labelled S0, S1, ... in `production/config.toml` order):
 
 ```bash
-python bo_bridge.py plate-svg --plate-map ../data/runs/round0/plate_map_round0.csv -o ../data/runs/round0/plate_map.svg
+uv run python tools/draw_plate_map.py ../data/runs/round0/plate_map_round0.csv ../data/runs/round0/plate_map.svg
 ```
 
 ## Loop
@@ -208,9 +209,10 @@ a two-round BO loop with fake plate-reader data, and a check that the Flex timin
 uv run python tools/check_all.py
 ```
 
-`tools/draw_deck_map.py` redraws `maps/deck_map.svg`. It's a static drawing, so update its
-slot assignments if you move labware in the protocol. The plate map comes from
-`bo_bridge.py plate-svg` (see above).
+`tools/draw_deck_map.py` redraws `maps/deck_map.svg`. Trough labels come from
+`production/config.toml`; slot assignments are static, so update them if you move labware in
+the protocol. `tools/draw_plate_map.py` redraws `maps/plate_layout.svg` from
+`examples/plate_map_round0.csv` (or any plate map, see above).
 
 ## Folder layout
 
@@ -221,7 +223,7 @@ OT protocols/
 ├── labware/                custom labware JSONs (import into the Opentrons app)
 ├── examples/               round-1 suggestions, robot CSV and plate map
 ├── maps/                   plate_layout.svg, deck_map.svg
-├── tools/                  check_all.py, draw_deck_map.py
+├── tools/                  check_all.py, draw_deck_map.py, draw_plate_map.py
 └── archive/                earlier Flex version (not maintained)
 ```
 
