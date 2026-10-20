@@ -5,6 +5,7 @@
 import argparse
 from pathlib import Path
 
+from .qc import ABS_MAX_DEFAULT
 from .spectra import DEFAULT_NM_RANGE, SpectraError, read_plate_map, read_spectra, reduce_round
 
 
@@ -37,7 +38,20 @@ def _build_parser() -> argparse.ArgumentParser:
     reduce.add_argument("--bandwidth", type=float, default=0.0,
                         help="average absorbance over +/- this many nm around the wavelength (default 0)")
     reduce.add_argument("--plots", action="store_true", help="also write QC figures (spectra, plate heat maps)")
+
+    qc = commands.add_parser("qc", help="experiment-quality figures and qc_summary.md for a campaign folder")
+    qc.add_argument("--run", required=True, help="folder with plate_map_roundN.csv, results_roundN_wells.csv, bo_dataset.csv, ...")
+    qc.add_argument("--outdir", help="where figures and qc_summary.md go (default <run>/figures)")
+    qc.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="reader linear range: flag raw absorbance above this")
     return parser
+
+
+def _run_qc(args) -> None:
+    from .qc import run_qc  # pandas/matplotlib only when asked for
+    from .run import Run
+    run = Run(args.run)
+    path = run_qc(run, Path(args.outdir or Path(args.run) / "figures"), args.abs_max)
+    print(f"wrote {path} and figures to {path.parent}")
 
 
 def _run_reduce(args) -> None:
@@ -72,7 +86,7 @@ def _run_reduce(args) -> None:
           + (f" --blank {outdir / names[-1]}" if blank is not None else "") + " --dataset bo_dataset.csv")
 
 
-COMMANDS = {"reduce": _run_reduce}
+COMMANDS = {"reduce": _run_reduce, "qc": _run_qc}
 
 
 def main(argv=None) -> None:
