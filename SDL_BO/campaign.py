@@ -3,7 +3,7 @@
     first round:  the pure green solvents + space-filling mixtures             (N_CONDITIONS rows)
     later rounds: N_RETESTS re-tests + N_EXPLOIT exploit + N_EXPLORE explore  (N_CONDITIONS rows)
 
-Rounds and condition counters start at production.config's FIRST_ROUND / FIRST_CONDITION (0): R0_seed00, R1_exploit00.
+Rounds start at production.config's FIRST_ROUND (0), mixture counters at FIRST_CONDITION (1; condition 0 is the DMF control): R0_seed01, R1_exploit01.
 
 `bo_bridge.py layout` adds the DMF control well itself, so no control row is written. With bo_bridge's default
 layout (4 solutes x 24 wells, 1 DMF control each) 23 conditions fit per round, each on 3 identical plates.

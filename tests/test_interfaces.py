@@ -52,7 +52,7 @@ def test_bo_bridge_layout_accepts_seed_design(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert "snapped" not in result.stdout  # 5 uL grid: nothing gets rounded
     plate_map = pd.read_csv(tmp_path / f"plate_map_round{R0}.csv")
-    assert plate_map["condition_id"].iloc[1] == f"R{R0}_seed{config.FIRST_CONDITION:02d}" and plate_map["replicate"].min() == config.FIRST_CONDITION
+    assert plate_map["condition_id"].iloc[1] == f"R{R0}_seed{config.FIRST_CONDITION:02d}" and plate_map["replicate"].min() == 0
     assert len(plate_map) == 96
     per_solute = plate_map.groupby("solute")["role"].value_counts().unstack()
     assert (per_solute["control"] == 1).all() and (per_solute["sample"] == campaign.N_CONDITIONS).all()

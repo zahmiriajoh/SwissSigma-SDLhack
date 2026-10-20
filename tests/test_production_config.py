@@ -11,7 +11,7 @@ def test_values_from_the_user():
     assert config.REFERENCE_SOLVENT == "DMF" and config.GREEN_SOLVENTS[0] == "acetone"
     assert config.SOLVENT_LABELS["iPrOAc"] == "i-PrOAc"
     assert config.TOTAL_UL == 300 and config.MIN_UL == 5 and config.N_PLATES == 3
-    assert (config.FIRST_ROUND, config.FIRST_PLATE, config.FIRST_CONDITION) == (0, 0, 0)
+    assert (config.FIRST_ROUND, config.FIRST_PLATE, config.FIRST_CONDITION) == (0, 0, 1)
     assert config.MAX_SOLVENTS_PER_MIX == config.MAX_SOLVENTS_PER_MIXTURE == 3
     assert all(v is None for v in config.SOLUTE_WAVELENGTH_NM.values())  # unknown until measured
 

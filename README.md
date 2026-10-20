@@ -73,7 +73,7 @@ run). The additive runs predate the QC plate, so their Q7 calibration section is
 - **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 shared conditions, run on 3 identical plates per round.
 - **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and keeps each solvent's per-round total within one 25 mL trough.
 - **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
-- **Numbering:** rounds, plates and condition counters start at 0 (`round0`, `plate0`, `R0_seed00`); well names stay `A1`–`H12`.
+- **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), so A1 is `round0_plate0_solute0_cond0`; well names stay `A1`–`H12`.
 - **Objective:** absorbance relative to the DMF control per solute; a mixture's score is its worst solute's ratio.
 
 **How the trough volume constrains BO.** Each solvent has one trough on the 8-trough reservoir (organiser labware, 30 mL

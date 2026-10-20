@@ -2,7 +2,7 @@
 
 Runs on a laptop, not on the robot. Standard library only (Python 3.11+ for tomllib). Solvents, solutes, troughs,
 volumes and the numbering convention come from ../production/config.toml (see ../production/README.md); rounds,
-plates and condition counters start at FIRST_ROUND / FIRST_PLATE / FIRST_CONDITION (0).
+plates start at FIRST_ROUND / FIRST_PLATE (0); the DMF control is condition 0, mixtures count from FIRST_CONDITION (1).
 
 Closed loop, one round = one well-level CSV run on up to 3 identical readout plates:
 
@@ -266,12 +266,12 @@ def cmd_layout(args):
 
     ref_vols, _ = fractions_to_volumes({REFERENCE_SOLVENT: 1.0}, args.total_ul)
     ref_id = f"R{args.round}_{REFERENCE_SOLVENT}ref"
-    wells = []  # (well, solute, condition_id, role, replicate, vols); replicates count from FIRST_CONDITION
+    wells = []  # (well, solute, condition_id, role, replicate, vols); replicates count from 0
     seen_ids = {}
     for s in solutes:
         block = blocks[s]
         for c in range(args.controls_per_solute):
-            wells.append((block[c], s, ref_id, "control", c + FIRST_CONDITION, ref_vols))
+            wells.append((block[c], s, ref_id, "control", c, ref_vols))
         conds = suggestions[s]
         for k, (cond_id, fracs) in enumerate(conds):
             vols, warnings = fractions_to_volumes(fracs, args.total_ul)
@@ -282,7 +282,7 @@ def cmd_layout(args):
             for r in range(args.replicates):
                 # replicate r of condition k: replicate blocks follow each other
                 idx = args.controls_per_solute + r * len(conds) + k
-                wells.append((block[idx], s, cond_id, "sample", r + FIRST_CONDITION, vols))
+                wells.append((block[idx], s, cond_id, "sample", r, vols))
     wells.sort(key=lambda w: PLATE_WELLS.index(w[0]))
 
     tag = f"round{args.round}"

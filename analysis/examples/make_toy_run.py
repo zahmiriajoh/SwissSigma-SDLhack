@@ -2,7 +2,7 @@
 
     bo_bridge grid/layout -> fake spectra (3 plates + QC plate + plate log) -> analysis reduce -> bo_bridge merge, per round
 
-Later rounds use random (seeded) suggestions in SDL_BO's id scheme (R<n>_exploit00.., R<n>_explore00.., re-tests under
+Later rounds use random (seeded) suggestions in SDL_BO's id scheme (R<n>_exploit01.., R<n>_explore01.., re-tests under
 their first ids), so no Gaussian-process fitting is needed and the whole run takes seconds. Names and numbering come
 from production/config.toml. The fake chemistry spans the reader's range on purpose (PLAN.md Q-b): the second solute
 saturates in good solvents, the last sits near the noise floor, the first solute's band is hidden under acetone's UV

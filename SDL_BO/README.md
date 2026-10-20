@@ -46,7 +46,7 @@ R1_exploit00,0.2833,0.0,0.35,0.0,0.3667,0.0
 - Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
 - Mixtures containing a forbidden (immiscible) pair from `production/config.toml` (water with i-PrOAc or t-BuOAc) are never enumerated, so neither the seed design nor any pick contains one.
 - Per round, the conditions use at most 1960 µL of any one solvent in a single well set, so 3 plates × 4 solutes fit one 25 mL trough (24 mL usable, 2 % margin). Re-tests, exploit and explore picks are chosen within this budget; if fewer fit, fewer rows are written (bo_bridge leaves wells empty).
-- `condition_id`: `R<round>_seed00`, `R<round>_exploit00`, `R<round>_explore00` (rounds and counters start at 0, as in `production/config.toml`); a re-test keeps the id it was first run under.
+- `condition_id`: `R<round>_seed01`, `R<round>_exploit01`, `R<round>_explore01` (rounds start at 0 and mixture counters at 1, as in `production/config.toml`; condition 0 is the DMF control); a re-test keeps the id it was first run under.
 
 **Input, `bo_dataset.csv`** (from `bo_bridge.py merge`): one row per round × solute × condition with `round, solute,
 condition_id, is_reference, frac_<solvent>..., rel_mean, ...`. SDL_BO uses `rel_mean` (absorbance relative to the

@@ -4,11 +4,11 @@
 # examples/ were made before this file existed and stay as frozen records of the earlier names and 1-based numbering.
 
 [numbering]
-# "Numbering for everything starts from zero": rounds, plates and condition counters.
+# "Numbering for everything starts from zero": rounds, plates and conditions (a condition is one solvent or one mixture of solvents).
 # Well names stay A1..H12 (plate-reader and Opentrons convention).
 first_round = 0       # files: plate_map_round0.csv, reader_round0_plate0.csv, ...; ids: R0_seed00 ...
 first_plate = 0       # the three identical plates of a round are plate0, plate1, plate2
-first_condition = 0   # condition counters within an id start at 00
+first_condition = 1   # condition 0 is the DMF control (A1 of every solute block); the mixtures are conditions 1-23
 
 [well]
 total_ul = 300                 # liquid per well; the reference control well is 300 uL of pure DMF

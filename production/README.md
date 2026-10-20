@@ -71,7 +71,7 @@ the UV readout can follow (see "Interpretation notes").
 
 | Section | Values | Notes |
 |---|---|---|
-| `numbering` | first round 0, first plate 0, first condition 0 | "numbering for everything starts from zero"; well names stay A1–H12 |
+| `numbering` | first round 0, first plate 0, first mixture condition 1 | a condition is one solvent or one mixture; the DMF control is condition 0; well names stay A1–H12 |
 | `well` | 300 µL per well, 5 µL minimum component, up to 3 solvents | the control well is 300 µL of pure DMF |
 | `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | plus one QC plate per round (`analysis qc-layout`) |
 | `reference` | DMF | pure control in every solute block, never mixed |
@@ -102,9 +102,11 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
 
 - "Each well: 300 µL of DMF" means **300 µL total liquid per well**, with the reference control being 300 µL of
   pure DMF (confirmed by the user).
-- Zero-based numbering applies to rounds, plates, replicates and condition counters (`round0`, `plate0`, `R0_seed00`),
-  not to well names; each solute block starts with its DMF control as item 0, so A1 is the control of solute 0 and A2 is
-  condition 0 (confirmed by the user).
+- Zero-based numbering applies to rounds, plates, solutes and conditions, not to well names. A condition is one solvent
+  or one mixture of solvents; each solute block has conditions 0-23, with the DMF control as condition 0 and the mixtures
+  as 1-23 (`R0_seed01`…). A1 is `round0_plate0_solute0_cond0` (naming convention given by the user, 2026-10-20). The
+  per-well name is not yet written to any file; `condition_id` (`R0_seed01`) still identifies a mixture across solutes
+  and plates.
 - **UV readout concern and the conservative answer.** DMF is opaque below about 270 nm and acetone below about
   330 nm, while glutarimide, succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only
   phthalimide (about 295 nm) has a comfortable band. Since the plan cannot change once the campaign starts,
