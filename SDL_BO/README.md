@@ -16,7 +16,7 @@ python -m SDL_BO init                 ──► suggestions_round0.csv
 python bo_bridge.py layout            ──► ot_input_round0.csv + plate_map_round0.csv
 OT-2 run, plate reader, analysis      ──► one absorbance per well per plate
 python bo_bridge.py merge             ──► bo_dataset.csv
-python -m SDL_BO suggest              ──► suggestions_round2.csv   ... repeat layout / run / merge / suggest
+python -m SDL_BO suggest              ──► suggestions_round1.csv   ... repeat layout / run / merge / suggest
 ```
 
 ```bash
