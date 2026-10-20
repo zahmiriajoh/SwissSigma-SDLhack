@@ -40,8 +40,8 @@ def _check_values(df: pd.DataFrame) -> None:
     for column in ["round", "is_reference", "rel_mean", *space.FRACTION_COLUMNS]:
         if not pd.api.types.is_numeric_dtype(df[column]):
             raise DatasetError(f"column '{column}' must be numeric but has non-numeric entries")
-    if (df["round"] < 1).any() or (df["round"] != df["round"].round()).any():
-        raise DatasetError("'round' must contain positive whole numbers")
+    if (df["round"] < space.FIRST_ROUND).any() or (df["round"] != df["round"].round()).any():
+        raise DatasetError(f"'round' must contain whole numbers >= {space.FIRST_ROUND}")
     if np.isinf(df["rel_mean"].to_numpy(dtype=float)).any():
         raise DatasetError("rel_mean must be finite (found inf); check the DMF controls")
 

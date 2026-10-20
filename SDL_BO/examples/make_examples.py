@@ -18,10 +18,13 @@ BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "analysis" / "examples"))
 from fake_plate_reader import endpoint_export, read_plate_map  # noqa: E402
+from production import config  # noqa: E402
 
+from SDL_BO import space  # noqa: E402
 from SDL_BO.campaign import seed_design, suggest_next_round  # noqa: E402
 
-N_PLATES = 3  # identical plates per round; the toy pipeline example sets this to 1
+N_PLATES = space.N_PLATES  # identical plates per round; the toy pipeline example sets this to 1
+FIRST_ROUND, FIRST_PLATE = space.FIRST_ROUND, config.FIRST_PLATE
 
 
 def bridge(*args) -> str:
@@ -35,7 +38,7 @@ def bridge(*args) -> str:
 def endpoint_readers(plate_map, round_number, workdir, rng):
     """Fake "already reduced" plate-reader files: (plate paths, blank path), one absorbance per well."""
     readers = []
-    for i in range(1, N_PLATES + 1):
+    for i in range(FIRST_PLATE, FIRST_PLATE + N_PLATES):
         readers.append(workdir / f"reader_round{round_number}_plate{i}.csv")
         endpoint_export(plate_map, rng).to_csv(readers[-1], index=False)
     blank = workdir / f"reader_round{round_number}_blank.csv"
@@ -52,14 +55,14 @@ def run_round(round_number, suggestions_path, workdir, dataset_path, rng, make_r
 
 
 def run_campaign(n_rounds, out_dir, workdir, seed=0, make_readers=endpoint_readers) -> Path:
-    """Write suggestions_round1..N+1 and bo_dataset.csv into `out_dir`; returns the dataset path."""
+    """Write suggestions for rounds FIRST_ROUND..FIRST_ROUND+N and bo_dataset.csv into `out_dir`; returns the dataset path."""
     out_dir, workdir = Path(out_dir), Path(workdir)
     dataset = out_dir / "bo_dataset.csv"
     dataset.unlink(missing_ok=True)
     rng = np.random.default_rng(seed)
-    suggestions = out_dir / "suggestions_round1.csv"
+    suggestions = out_dir / f"suggestions_round{FIRST_ROUND}.csv"
     seed_design().to_csv(suggestions, index=False)
-    for round_number in range(1, n_rounds + 1):
+    for round_number in range(FIRST_ROUND, FIRST_ROUND + n_rounds):
         run_round(round_number, suggestions, workdir, dataset, rng, make_readers)
         suggestions = out_dir / f"suggestions_round{round_number + 1}.csv"
         next_rows, info = suggest_next_round(dataset, seed=seed)
