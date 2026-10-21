@@ -72,6 +72,7 @@ N_PLATES = _cfg["plates"]["per_round"]
 TROUGH_FILL_UL = _cfg["plates"]["trough_fill_ul"]
 TROUGH_DEAD_UL = _cfg["plates"]["trough_dead_ul"]
 TROUGH_USABLE_UL = TROUGH_FILL_UL - TROUGH_DEAD_UL
+N_RESERVOIRS = _cfg["plates"].get("reservoirs", 1)  # slot 5, plus the slot-4 backup when 2
 LIMIT_SOLVENT_TO_TROUGH = _cfg["plates"].get("limit_solvent_to_trough", True)  # BO's per-round solvent cap, see SDL_BO/space.py
 
 REFERENCE_SOLVENT = _cfg["reference"]["solvent"]

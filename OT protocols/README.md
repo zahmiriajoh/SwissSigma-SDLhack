@@ -159,10 +159,11 @@ F1 i-PrOAc, G1 t-BuOAc, H1 diluent. With this volume model the diluent isn't use
 fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
 needs per round; the committed round 0 needs up to about 19 mL (acetone).
 
-**More than 24 mL of a solvent.** The BO is not limited to one trough per solvent (`limit_solvent_to_trough = false`), so a
-later round can need more (`layout` then prints "TOO MUCH" and a warning, and the protocol refuses to run). Give that solvent a
-second trough: `trough = ["D1", "H1"]` for it in the config and the same list in `SOLVENT_TROUGHS` of both protocols (this one
-and `../OTFlex analog/`), dropping their `diluent` entry if H1 is used, then load both troughs. `tests/` check the three agree.
+**More than 48 mL of a solvent.** The BO is not limited to one trough per solvent (`limit_solvent_to_trough = false`); up to
+48 mL the backup reservoir below covers it, and `layout`'s fill sheet counts both reservoirs (`reservoirs = 2` in the config).
+Above that `layout` prints "TOO MUCH" and a warning, and the protocol refuses to run. Give that solvent a second trough:
+`trough = ["D1", "H1"]` for it in the config and the same list in `SOLVENT_TROUGHS` of this protocol and its copy in
+`production/`, dropping their `diluent` entry if H1 is used, then load both troughs. `tests/` check that they agree.
 
 **Backup reservoir (slot 4):** a second `axygen_8_reservoir_30000ul` with the same trough layout. Fill it like
 slot 5 (the protocol assumes 25 mL in every used trough of both). A solvent draws from its slot-5 trough until that

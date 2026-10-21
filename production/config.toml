@@ -22,7 +22,8 @@ max_solvents_per_mixture = 3
 [plates]
 per_round = 3                  # identical sample plates per round (no QC or blank plate for now)
 trough_fill_ul = 25000         # loaded into every used reservoir trough
-trough_dead_ul = 1000          # left behind in the trough
+trough_dead_ul = 1000          # left behind in the trough (loading 30 mL is fine: the protocol plans with 25 mL)
+reservoirs = 2                 # slot 5 + the slot-4 backup with the same troughs (protocol setting "Backup reservoir", on by default)
 limit_solvent_to_trough = false  # false (user decision, 2026-10-20): the BO may ask for more of a solvent than one trough holds.
                                # bo_bridge layout's fill sheet then says how much to load. Give that solvent a spare trough before the run:
                                # trough = ["B1", "H1"] below AND the same list in SOLVENT_TROUGHS of both protocols (drop their "diluent"

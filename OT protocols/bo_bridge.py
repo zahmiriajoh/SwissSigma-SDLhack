@@ -48,7 +48,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 from production.config import (  # noqa: E402
     ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, LIMIT_SOLVENT_TO_TROUGH, MAX_SOLVENTS_PER_MIX,
-    MIN_UL, N_PLATES, REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
+    MIN_UL, N_PLATES, N_RESERVOIRS, REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
     sample_id,
 )
 
@@ -316,19 +316,20 @@ def cmd_layout(args):
     for s in solutes:
         b = blocks[s]
         print(f"  {s}: wells {b[0]}-{b[-1]}, {len(suggestions[s])} conditions")
-    print(f"\nReservoir fill sheet ({args.plates} identical plates):")
+    print(f"\nReservoir fill sheet ({args.plates} identical plates + one solvent blank well each, {N_RESERVOIRS} reservoir(s)):")
     ok = True
     for x in used:
-        need = args.plates * sum(w[5][x] for w in wells)
-        have = TROUGH_USABLE_UL * len(SOLVENT_TROUGHS[x])
+        need = args.plates * sum(w[5][x] for w in wells) + args.total_ul  # + its well on the solvent blank plate
+        have = TROUGH_USABLE_UL * len(SOLVENT_TROUGHS[x]) * N_RESERVOIRS
         flag = "" if need <= have else "  <-- TOO MUCH: add the spare trough in the protocol + here"
         ok &= need <= have
-        print(f"  {x:<7} trough {','.join(SOLVENT_TROUGHS[x]):<6} needs {need / 1000:5.2f} mL{flag}")
+        print(f"  {x:<7} trough {','.join(SOLVENT_TROUGHS[x]):<6} needs {need / 1000:5.2f} mL of {have / 1000:.0f}{flag}")
     if not ok and LIMIT_SOLVENT_TO_TROUGH:
         sys.exit(1)
     if not ok:  # the BO is not limited to one trough (production/config.toml): the lab loads spare troughs instead
-        print("\nWARNING: a solvent above needs more than one trough holds (limit_solvent_to_trough = false). Add spare troughs to "
-              "SOLVENT_TROUGHS in the protocol and in production/config.toml, and load them, before running this round.")
+        print(f"\nWARNING: a solvent above needs more than its troughs on {N_RESERVOIRS} reservoir(s) hold (limit_solvent_to_trough = "
+              "false), and the protocol will refuse this CSV. Add spare troughs to SOLVENT_TROUGHS in the protocol and in "
+              "production/config.toml, and load them, before running this round.")
 
 
 # ---------------------------------------------------------------------------

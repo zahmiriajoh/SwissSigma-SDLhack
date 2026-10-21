@@ -80,10 +80,11 @@ labware, 30 mL nominal); the protocol fills it with 25 mL and keeps 1 mL as dead
 condition is pipetted into 3 plates and each solute block it is in, so a round whose conditions together hold more than
 about 1960 µL of one solvent (a mean fraction of 0.28 per well) needs more than one trough. SDL_BO no longer holds its
 picks to that limit (`limit_solvent_to_trough = false` in `production/config.toml`; `true` restores it, with each solute
-block owning a quarter of the trough). **Consequence:** `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and
-the OT-2 protocol refuses to run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to
-`SOLVENT_TROUGHS` in the protocol and in the config and loaded. In the fake branched run, one solvent exceeded its trough in
-round 3, by 1.9 mL.
+block owning a quarter of the trough). **Consequence:** the slot-4 backup reservoir (`reservoirs = 2` in the config, on by
+default in the protocol) takes over, so each solvent has 48 mL per round; in the fake branched run i-PrOH needed 26.7 mL in
+round 3. Above 48 mL `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and the OT-2 protocol refuses to
+run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to `SOLVENT_TROUGHS` in the protocol
+and in the config and loaded.
 
 ## Pending decisions and open questions
 
