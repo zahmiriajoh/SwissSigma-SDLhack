@@ -57,7 +57,7 @@ files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC
 | `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate, saved as is: the reader's own scan export (`Wavel.;300;310;…`, one row per well, `;` with decimal commas) or `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
-**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (no QC or blank plate is run for now). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.
+**What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates; no QC plate and no analysis blank are run for now). The same run also fills a solvent blank plate in slot 6 (well X1 = 300 µL of pure solvent from trough X1) for the scientists to calibrate the UV-Vis reader; the analysis and the BO never read it. `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.
 
 Everything the analysis derives (`endpoint_roundN_*.csv`, `wavelengths_roundN.csv`, `results_roundN_wells.csv`,
 `bo_dataset.csv`, `bo_dataset_shared.csv`, `figures/`) lands in `csvs/` itself; `analysis qc` and `report` read the

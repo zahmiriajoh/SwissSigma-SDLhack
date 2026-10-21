@@ -118,7 +118,8 @@ same layout as `--blank`. `analysis reduce` also turns full-spectrum exports int
    several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
    touch their own solvent, so a full round uses about 7 tips. The same tips also fill the
-   **solvent blank plate** in slot 6: well X1 gets 300 µL of the pure solvent from trough X1
+   **solvent blank plate** in slot 6, for the scientists to calibrate the UV-Vis reader (the analysis and the BO never
+   read it, and it is not the analysis `--blank`): well X1 gets 300 µL of the pure solvent from trough X1
    (A1 DMF … G1 t-BuOAc), with no solids. It's filled once per run and serves all 3 plates.
 2. **Pause:** you seal all plates (and the blank plate) by hand straight away, so plates 1–2
    don't evaporate while plate 0 shakes. The blank plate isn't shaken, since it has no solids.
