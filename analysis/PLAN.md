@@ -88,11 +88,12 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     most-sampled solvent trios. `--no-gp` skips it.
 13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): three shapes are accepted, a long table with columns
     `well`, `wavelength_nm` and one numeric absorbance column (any name), a wide matrix with a wavelength column and one
-    column per well, or its transpose (one row per well, wavelengths across the header), which is how the plate reader
-    exports (`production/UV-Vis/Absorbancescan.csv`, first header `Wavel.`). `;`-separated files with decimal commas are
-    read too; well names may be `A1` or `A01`. The real scans will be 200-700 nm in 5 nm steps on full 96-well plates;
+    column per well, or its transpose (one row per well, wavelengths across a `Wavel.` header). `;`-separated files with
+    decimal commas are read too; well names may be `A1` or `A01`. **Correction (2026-10-21):** the plate reader saves `.xlsx`
+    workbooks (Tecan i-control export, one plate per workbook), not CSV; `production/convert_reader_xlsx.py` turns them into
+    the long table (format in `production/README.md`). The real scans will be 200-700 nm in 5 nm steps on full 96-well plates;
     peaks are picked on the unsmoothed mean control spectrum (no smoothing; averaging over
-    wells and plates already suppresses noise). Wavelengths fixed in `production/config.toml` should lie on the 5 nm grid. The accepted formats are documented
+    wells and plates already suppresses noise). Wavelengths fixed in `production/config.toml` are snapped to the scanned grid. The accepted formats are documented
     in `README.md` ("File formats").
 14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
     `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check

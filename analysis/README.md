@@ -99,9 +99,11 @@ prediction; give either option, not both. With neither, nothing is subtracted.
 
 **Reader exports** (input): a long table with columns `well`, `wavelength_nm`, `absorbance` (any numeric column
 name), a wide matrix with a wavelength column (`wavelength_nm`, `Wavel.`, ...) and one column per well, or its
-transpose with one row per well and the wavelengths across the header (the plate reader's own export). `,` or `;`
-separators (`;` implies decimal commas). Well names may be `A1` or `A01`. The planned scans are 200-700 nm in 5 nm
-steps on 96 wells; a few fixed wavelengths also work (include one near 700 nm for the noise check).
+transpose with one row per well and the wavelengths across a `Wavel.` header. `,` or `;` separators (`;` implies decimal
+commas). Well names may be `A1` or `A01`. The plate reader itself saves `.xlsx` workbooks (Tecan i-control export, one plate
+per workbook; format in `production/README.md`), which `run_bo.sh` converts to the long table first. The planned scans are
+200-700 nm in 5 nm steps on 96 wells, but any range and step works, and the plates and the blank may differ (`reduce`
+interpolates them onto plate 0's wavelengths); a few fixed wavelengths also work (include one near 700 nm for the noise check).
 
 **Plate log** (lab notes, optional): `plate_log_roundN.csv` with `plate` (0, 1, 2) and `read_delay_min`.
 

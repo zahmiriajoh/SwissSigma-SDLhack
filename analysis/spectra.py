@@ -1,7 +1,8 @@
 """Plate-reader spectra -> one absorbance per well, in the single-value export `bo_bridge.py merge` reads.
 
-Input: one full-spectrum export per plate: the plate reader's own layout (one row per well, wavelengths across the header,
-`;` separators and decimal commas), a long table (well, wavelength_nm, absorbance) or a wavelength-by-well matrix. The plate map from `bo_bridge.py layout` says which
+Input: one full-spectrum CSV per plate, as production/convert_reader_xlsx.py writes it from the reader's workbook (a long
+table well, wavelength_nm, absorbance), or one row per well under a 'Wavel.' header (`,`, or `;` with decimal commas), or a
+wavelength-by-well matrix. The plate map from `bo_bridge.py layout` says which
 solute sits in each well. Each solute is read at its own wavelength: the peak of its blank-corrected
 DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at that wavelength.
 
@@ -73,7 +74,7 @@ def read_spectra(path) -> pd.DataFrame:
     """Wide table: index wavelength_nm (float, sorted), one column per well.
 
     Accepts a long table (well, wavelength, absorbance), a wavelength-by-well matrix, or its transpose (one row per
-    well, wavelengths across the header, as the plate reader exports it).
+    well, wavelengths across a 'Wavel.' header, as on the reader's workbook sheet).
     """
     df = _read_table(path)
     wl_col = _find_column(df, lambda c: "wavel" in c or c in ("nm", "lambda"))

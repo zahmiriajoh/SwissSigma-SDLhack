@@ -59,13 +59,29 @@ run them yet) and re-run.
 
 **What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2). Save the reader's workbooks as
 `.xlsx` under these names; `run_bo.sh` turns each `reader_roundN_*.xlsx` into the `.csv` the analysis reads (a `.csv` at
-least as new as its `.xlsx` is kept, so a hand-made `.csv` also works). The converter finds the spectra block on any sheet,
-with or without instrument rows around it. An over-range reading (`OVER`, `>4`) is read as absorbance 4.0, so that
-wavelength counts as opaque and the well is flagged saturated; any other non-numeric reading stops it with the well names:
+least as new as its `.xlsx` is kept, so a hand-made `.csv` also works).
+
+**Reader workbook format** (Tecan Infinite 200 PRO, i-control export; checked against the lab's example
+`Absorbancescan.xlsx`, which is kept out of git). **One plate per workbook**, one scan sheet in it (an empty extra sheet
+is fine; a workbook with several scan sheets is refused with their names, so copy each scan into its own file). On that sheet:
+
+| Rows | Content | Used? |
+|---|---|---|
+| 1-28 | instrument, date, plate type, and the scan settings (`Wavelength Start`, `End`, `Step Size`, `Part of Plate`, temperature) | no |
+| 29 | `Wavel.` then the wavelengths across (230, 234, ... as numbers) | yes |
+| 30 on | one row per well: the well name (`A1`, `A2`, ...) then one absorbance per wavelength | yes |
+| after | blank rows and `End Time:` | no |
+
+Absorbances are plain numbers; an over-range reading is the text `OVER` (`>4` is accepted too) and is read as absorbance
+4.0, so that wavelength counts as opaque and the well is flagged saturated. Any other text stops the conversion with the
+well names. The block is found wherever it sits, also transposed (wells across, wavelengths down). Any wavelength range and
+step is read, and the plates and the blank plate may differ: `reduce` interpolates them onto plate 0's wavelengths over
+the range they all cover. Every plate-map well must be in the scan (`Part of Plate` A1-H12 for the sample plates; at
+least this round's column for the blank plate).
 
 | File | Content |
 |---|---|
-| `reader_roundN_plate0.xlsx`, `..._plate1.xlsx`, `..._plate2.xlsx` | plate-reader export of each sample plate: header `Wavel.;200;205;...;700` (or wells across, wavelengths down), one row per well (A1-H12). A `.csv` of the same name is read instead if it is newer: `;`-separated with decimal commas as the reader writes it, or a long table `well, wavelength_nm, absorbance`. Full 200-700 nm scans in 5 nm steps are planned |
+| `reader_roundN_plate0.xlsx`, `..._plate1.xlsx`, `..._plate2.xlsx` | reader workbook (format above) of each sample plate, all 96 wells. Planned scan: 200-700 nm in 5 nm steps. A `.csv` of the same name is read instead if it is newer: a long table `well, wavelength_nm, absorbance`, or one row per well under a `Wavel.` header (`,`, or `;` with decimal commas) |
 | `reader_roundN_solvents.xlsx` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank. Required: `run_bo.sh` waits for it like the plate files (`--allow-no-blank` to go on without it, with nothing subtracted) |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
