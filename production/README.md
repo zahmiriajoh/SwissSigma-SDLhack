@@ -54,7 +54,7 @@ files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC
 
 | File | Content |
 |---|---|
-| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate: `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
+| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate, saved as is: the reader's own scan export (`Wavel.;300;310;…`, one row per well, `;` with decimal commas) or `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
 **What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (no QC or blank plate is run for now). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.

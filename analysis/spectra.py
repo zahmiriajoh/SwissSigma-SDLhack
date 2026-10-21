@@ -1,7 +1,9 @@
 """Plate-reader spectra -> one absorbance per well, in the single-value export `bo_bridge.py merge` reads.
 
-Input: one full-spectrum export per plate, as a long table (well, wavelength_nm, absorbance) or a wide
-matrix (wavelength_nm rows, one column per well). The plate map from `bo_bridge.py layout` says which
+Input: one full-spectrum export per plate, as a long table (well, wavelength_nm, absorbance), a wide
+matrix (wavelength_nm rows, one column per well), or the lab reader's own export (one row per well, one column
+per wavelength, e.g. "Wavel.;300;310;..." then "A1;0,498;..."). Comma- or semicolon-separated; with semicolons,
+decimal commas are read too. The plate map from `bo_bridge.py layout` says which
 solute sits in each well. Each solute is read at its own wavelength: the peak of its blank-corrected
 DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at that wavelength.
 
@@ -42,11 +44,35 @@ def _find_column(df, test):
     return next((c for c in df.columns if test(str(c).strip().lower())), None)
 
 
+def _read_table(path) -> pd.DataFrame:
+    """The export as a table: ',' separated, or ';' separated with decimal commas (European locale)."""
+    with open(path, encoding="utf-8-sig") as f:
+        header = f.readline()
+    if header.count(";") > header.count(","):
+        return pd.read_csv(path, sep=";", decimal=",", encoding="utf-8-sig")
+    return pd.read_csv(path, encoding="utf-8-sig")
+
+
+def _wells_as_rows(df):
+    """The reader's own layout - first column well names, other column names wavelengths - as wavelength x well, else None."""
+    try:
+        wavelengths = [float(c) for c in df.columns[1:]]
+        wells = [normalize_well(w) for w in df.iloc[:, 0]]
+    except (ValueError, SpectraError):
+        return None
+    wide = df.iloc[:, 1:].T
+    wide.index, wide.columns = wavelengths, wells
+    return wide.apply(pd.to_numeric)
+
+
 def read_spectra(path) -> pd.DataFrame:
     """Wide table: index wavelength_nm (float, sorted), one column per well."""
-    df = pd.read_csv(path)
+    df = _read_table(path)
     wl_col = _find_column(df, lambda c: "wavelength" in c or c in ("nm", "lambda"))
     well_col = _find_column(df, lambda c: c == "well")
+    if wl_col is None and (wide := _wells_as_rows(df)) is not None:  # the lab reader's export
+        wide.index.name = "wavelength_nm"
+        return wide.sort_index()
     if wl_col is None:
         raise SpectraError(f"{path}: no wavelength column (expected 'wavelength_nm')")
     if well_col is not None:  # long table

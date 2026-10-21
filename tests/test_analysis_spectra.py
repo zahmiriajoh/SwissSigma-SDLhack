@@ -2,6 +2,7 @@
 import subprocess
 import sys
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -36,6 +37,16 @@ def test_read_spectra_long_and_wide_agree(plates, tmp_path):
     wide.columns = [f"{c[0]}{int(c[1:]):02d}" for c in wide.columns]  # zero-padded well names
     wide.to_csv(tmp_path / "wide.csv")
     assert read_spectra(tmp_path / "wide.csv").equals(plates[0])
+
+
+def test_read_spectra_takes_the_lab_readers_own_export(plates, tmp_path):
+    """One row per well, one column per wavelength, ';'-separated with decimal commas, CRLF (Absorbancescan.csv)."""
+    spectra = plates[0]
+    lines = ["Wavel.;" + ";".join(f"{w:g}" for w in spectra.index)]
+    lines += [f"{well};" + ";".join(f"{v:.9f}".replace(".", ",") for v in spectra[well]) for well in spectra.columns]
+    (tmp_path / "lab.csv").write_bytes(("\r\n".join(lines) + "\r\n").encode())
+    got = read_spectra(tmp_path / "lab.csv")
+    assert list(got.columns) == list(spectra.columns) and np.allclose(got.to_numpy(), spectra.to_numpy(), atol=1e-8)
 
 
 def test_picked_wavelengths_hit_the_fake_peaks(plates, blank, plate_map):

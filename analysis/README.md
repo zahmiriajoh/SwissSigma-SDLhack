@@ -85,7 +85,9 @@ subtracted, and the solvent's own absorbance stays in every well. If a solvent-o
 ## File formats
 
 **Reader exports** (input): a long table with columns `well`, `wavelength_nm`, `absorbance` (any numeric column
-name), or a wide matrix with `wavelength_nm` in the first column and one column per well. Well names may be `A1` or
+name), a wide matrix with `wavelength_nm` in the first column and one column per well, or the lab reader's own export
+(one row per well, one column per wavelength: `Wavel.;300;310;…` then `A1;0,498;…`). Files may be comma-separated, or
+semicolon-separated with decimal commas. Well names may be `A1` or
 `A01`. Full spectra or a few fixed wavelengths both work; include a reading near 700 nm in fixed mode so the scattering
 check has data. These shapes were chosen before any real export existed: run the instrument's first file through
 `reduce` before the first round (PLAN.md, decision 13).
