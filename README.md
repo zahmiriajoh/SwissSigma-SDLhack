@@ -58,7 +58,7 @@ Succinimide sits near the noise; its solutes are the production ones, the two ad
 | `examples/toy_synergy_output/` | 3 × 3 | the contrasting case: the best mixture is a ternary that beats every single solvent (R2, z = 243), 177 of 180 synergies are significant (R5), the GP landscape shows an interior optimum (R4); Q4 flags the saturated Boc-hydroxyproline controls and the acetone wells read for glutarimide |
 
 Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
-`reader_roundN_plate{P}.csv` (+ blank) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
+`reader_roundN_plate{P}.csv` (+ `reader_roundN_solvents.csv`) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
 `results_roundN_wells.csv`, plus the cumulative `bo_dataset.csv` and `bo_dataset_shared.csv` (and `report.txt` from
 SDL_BO in the additive runs; `plate_log_roundN.csv` in the synergy
 run). Regenerate the synergy run with
@@ -97,6 +97,6 @@ Open before the first real round; the details and current placeholders live in t
 - **Solvent trough volume** (see "Solvent trough volume" above): the BO is no longer capped, so a round may need a second trough for a favoured solvent (e.g. the unused H1) in the protocol and config; decide who adds it.
 - **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
   Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
-  readout may not work for them. With no blanks run for now (to be added back later), nothing is subtracted, and
+  readout may not work for them. Blanks are one pure-solvent well per solvent per round (`reader_roundN_solvents.csv`); without that file nothing is subtracted, and
   `wavelength_nm` must be set per solute in `production/config.toml` before round 0 or the peak lands on DMF's own UV edge.
 - **Protocol notes** (`data/261018_protocol/`, not yet in git): run naming convention and where plate-reader exports are stored.

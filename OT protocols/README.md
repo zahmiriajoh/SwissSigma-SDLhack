@@ -97,9 +97,9 @@ in both files.
 **Plate reader exports**: one file per plate, passed to `--reader` in plate order. Each
 can be either a long table with a `Well` column (`A1`/`A01`, plus an optional wavelength
 column; pick one with `--wavelength`, or set `SOLUTE_WAVELENGTH_NM` for a different
-wavelength per solute), or an 8×12 grid with a row letter in the first cell. No blanks are run
-for now, so nothing is subtracted; to subtract solvent background later, pass a solvent-only plate with the
-same layout as `--blank`. `analysis reduce` also turns full-spectrum exports into the single-value files this command takes.
+wavelength per solute), or an 8×12 grid with a row letter in the first cell. Solvent background: `analysis reduce --solvent-blanks`
+predicts every well's blank from one pure-solvent well per solvent and writes `endpoint_roundN_blank.csv`, which `--blank` here
+subtracts; a solvent-only plate with the same layout also works as `--blank`. `analysis reduce` also turns full-spectrum exports into the single-value files this command takes.
 
 ## What the robot does
 
@@ -183,7 +183,7 @@ polystyrene, and the polypropylene plates have U- or V-bottom wells and are not
 UV-transparent.
 
 To limit and measure the effect:
-- **Blank wells (not run for now):** a full solvent-only copy of the sample plate (same
+- **Blank wells:** one pure-solvent well per solvent (A1-G1) each round gives the background (`analysis reduce --solvent-blanks`); a full solvent-only copy of the sample plate (same
   `ot_input` CSV, no solids) works as `--blank` and sees exactly the same solvent and contact
   time per well. Without one, acetone- and ester-rich wells cannot be checked for plate attack.
 - **Consistent timing:** read each plate soon after shaking, and keep the timing the same
