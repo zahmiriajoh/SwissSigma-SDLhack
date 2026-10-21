@@ -20,7 +20,6 @@ production/run_bo.sh production/csvs                  # the real campaign: one c
 |---|---|
 | `production/` | **The real experiment's definition**: `config.toml` (solutes, solvents and their troughs, 300 µL wells, zero-based numbering) read by every module; `config.py` loads and validates it. Change the experiment here. `run_bo.sh production/csvs` runs one BO round from the lab's `production/csvs/` folder (round 0 is already in it) (robot files into `csvs/ratios/`, reader exports read from `csvs/uvvis/`). |
 | `OT protocols/` | **Source of truth for the plate layout and all CSV formats.** OT-2 protocol `sdl_solubility_ot2.py` (one round = 3 identical plates), `bo_bridge.py` (suggestions → robot CSV + plate map; plate-reader exports → `bo_dataset.csv`), custom labware, deck/plate maps, `tools/check_all.py`. |
-| `OTFlex analog/` | Same liquid handling replayed on a Flex, for timing a round before the real run. |
 | `analysis/` | `python -m analysis reduce / qc / report`: plate-reader spectra → one absorbance per well per plate in the format `bo_bridge.py merge` takes, experiment-quality figures (`qc_summary.md`) and study-aim figures (`report_summary.md`). |
 | `SDL_BO/` | Bayesian optimisation: `python -m SDL_BO init / suggest / report`. Reads `bo_dataset.csv`, writes `suggestions_roundN.csv`. |
 | `tests/` | pytest suite: per-module tests plus interface tests that run the real `bo_bridge.py`. |
@@ -80,11 +79,12 @@ labware, 30 mL nominal); the protocol fills it with 25 mL and keeps 1 mL as dead
 condition is pipetted into 3 plates and each solute block it is in, so a round whose conditions together hold more than
 about 1960 µL of one solvent (a mean fraction of 0.28 per well) needs more than one trough. SDL_BO no longer holds its
 picks to that limit (`limit_solvent_to_trough = false` in `production/config.toml`; `true` restores it, with each solute
-block owning a quarter of the trough). **Consequence:** the slot-4 backup reservoir (`reservoirs = 2` in the config, on by
-default in the protocol) takes over, so each solvent has 48 mL per round; in the fake branched run i-PrOH needed 26.7 mL in
-round 3. Above 48 mL `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and the OT-2 protocol refuses to
-run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to `SOLVENT_TROUGHS` in the protocol
-and in the config and loaded.
+block owning a quarter of the trough). **Consequence:** the slot-4 backup reservoir (`reservoirs = 2` in the config; the
+protocol's "Backup reservoir" setting, on by default) takes over once a solvent's slot-5 trough is used up, so each solvent
+has 48 mL per round; in the fake branched run i-PrOH needed 26.7 mL in round 3. Above 48 mL (or above 24 mL with the backup
+switched off; set `reservoirs = 1` then) `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and the OT-2
+protocol refuses to run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to
+`SOLVENT_TROUGHS` in the protocol and in the config and loaded.
 
 ## Pending decisions and open questions
 
@@ -95,7 +95,7 @@ Open before the first real round; the details and current placeholders live in t
   and whether the figures also go into slides.
 - **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
   polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
-- **Solvent trough volume** (see "Solvent trough volume" above): the BO is no longer capped, so a round may need a second trough for a favoured solvent (e.g. the unused H1) in the protocol and config; decide who adds it.
+- **Solvent trough volume** (see "Solvent trough volume" above): the BO is no longer capped; the slot-4 backup reservoir covers up to 48 mL per solvent, so only a round beyond that needs a spare trough (e.g. the unused H1) in the protocol and config; decide who adds it.
 - **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
   Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
   readout may not work for them. Blanks are one pure-solvent well per solvent per round (`reader_roundN_solvents.csv`); `run_bo.sh` waits for that file (without it, via `--allow-no-blank`, nothing is subtracted), and

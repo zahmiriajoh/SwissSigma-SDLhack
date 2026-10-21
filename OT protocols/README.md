@@ -160,10 +160,11 @@ fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how m
 needs per round; the committed round 0 needs up to about 19 mL (acetone).
 
 **More than 48 mL of a solvent.** The BO is not limited to one trough per solvent (`limit_solvent_to_trough = false`); up to
-48 mL the backup reservoir below covers it, and `layout`'s fill sheet counts both reservoirs (`reservoirs = 2` in the config).
-Above that `layout` prints "TOO MUCH" and a warning, and the protocol refuses to run. Give that solvent a second trough:
-`trough = ["D1", "H1"]` for it in the config and the same list in `SOLVENT_TROUGHS` of this protocol and its copy in
-`production/`, dropping their `diluent` entry if H1 is used, then load both troughs. `tests/` check that they agree.
+48 mL the backup reservoir below covers it, and `layout`'s fill sheet counts both reservoirs (`reservoirs = 2` in the config;
+with the backup switched off the limit is 24 mL, so set `reservoirs = 1`). Above that `layout` prints "TOO MUCH" and a
+warning, and the protocol refuses to run. Give that solvent a second trough: `trough = ["D1", "H1"]` for it in the config
+and the same list in `SOLVENT_TROUGHS` of this protocol and its copy in `production/`, dropping their `diluent` entry if H1
+is used, then load both troughs. `tests/` check that they agree.
 
 **Backup reservoir (slot 4):** a second `axygen_8_reservoir_30000ul` with the same trough layout. Fill it like
 slot 5 (the protocol assumes 25 mL in every used trough of both). A solvent draws from its slot-5 trough until that
@@ -206,7 +207,7 @@ polystyrene, and the polypropylene plates have U- or V-bottom wells and are not
 UV-transparent.
 
 To limit and measure the effect:
-- **Blank wells:** one pure-solvent well per solvent (A1-G1) each round gives the background (`analysis reduce --solvent-blanks`); a full solvent-only copy of the sample plate (same
+- **Blank wells:** one pure-solvent well per solvent on the blank plate, in that round's column (A1-G1 in round 0, A2-G2 in round 1, ...), gives the background (`analysis reduce --solvent-blanks`); a full solvent-only copy of the sample plate (same
   `ot_input` CSV, no solids) works as `--blank` and sees exactly the same solvent and contact
   time per well. Without one, acetone- and ester-rich wells cannot be checked for plate attack.
 - **Consistent timing:** read each plate soon after shaking, and keep the timing the same
@@ -225,7 +226,7 @@ packages refuse to simulate OT-2 protocols; the repo's uv environment (`../setup
 uv run opentrons_simulate -L labware sdl_solubility_ot2.py
 ```
 
-`tools/check_all.py` runs the full set (73 checks, a few minutes): every protocol setting and every expected input
+`tools/check_all.py` runs the full set (76 checks, a few minutes): every protocol setting and every expected input
 error, a two-round `bo_bridge` loop with fake plate-reader data, and the production campaign. That last part drives
 `production/run_bo.sh` through rounds 0-2 with real SDL_BO suggestions and fake spectra, simulates every round's robot
 CSV, checks from the simulator log that each well of each plate receives exactly its CSV volume of each solvent, and
