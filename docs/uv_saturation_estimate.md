@@ -65,6 +65,38 @@ those values are not used.
 - If only part of the solid dissolves, the absorbance is lower. That does not change the conclusion for phthalimide.
 - The 0–4 OD limit comes from secondary sources [4]; the cap at 4.0 in the code is a separate choice.
 
+## Cross-check and consequences for the analysis
+
+Added 2026-10-21 by the analysis session. The numbers above were recomputed independently from the same ε values and
+path length and reproduce. The extra column says how much an aliquot would have to be diluted before reading.
+
+| Solute and wavelength | Highest concentration with A ≤ 4 | Dilution needed from 50 mg/mL | from 400 mg/mL |
+|---|---|---|---|
+| Phthalimide, 295 nm | 0.33 mg/mL | about 150× | about 1,200× |
+| Phthalimide, 320 nm | 4.2 mg/mL | about 12× | about 100× |
+| Succinimide, 230 nm | 4.7 mg/mL | about 11× | about 85× |
+| Succinimide, 250 nm | 7.6 mg/mL | about 7× | about 50× |
+
+What the analysis pipeline does with these wells today:
+
+1. **The conservative readout cannot rescue this.** `analysis reduce` reads each solute only where every solvent's
+   blank stays below absorbance 1.0, moving to a band's shoulder if the maximum is hidden (`analysis/PLAN.md`,
+   decision 15). Even phthalimide's weak 320 nm shoulder is 12 to 100 times too strong, so no wavelength choice brings
+   the planned loads into range. The fix has to be on the measurement side: dilute an aliquot before reading, load much
+   less solid, or use another readout.
+2. **Saturated readings pass through unflagged.** The converter turns an over-range cell into 4.0, and `reduce` writes
+   `saturated` in the `flag` column of the endpoint files. Nothing downstream reads that flag: `bo_bridge.py merge`,
+   `analysis qc` / `report` and SDL_BO all use 4.0 as a real value. A capped DMF control then makes every good solvent
+   score about 1.0, and the BO cannot tell them apart.
+3. **The `measurable` verdict does not catch it either.** It tests whether the DMF control's signal exceeds 3 times the
+   600–700 nm noise. A control capped at 4.0 passes easily, so a saturated solute is reported as measurable.
+4. **The 230 nm floor needs no code change.** `reduce` works on whatever wavelength range the export contains, so a
+   230–700 nm scan is read as is and the peak search starts at 230 nm. It makes no practical difference here: DMF is
+   opaque below about 270 nm and acetone below about 330 nm, so the usable window starts above 230 nm anyway.
+
+Whatever the user decides on dilution or loading, points 2 and 3 suggest a guard: a DMF control above the reader's
+linear range should either stop the round or mark that solute not measurable, rather than enter the dataset as 4.0.
+
 ## References
 
 1. Taniguchi, M.; Lindsey, J. S. Database of absorption and fluorescence spectra of >300 common compounds for use in
