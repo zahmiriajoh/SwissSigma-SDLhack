@@ -27,7 +27,7 @@ def read_round(csvs, r):
     plate_map = pd.read_csv(csvs / "ratios" / f"plate_map_round{r}.csv")
     rng = np.random.default_rng(r + 1)
     for p in range(N_PLATES):
-        fpr.spectra_export(plate_map.set_index("well"), rng).to_csv(csvs / "uvvis" / f"reader_round{r}_plate{p}.csv", index=False)
+        fpr.write_plate_reader_csv(fpr.spectra_export(plate_map.set_index("well"), rng), csvs / "uvvis" / f"reader_round{r}_plate{p}.csv")
 
 
 @pytest.fixture(scope="module")
