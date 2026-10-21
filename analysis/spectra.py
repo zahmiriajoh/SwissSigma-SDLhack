@@ -32,11 +32,10 @@ def solvent_wells(round_=FIRST_ROUND) -> dict:
 
 SOLVENT_WELLS = solvent_wells()  # the first round's: A1 DMF, B1 acetone, ... in config order
 CONTROL_ROLE = "control"  # plate-map role of the DMF reference wells
-DEFAULT_NM_RANGE = (230.0, 800.0)  # ignore the far-UV edge where solvents and plastics absorb
-SMOOTH_NM = 5  # rolling-mean width (nm) before picking the peak, so one noisy point cannot win; at least 3 points
-MAX_SCAN_STEP_NM = 5  # a scan with a median step up to this counts as a full spectrum (200-700 nm in 5 nm steps)
+DEFAULT_NM_RANGE = (200.0, 700.0)  # the whole scanned spectrum
+MAX_SCAN_STEP_NM = 5  # the scan step (nm): a picked wavelength within one step of the band maximum counts as at it
 BLANK_MAX_DEFAULT = 1.0  # a wavelength is usable only where every solvent blank stays below this absorbance (PLAN decision 15)
-NOISE_NM = (600.0, 800.0)  # no solute absorbs here: the spread of the corrected control spectrum estimates the reader noise
+NOISE_NM = (600.0, 700.0)  # no solute absorbs here: the spread of the corrected control spectrum estimates the reader noise
 MIN_SIGNAL_SIGMAS = 3.0    # a solute counts as measurable when its control signal exceeds this many noise sigmas
 ABS_MAX_DEFAULT = 2.5    # reader linear range placeholder: raw absorbance above it is flagged "saturated" (PLAN decision 5)
 
@@ -148,13 +147,8 @@ def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
     return blank_wide.max(axis=1) < blank_max
 
 
-def _is_full_spectrum(index) -> bool:
-    """True for a dense scan (many points, at most 5 nm apart), False for a handful of fixed wavelengths."""
-    return len(index) >= 20 and float(pd.Series(index).diff().median()) <= MAX_SCAN_STEP_NM
-
-
 def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrides=None, usable=None):
-    """Wavelength per solute: peak of the mean (smoothed) DMF-control spectrum over all plates, within nm_range and,
+    """Wavelength per solute: peak of the mean DMF-control spectrum over all plates, within nm_range and,
     if given, within the `usable` mask (wavelengths where every solvent is transparent enough).
 
     Returns (wavelengths Series, report DataFrame). The report says, per solute, where the unrestricted band maximum
@@ -166,20 +160,18 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
     rows = []
     for solute, block in controls.groupby("solute"):
         spec = pd.concat([s.loc[lo:hi, block.index] for s in spectra_list], axis=1).mean(axis=1)
-        window = max(3, round(SMOOTH_NM / float(spec.index.to_series().diff().median()))) if _is_full_spectrum(spec.index) else 1  # a few fixed wavelengths: no smoothing
-        smooth = spec.rolling(window, center=True, min_periods=1).mean()
-        band_max = float(smooth.idxmax())
-        allowed = smooth if usable is None else smooth[usable.reindex(smooth.index).fillna(False).to_numpy()]
+        band_max = float(spec.idxmax())
+        allowed = spec if usable is None else spec[usable.reindex(spec.index).fillna(False).to_numpy()]
         if allowed.empty:
             raise SpectraError(f"{solute}: no usable wavelength in {lo:.0f}-{hi:.0f} nm (every point has a solvent blank above the limit)")
         nm = float(overrides[solute]) if overrides and solute in overrides else float(allowed.idxmax())
         full = pd.concat([s[block.index] for s in spectra_list], axis=1).mean(axis=1)
         tail = full.loc[NOISE_NM[0]:NOISE_NM[1]]
         noise = float(tail.std()) if len(tail) > 3 else np.nan
-        signal = float(smooth.get(nm, np.nan))
-        rows.append({"solute": solute, "wavelength_nm": nm, "band_max_nm": band_max, "at_band_max": abs(nm - band_max) <= SMOOTH_NM,
+        signal = float(spec.get(nm, np.nan))
+        rows.append({"solute": solute, "wavelength_nm": nm, "band_max_nm": band_max, "at_band_max": abs(nm - band_max) <= MAX_SCAN_STEP_NM,
                      "window_min_nm": float(allowed.index.min()), "window_max_nm": float(allowed.index.max()),
-                     "control_signal": signal, "signal_fraction": signal / smooth.loc[band_max] if smooth.loc[band_max] > 0 else np.nan,
+                     "control_signal": signal, "signal_fraction": signal / spec.loc[band_max] if spec.loc[band_max] > 0 else np.nan,
                      "noise": noise, "measurable": bool(signal > MIN_SIGNAL_SIGMAS * noise) if noise == noise else True})
     for solute, nm in (overrides or {}).items():
         if solute not in {r["solute"] for r in rows}:

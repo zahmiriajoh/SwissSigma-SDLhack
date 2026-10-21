@@ -53,14 +53,14 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | `--blank` | none | optional export of a full solvent-only copy of the sample plate (alternative to `--solvent-blanks`) |
 | `--outdir` | next to the plate map | where the outputs go |
 | `--wavelength Glutarimide=275 ...` | config, else picked | fix a solute's wavelength (wins over `wavelength_nm` in `production/config.toml`) |
-| `--nm-range MIN MAX` | 230 800 | search peaks only in this range |
+| `--nm-range MIN MAX` | 200 700 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
 | `--blank-max` | 1.0 | with `--blank`: read only where every solvent blank is below this absorbance |
 | `--abs-max` | 2.5 | flag wells whose raw absorbance exceeds this (reader linear range) |
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |
 
 Each solute is read at its **fixed wavelength** (`wavelength_nm` in `production/config.toml`, or `--wavelength`). When none
-is set it is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, 5 nm smoothing), picked in
+is set it is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, no smoothing), picked in
 the first round reduced and then **reused in every later round** from the latest earlier `wavelengths_roundK.csv` in the
 output folder, so one solute is read at one wavelength all campaign (a run with nobody to review the picks). The
 `measurable` verdict is still evaluated every round at that wavelength. Order of precedence: `--wavelength`, config, earlier round, pick.

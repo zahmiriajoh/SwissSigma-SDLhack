@@ -63,7 +63,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 3. **Blank subtraction stays in `bo_bridge.py merge`** (with `--blank`). `reduce` writes raw endpoint values, so the dataset keeps
    `abs_raw`, `abs_blank` and `abs_corrected` separately; with no blank, `abs_blank` is 0.
 4. **Fixed wavelengths:** read at each solute's peak **plus 700 nm** so the scattering check (Q4) still works. The peak-shift
-   map needs full spectra and is skipped otherwise. Peak picking on a few wavelengths uses no smoothing.
+   map needs full spectra and is skipped otherwise. Peaks are picked on the unsmoothed spectrum.
 5. **Saturation threshold** `--abs-max` defaults to 2.5 absorbance until the reader's linear range is known (Q-b).
 6. **Peak-shift masking:** wells whose blank-corrected band is below 0.05 absorbance are left grey in the peak-shift map,
    otherwise the UV edge wins the argmax for weak wells and every low-solubility well looks shifted.
@@ -91,8 +91,8 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     column per well, or its transpose (one row per well, wavelengths across the header), which is how the plate reader
     exports (`production/UV-Vis/Absorbancescan.csv`, first header `Wavel.`). `;`-separated files with decimal commas are
     read too; well names may be `A1` or `A01`. The real scans will be 200-700 nm in 5 nm steps on full 96-well plates;
-    a scan with steps up to 5 nm counts as a full spectrum, and the peak-picking smoothing is 5 nm wide but at least
-    3 points. Wavelengths fixed in `production/config.toml` should lie on the 5 nm grid. The accepted formats are documented
+    peaks are picked on the unsmoothed mean control spectrum (no smoothing; averaging over
+    wells and plates already suppresses noise). Wavelengths fixed in `production/config.toml` should lie on the 5 nm grid. The accepted formats are documented
     in `README.md` ("File formats").
 14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
     `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check
@@ -104,7 +104,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     DMF-control spectrum **inside that window**; if the band maximum lies outside (e.g. under acetone's 330 nm cut-off)
     the solute is read on its shoulder and `wavelengths_roundN.csv` records `at_band_max = False`, the band maximum,
     the window and `signal_fraction`. A solute whose control signal at that wavelength is below 3 x the spectral noise
-    (600-800 nm spread) is marked `measurable = False`, and the console says so. Endpoint files carry `blank_abs` and a
+    (600-700 nm spread) is marked `measurable = False`, and the console says so. Endpoint files carry `blank_abs` and a
     `flag` column (`saturated` above `--abs-max`, `opaque` above `--blank-max`) that bo_bridge merge ignores.
     Consequences: measurements stay valid in every well at the cost of sensitivity; a solute that cannot be measured is
     declared unmeasurable up front rather than reported as insoluble, and a solute flagged in **any** round is excluded
