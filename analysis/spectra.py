@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from production.config import ALL_SOLVENTS, FIRST_ROUND, blank_column
+from production.config import ALL_SOLVENTS, FIRST_ROUND, SOLVENT_TROUGHS, blank_column
 
 ROWS = "ABCDEFGH"
 N_COLS = 12
@@ -25,10 +25,10 @@ WELLS = [f"{r}{c}" for r in ROWS for c in range(1, N_COLS + 1)]  # row order, as
 
 
 def solvent_wells(round_=FIRST_ROUND) -> dict:
-    """Pure-solvent blank wells of round_: solvent i of the config in row i of that round's column (A1 DMF ... in round 0,
-    A2 DMF ... in round 1), as the OT-2 protocol fills the solvent blank plate."""
+    """Pure-solvent blank wells of round_: each solvent in its (first) trough's row of that round's column (A1 DMF ... in
+    round 0, A2 DMF ... in round 1), the rule the OT-2 protocol fills the solvent blank plate by."""
     column = blank_column(round_)
-    return {s: f"{ROWS[i]}{column}" for i, s in enumerate(ALL_SOLVENTS)}
+    return {s: f"{SOLVENT_TROUGHS[s][0][0]}{column}" for s in ALL_SOLVENTS}
 
 
 SOLVENT_WELLS = solvent_wells()  # the first round's: A1 DMF, B1 acetone, ... in config order

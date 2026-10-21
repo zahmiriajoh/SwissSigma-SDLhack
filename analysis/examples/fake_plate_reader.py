@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from production.config import ALL_SOLVENTS, FIRST_ROUND, GREEN_SOLVENTS, PLATE_ATTACKERS, SOLUTES, blank_column  # noqa: E402
+from analysis.spectra import solvent_wells  # noqa: E402
+from production.config import ALL_SOLVENTS, FIRST_ROUND, GREEN_SOLVENTS, PLATE_ATTACKERS, SOLUTES  # noqa: E402
 
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]
 WAVELENGTHS = np.arange(200, 705, 5)  # nm: the plate reader's 200-700 nm scan in 5 nm steps
@@ -91,9 +92,9 @@ def spectra_export(plate_map, rng, solids=True, delay_min=0.0) -> pd.DataFrame:
 
 def solvent_blank_export(rng, delay_min=0.0, round_=None) -> pd.DataFrame:
     """The solvent blank plate as read after round_ (default: the first round), as a long table like `spectra_export`:
-    one pure-solvent well per solvent (A DMF, B acetone, ... in config order) in every column filled so far (1..round + 1)."""
-    columns = range(1, blank_column(FIRST_ROUND if round_ is None else round_) + 1)
-    index = [f"{'ABCDEFGH'[i]}{c}" for c in columns for i in range(len(ALL_SOLVENTS))]
+    one pure-solvent well per solvent (its trough's row: A DMF, B acetone, ...) in every column filled so far (1..round + 1)."""
+    columns = range(FIRST_ROUND, (FIRST_ROUND if round_ is None else round_) + 1)
+    index = [well for r in columns for well in solvent_wells(r).values()]
     wells = pd.DataFrame(np.tile(np.eye(len(ALL_SOLVENTS)), (len(columns), 1)), columns=FRACTION_COLUMNS, index=index)
     return spectra_export(wells.assign(solute=SOLUTES[0]), rng, solids=False, delay_min=delay_min)
 

@@ -49,6 +49,17 @@ def test_protocols_mirror_the_config_troughs(protocol):
     assert protocol_constant(protocol, "TROUGH_DEAD_UL") == config.TROUGH_DEAD_UL
 
 
+@pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.parent.name)
+def test_blank_plate_wells_match_what_the_analysis_reads(protocol):
+    """The protocol puts solvent n in row <its trough's row> of column round - FIRST_ROUND + 1; reduce must read the same wells."""
+    from analysis.spectra import solvent_wells
+    troughs, first = protocol_constant(protocol, "SOLVENT_TROUGHS"), protocol_constant(protocol, "FIRST_ROUND")
+    assert first == config.FIRST_ROUND
+    for r in (first, first + 2):
+        filled = {n: f"{wells[0][0]}{r - first + 1}" for n, wells in troughs.items() if n != "diluent"}
+        assert filled == solvent_wells(r)
+
+
 def test_fake_plate_reader_names_follow_the_config():
     import fake_plate_reader as fpr
     assert fpr.ALL_SOLVENTS == config.ALL_SOLVENTS and list(fpr.PEAK_NM) == config.SOLUTES
