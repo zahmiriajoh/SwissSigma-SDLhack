@@ -27,7 +27,7 @@ metadata = {
 # Deck (OT-2, trash 12):
 #   10 heater-shaker + universal flat adapter   11 -               12 trash
 #    7 -                                          8 P300 tips        9 P20 tips
-#    4 -                                          5 solvent reservoir 6 -
+#    4 backup solvent reservoir                   5 solvent reservoir 6 solvent blank plate
 #    1 readout plate 0                            2 readout plate 1  3 readout plate 2
 # Slots 7 and 11 (next to the heater-shaker) are kept free of tall labware.
 
@@ -61,7 +61,11 @@ SOLVENT_RESERVOIR = "axygen_8_reservoir_30000ul"
 HS_ADAPTER = "opentrons_universal_flat_adapter"      # custom JSONs declare this stacking offset
 
 PLATE_SLOTS = ["1", "2", "3"]   # up to 3 identical plates
+BLANK_SLOT = "6"                # solvent blank plate: well X1 = pure solvent from trough X1, no solids
+BLANK_UL = 300                  # per blank well; matches total_ul in production/config.toml
+BLANK_SOLVENTS = [n for n in SOLVENT_TROUGHS if n != "diluent"]
 RESERVOIR_SLOT = "5"
+BACKUP_RESERVOIR_SLOT = "4"  # same trough layout as slot 5; a solvent switches here once its slot-5 trough is used up
 HS_SLOT = "10"
 
 # Pipettes, smallest first. Each dispense uses the first pipette whose range covers it
@@ -108,6 +112,18 @@ def add_parameters(parameters: protocol_api.ParameterContext):
         default=3,
         minimum=1,
         maximum=3,
+    )
+    parameters.add_bool(
+        variable_name="backup_reservoir",
+        display_name="Backup reservoir (slot 4)",
+        description="Second 8-trough reservoir, same layout as slot 5, used when a slot-5 trough runs low",
+        default=True,
+    )
+    parameters.add_bool(
+        variable_name="blank_plate",
+        display_name="Solvent blank plate (slot 6)",
+        description="Fill A1-G1 of a plate in slot 6 with pure solvent (one well per trough)",
+        default=True,
     )
     parameters.add_str(
         variable_name="start_step",
@@ -158,8 +174,10 @@ def load_rows(protocol):
     return [r for r in rows if any(c.strip() for c in r)]
 
 
-def validate(rows, min_volume, plate, n_plates):
-    """Returns (liquid_names, [(well, solute, condition_id, {liquid: vol_ul})])."""
+def validate(rows, min_volume, plate, n_plates, extra_ul=None, n_reservoirs=1):
+    """Returns (liquid_names, [(well, solute, condition_id, {liquid: vol_ul})]).
+    extra_ul: per-liquid volume needed on top of the plates (e.g. blank wells);
+    n_reservoirs: how many reservoirs carry each liquid's troughs (2 with the backup)."""
     header = [c.strip() for c in rows[0]]
     if header[:3] != FIXED_HEADER:
         raise ValueError(f"Header must start with {FIXED_HEADER}, got {header}")
@@ -210,12 +228,13 @@ def validate(rows, min_volume, plate, n_plates):
 
     usable = TROUGH_FILL_UL - TROUGH_DEAD_UL
     for name in solvents:
-        need = n_plates * sum(v[name] for *_, v in parsed)
-        have = usable * len(SOLVENT_TROUGHS[name])
+        need = n_plates * sum(v[name] for *_, v in parsed) + (extra_ul or {}).get(name, 0)
+        have = usable * len(SOLVENT_TROUGHS[name]) * n_reservoirs
         if need > have:
             errors.append(
-                f"{name}: needs {need / 1000:.1f} mL but troughs {SOLVENT_TROUGHS[name]} "
-                f"only supply {have / 1000:.1f} mL - add a spare trough to SOLVENT_TROUGHS"
+                f"{name}: needs {need / 1000:.1f} mL but troughs {SOLVENT_TROUGHS[name]} on {n_reservoirs} "
+                f"reservoir(s) only supply {have / 1000:.1f} mL - "
+                + ("turn on the backup reservoir" if n_reservoirs == 1 else "add a spare trough to SOLVENT_TROUGHS")
             )
     if errors:
         raise ValueError("Invalid CSV:\n" + "\n".join(errors))
@@ -223,11 +242,11 @@ def validate(rows, min_volume, plate, n_plates):
 
 
 class Trough:
-    """Tracks remaining volume of one liquid across its troughs."""
+    """Tracks remaining volume of one liquid across its troughs, main reservoir first, then the backup."""
 
-    def __init__(self, reservoir, wells):
-        self.wells = [reservoir[w] for w in wells]
-        self.remaining = [TROUGH_FILL_UL] * len(wells)
+    def __init__(self, reservoirs, wells):
+        self.wells = [res[w] for res in reservoirs for w in wells]
+        self.remaining = [TROUGH_FILL_UL] * len(self.wells)
 
     def take(self, vol):
         for i, left in enumerate(self.remaining):
@@ -275,11 +294,15 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     hs_adapter = heater_shaker.load_adapter(HS_ADAPTER)
 
     # Load Labware:
-    reservoir = protocol.load_labware(SOLVENT_RESERVOIR, RESERVOIR_SLOT, "Solvent reservoir")
+    reservoirs = [protocol.load_labware(SOLVENT_RESERVOIR, RESERVOIR_SLOT, "Solvent reservoir")]
+    if params.backup_reservoir:
+        reservoirs.append(protocol.load_labware(SOLVENT_RESERVOIR, BACKUP_RESERVOIR_SLOT, "Backup solvent reservoir"))
     plates = [
         protocol.load_labware(READOUT_PLATE, slot, f"Readout plate {i}")
         for i, slot in enumerate(PLATE_SLOTS[: params.n_plates])
     ]
+    blank = protocol.load_labware(READOUT_PLATE, BLANK_SLOT, "Solvent blank plate") if params.blank_plate else None
+    blank_ul = {n: BLANK_UL for n in BLANK_SOLVENTS} if blank else {}
 
     # Load Pipettes (smallest first, see PIPETTES):
     pipettes = []
@@ -295,16 +318,19 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
             if nxt is None or vol < nxt[0].min_volume:
                 return pip
 
-    liquids, wells = validate(load_rows(protocol), pipettes[0][0].min_volume, plates[0], len(plates))
+    csv_liquids, wells = validate(load_rows(protocol), pipettes[0][0].min_volume, plates[0], len(plates), blank_ul,
+                                  len(reservoirs))
+    liquids = [n for n in SOLVENT_TROUGHS if n in csv_liquids or n in blank_ul]
 
     # Define + load liquids (for the deck map in the app)
     colors = ["#e2d9e2", "#a6bfca", "#6d90c0", "#5f58b0", "#531e7c", "#64194b", "#9f3c50", "#c0755e"]
     for i, name in enumerate(liquids):
-        need = len(plates) * sum(v[name] for *_, v in wells)
+        need = len(plates) * sum(v.get(name, 0) for *_, v in wells) + blank_ul.get(name, 0)
         if need == 0:
             continue
         liquid = protocol.define_liquid(name, display_color=colors[i % len(colors)])
-        reservoir.load_liquid(wells=SOLVENT_TROUGHS[name], liquid=liquid, volume=TROUGH_FILL_UL)
+        for res in reservoirs:
+            res.load_liquid(wells=SOLVENT_TROUGHS[name], liquid=liquid, volume=TROUGH_FILL_UL)
         protocol.comment(f"{name}: {need / 1000:.2f} mL needed from {SOLVENT_TROUGHS[name]}")
 
     # PROTOCOL STEPS
@@ -313,16 +339,20 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     if params.start_step == "fill":
         protocol.pause(
             f"Check: {len(plates)} readout plate(s) with solids in slot(s) {', '.join(PLATE_SLOTS[: len(plates)])}, "
-            f"solvent troughs filled ({TROUGH_FILL_UL / 1000:.0f} mL each). Resume to start."
+            f"solvent troughs filled ({TROUGH_FILL_UL / 1000:.0f} mL each"
+            + (f", in slots {RESERVOIR_SLOT} and {BACKUP_RESERVOIR_SLOT})" if len(reservoirs) > 1 else ")")
+            + (f", empty blank plate in slot {BLANK_SLOT}" if blank else "") + ". Resume to start."
         )
         heater_shaker.close_labware_latch()
         for name in liquids:
-            trough = Trough(reservoir, SOLVENT_TROUGHS[name])
+            trough = Trough(reservoirs, SOLVENT_TROUGHS[name])
             for pip, air_gap, disposal in pipettes:
                 targets = [
-                    (plate[well], v[name]) for well, _, _, v in wells for plate in plates
-                    if v[name] > 0 and pipette_for(v[name]) is pip
+                    (plate[well], v.get(name, 0)) for well, _, _, v in wells for plate in plates
+                    if v.get(name, 0) > 0 and pipette_for(v[name]) is pip
                 ]
+                if name in blank_ul and pipette_for(BLANK_UL) is pip:  # blank well = trough well
+                    targets.append((blank[SOLVENT_TROUGHS[name][0]], BLANK_UL))
                 if not targets:
                     continue
                 protocol.comment(f"{name} with {pip.name}: {len(targets)} dispenses")
@@ -332,7 +362,8 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
                 distribute(protocol, pip, trough, targets, air_gap, disposal)
                 pip.drop_tip()
 
-        protocol.pause("Seal every readout plate now (solvent-resistant seal), then resume.")
+        protocol.pause("Seal every readout plate" + (" and the blank plate" if blank else "")
+                       + " now (solvent-resistant seal), then resume.")
 
     # Step 2: shake each plate in turn (manual moves - the OT-2 has no gripper)
     for i, (plate, home) in enumerate(zip(plates, PLATE_SLOTS)):

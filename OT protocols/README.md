@@ -35,10 +35,11 @@ Change the layout with flags on `grid` and `layout` (or the constants at the top
 | `--plates` (layout) | 3 | identical plates, only for the reservoir fill sheet |
 
 Conditions per solute = (wells per solute − controls) ÷ replicates. The robot CSV lists
-every well, so the protocol needs no changes when the layout changes. Draw any layout with:
+every well, so the protocol needs no changes when the layout changes. Draw any layout with
+(solute blocks are labelled S0, S1, ... in `production/config.toml` order):
 
 ```bash
-python bo_bridge.py plate-svg --plate-map ../data/runs/round0/plate_map_round0.csv -o ../data/runs/round0/plate_map.svg
+uv run python tools/draw_plate_map.py ../data/runs/round0/plate_map_round0.csv ../data/runs/round0/plate_map.svg
 ```
 
 ## Loop
@@ -78,6 +79,15 @@ and scaled to 300 µL. Optional columns:
 Each solute can take at most "conditions per solute" rows (23 by default). Unfilled wells
 stay empty.
 
+**Sample ids** (`numbering.sample_id` in `production/config.toml`): every well on every plate is one sample,
+`round{R}_plate{P}_solute{S}_cond{C}`. S is the solute block (0 = Glutarimide … 3 = Succinimide) and C is the
+well's position in its block, 0–23 with cond0 = the DMF control. So A1 of round 0 on the second plate is
+`round0_plate1_solute0_cond0`. `layout` writes the parts as `solute_index` and `cond` columns in
+`plate_map_roundN.csv`, and `merge` writes the full `sample_id` on every row of `results_roundN_wells.csv`.
+`condition_id` stays as the mixture name (`R0_DMFref`, `R0_seed01`, `R1_others_exploit07`, …) that links the 3
+plates and the solutes for BO and analysis. In the round-0 seed design its counter equals `cond` (`R0_seed01` is
+cond1); later rounds put re-tested mixtures first and name new picks per arm, so rely on `cond` for position.
+
 **`bo_dataset.csv`**: one row per round × solute × condition:
 
 | column | meaning |
@@ -107,21 +117,24 @@ subtracts; a solvent-only plate with the same layout also works as `--blank`. `a
    volumes under 20 µL and the P300 everything from 20 µL up. Each tip aspirates enough for
    several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
-   touch their own solvent, so a full round uses about 7 tips.
-2. **Pause:** you seal all plates by hand straight away, so plates 1–2 don't evaporate while
-   plate 0 shakes.
+   touch their own solvent, so a full round uses about 7 tips. The same tips also fill the
+   **solvent blank plate** in slot 6, for the scientists to calibrate the UV-Vis reader (the analysis and the BO never
+   read it, and it is not the analysis `--blank`): well X1 gets 300 µL of the pure solvent from trough X1
+   (A1 DMF … G1 t-BuOAc), with no solids. It's filled once per run and serves all 3 plates.
+2. **Pause:** you seal all plates (and the blank plate) by hand straight away, so plates 1–2
+   don't evaporate while plate 0 shakes. The blank plate isn't shaken, since it has no solids.
 3. **For plate 0, 1, 2 in turn:** the app prompts you to move the plate onto the
    heater-shaker. It shakes (default 20 min, 800 rpm), then you're prompted to put it back,
    and it can go to the UV-Vis reader.
 
-My rough estimate is 1.5–2 h of pipetting for 3 full plates (about 530 aspirations,
+My rough estimate is 1.5–2 h of pipetting for 3 full plates (about 540 aspirations,
 mostly P300), plus 3 × 20 min shaking: about 3–3.5 h per round including sealing, the last
 read and BO, so 3 rounds fit in about 10 h. These are estimates (the simulator doesn't
 report run time), so time a dry run with water first. Refill the solvent troughs between
 rounds using the fill sheet from `layout`, when you load the next solid plates.
 
-**App settings:** identical plates (1–3), start at (fill / shake plate 0–2, to resume),
-shake speed, shake time, temperature.
+**App settings:** identical plates (1–3), backup reservoir (on/off, default on), solvent blank plate (on/off, default on), start at
+(fill / shake plate 0–2, to resume), shake speed, shake time, temperature.
 
 ## Deck (OT-2)
 
@@ -131,7 +144,7 @@ shake speed, shake time, temperature.
 |---|---|---|---|
 | **back (10–12)** | heater-shaker + universal flat adapter (10) | – (11) | trash (12) |
 | **7–9** | – (7) | P300 tips (8) | P20 tips (9) |
-| **4–6** | – (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | – (6) |
+| **4–6** | backup solvent reservoir (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | solvent blank plate (6) |
 | **front (1–3)** | readout plate 0 | readout plate 1 | readout plate 2 |
 
 Pipettes: P300 GEN2 single on the left mount, P20 GEN2 single on the right (`PIPETTES` in
@@ -147,6 +160,12 @@ needs per round; the committed round 0 needs up to about 19 mL (acetone).
 later round can need more (`layout` then prints "TOO MUCH" and a warning, and the protocol refuses to run). Give that solvent a
 second trough: `trough = ["D1", "H1"]` for it in the config and the same list in `SOLVENT_TROUGHS` of both protocols (this one
 and `../OTFlex analog/`), dropping their `diluent` entry if H1 is used, then load both troughs. `tests/` check the three agree.
+
+**Backup reservoir (slot 4):** a second `axygen_8_reservoir_30000ul` with the same trough layout. Fill it like
+slot 5 (the protocol assumes 25 mL in every used trough of both). A solvent draws from its slot-5 trough until that
+trough is down to its 1 mL dead volume, then carries on from the same trough in slot 4. With the backup each solvent
+can supply 48 mL per run instead of 24 mL. If a run would need more than that, or more than 24 mL with the backup
+switched off, the protocol stops before dispensing anything and names the solvent.
 
 Slots 7 and 11, next to the heater-shaker, are kept free of tall labware.
 
@@ -202,16 +221,19 @@ packages refuse to simulate OT-2 protocols; the repo's uv environment (`../setup
 uv run opentrons_simulate -L labware sdl_solubility_ot2.py
 ```
 
-`tools/check_all.py` runs the full set: every protocol setting, the expected-error cases,
-a two-round BO loop with fake plate-reader data, and a check that the Flex timing analog
-(`../OTFlex analog/`) runs exactly the same liquid handling (31 checks).
+`tools/check_all.py` runs the full set (73 checks, a few minutes): every protocol setting and every expected input
+error, a two-round `bo_bridge` loop with fake plate-reader data, and the production campaign. That last part drives
+`production/run_bo.sh` through rounds 0-2 with real SDL_BO suggestions and fake spectra, simulates every round's robot
+CSV, checks from the simulator log that each well of each plate receives exactly its CSV volume of each solvent, and
+checks that every well gets a unique, correct `sample_id`.
 ```bash
 uv run python tools/check_all.py
 ```
 
-`tools/draw_deck_map.py` redraws `maps/deck_map.svg`. It's a static drawing, so update its
-slot assignments if you move labware in the protocol. The plate map comes from
-`bo_bridge.py plate-svg` (see above).
+`tools/draw_deck_map.py` redraws `maps/deck_map.svg`. Trough labels come from
+`production/config.toml`; slot assignments are static, so update them if you move labware in
+the protocol. `tools/draw_plate_map.py` redraws `maps/plate_layout.svg` from
+`examples/plate_map_round0.csv` (or any plate map, see above).
 
 ## Folder layout
 
@@ -222,7 +244,7 @@ OT protocols/
 ├── labware/                custom labware JSONs (import into the Opentrons app)
 ├── examples/               round-0 suggestions, robot CSV and plate map
 ├── maps/                   plate_layout.svg, deck_map.svg
-├── tools/                  check_all.py, draw_deck_map.py
+├── tools/                  check_all.py, draw_deck_map.py, draw_plate_map.py
 └── archive/                earlier Flex version (not maintained)
 ```
 

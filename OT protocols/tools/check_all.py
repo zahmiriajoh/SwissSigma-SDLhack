@@ -1,5 +1,7 @@
-"""End-to-end checks: simulates the protocol for every setting and the expected-error cases,
-and runs a two-round BO loop through bo_bridge.py with fake plate-reader data.
+"""End-to-end checks: simulates the protocol for every setting and the expected-error cases, runs a two-round BO
+loop through bo_bridge.py with fake plate-reader data, and drives the production campaign (production/run_bo.sh,
+rounds 0-2 with real SDL_BO suggestions) checking that every round's robot CSV runs, that the robot dispenses exactly
+the CSV volumes into every well of every plate, and that every well gets a well-formed, unique sample id.
 
     python tools/check_all.py [path/to/opentrons_simulate]
 
@@ -42,6 +44,7 @@ def sim(name, src, expect_ok=True, expect_text=None):
     stats = f"asp={len(re.findall(r'^Aspirating', out, re.M))} disp={len(re.findall(r'^Dispensing', out, re.M))} tips={out.count('Picking up')} moves={len(re.findall(r'^Moving', out, re.M))}"
     last = out.strip().splitlines()[-1][:90] if out.strip() else ""
     results.append(("PASS" if ok else "FAIL", "sim " + name, stats if expect_ok else last))
+    return out
 
 def check(name, cond, info=""):
     results.append(("PASS" if cond else "FAIL", name, info))
@@ -64,6 +67,13 @@ sim("round0_1plate", proto_with(ex, n_plates=1))
 sim("resume_shake_plate1", proto_with(ex, start_step='"1"'))
 sim("resume_shake_plate2", proto_with(ex, start_step='"2"'))
 sim("heated_45C", proto_with(ex, temperature_c=45))
+sim("resume_shake_plate0", proto_with(ex, start_step='"0"'))
+sim("heated_37C_min", proto_with(ex, temperature_c=37))
+sim("heated_60C_max", proto_with(ex, temperature_c=60))
+sim("no_shake_0min", proto_with(ex, shake_minutes=0))
+sim("no_blank_plate", proto_with(ex, blank_plate=False))
+sim("no_backup_reservoir", proto_with(ex, backup_reservoir=False))
+sim("minimal_1plate_no_extras", proto_with(ex, n_plates=1, blank_plate=False, backup_reservoir=False))
 sim("ERR_temp_30C", proto_with(ex, temperature_c=30), False, "below 37")
 sim("ERR_resume_plate2_of_2", proto_with(ex, n_plates=2, start_step='"2"'), False, "only 2 plate")
 rows = [r for r in csv.reader(open(ex))]
@@ -71,8 +81,19 @@ over = [rows[0]] + [r[:] for r in rows[1:]]; over[1][3] = "350"
 sim("ERR_overvolume", proto_with(rows=over), False, "exceeds")
 bad = [rows[0][:3] + ["vol_Toluene_ul"], ["A1", "Glutarimide", "x", "100"]]
 sim("ERR_unknown_solvent", proto_with(rows=bad), False, "no reservoir trough")
+hdr = rows[0]
+sim("ERR_bad_header", proto_with(rows=[["Well"] + hdr[1:]] + rows[1:]), False, "Header must start")
+sim("ERR_unknown_well", proto_with(rows=[hdr, ["Z9"] + rows[1][1:]]), False, "unknown well")
+sim("ERR_duplicate_well", proto_with(rows=[hdr, rows[1], rows[1]]), False, "listed twice")
+sim("ERR_below_min_volume", proto_with(rows=[hdr, rows[1][:3] + ["0.5"] + ["299.5"] + rows[1][5:]]), False, "below pipette minimum")
+sim("ERR_negative_volume", proto_with(rows=[hdr, rows[1][:3] + ["-5"] + rows[1][4:]]), False, "negative")
+sim("ERR_empty_well", proto_with(rows=[hdr, rows[1][:3] + ["0"] * (len(hdr) - 3)]), False, "receives no liquid")
+sim("blank_csv_lines_ignored", proto_with(rows=rows + [[""] * len(hdr), []]))
 flood = [rows[0][:3] + ["vol_acetone_ul"]] + [[f"{r}{c}", "Glutarimide", "x", "300"] for r in "ABCDEFGH" for c in range(1, 13)]
-sim("ERR_trough_overflow", proto_with(rows=flood), False, "only supply")
+sim("ERR_trough_overflow", proto_with(rows=flood), False, "only supply")  # 86 mL > both reservoirs
+# one plate of pure acetone needs 28.8 mL: more than one trough (24 mL usable), so the slot-4 backup takes over
+sim("backup_reservoir_takes_over", proto_with(rows=flood, n_plates=1, blank_plate=False), True, "Backup solvent reservoir")
+sim("ERR_no_backup_reservoir", proto_with(rows=flood, n_plates=1, blank_plate=False, backup_reservoir=False), False, "only supply")
 
 # --- BO loop: 2 rounds ---------------------------------------------------------------
 rc, out = sh(B, "grid", "--round", "0", "-o", "s0.csv"); check("grid round 0", rc == 0, out.strip().splitlines()[-1])
@@ -122,24 +143,89 @@ for name, extra in [("replicates2", ["--replicates", "2"]), ("3solutes_2ctrl", [
     check(f"layout {name}", rc == 0 and rc2 == 0)
     sim(f"layout_{name}", proto_with(os.path.join(T, name, "ot_input_round7.csv")))
 
-# --- Flex analog replays the OT-2 liquid handling step for step -------------------------
-flex_path = os.path.join(P, "..", "OTFlex analog", "sdl_solubility_flex_analog.py")
-if os.path.exists(flex_path):
-    def handling_steps(src, name):
-        path = os.path.join(T, name + ".py")
-        open(path, "w").write(re.sub(r"TEST_CSV = \[.*?\n\]\n", "TEST_CSV = " + repr(rows) + "\n", src, count=1, flags=re.S))
-        r = subprocess.run([SIM, "-L", os.path.join(P, "labware"), path], capture_output=True, text=True)
-        steps = []
-        for ln in (r.stdout + r.stderr).splitlines():
-            ln = ln.strip()
-            if re.match(r"(Aspirating|Dispensing|Air gap|Mixing|Blowing out|Delaying for 0 minutes and 1)", ln):
-                ln = re.sub(r" on slot \w+| on (Heater-Shaker|opentrons).*$", "", ln)
-                steps.append(re.sub(r"Opentrons (OT-2|Flex) 96 Tip Rack \d+ µL", "tiprack", ln))
-        return r.returncode, steps
-    rc1, a_steps = handling_steps(PROTO, "cmp_ot2")
-    rc2, b_steps = handling_steps(open(flex_path).read(), "cmp_flex_analog")
-    check("Flex analog = OT-2 liquid handling", rc1 == 0 and rc2 == 0 and a_steps == b_steps and len(a_steps) > 0,
-          f"{len(a_steps)} vs {len(b_steps)} steps")
+# --- production campaign: run_bo.sh rounds 0-2 with real SDL_BO suggestions --------------------------------------
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+REPO = os.path.dirname(P)
+sys.path.insert(0, os.path.join(REPO, "analysis", "examples"))
+import fake_plate_reader as fpr  # noqa: E402
+from production.config import FIRST_PLATE, N_PLATES, SOLUTES, SOLVENT_TROUGHS, TOTAL_UL, sample_id  # noqa: E402
+CSVS = os.path.join(T, "campaign")
+AIR_GAP = {10.0: 2, 92.0: 10}  # dispense flow rate -> that pipette's air gap (P20, P300 in PIPETTES)
+SAMPLE_ID = re.compile(r"round(\d+)_plate(\d+)_solute(\d+)_cond(\d+)")
+
+def run_bo():
+    env = {**os.environ, "PATH": f"{os.path.dirname(sys.executable)}{os.pathsep}{os.environ['PATH']}"}
+    r = subprocess.run(["bash", os.path.join(REPO, "production", "run_bo.sh"), CSVS, "--no-figures"],
+                       capture_output=True, text=True, cwd=REPO, env=env)
+    return r.returncode, r.stdout + r.stderr
+
+def dispensed(log):
+    """{(labware, well, solvent): uL} actually dispensed, from the simulator log (air gaps removed)."""
+    out, solvent = {}, None
+    for ln in log.splitlines():
+        if m := re.match(r"(\w+) with p\d+_single_gen2: \d+ dispenses", ln):
+            solvent = m.group(1)
+        elif m := re.match(r"Dispensing ([\d.]+) uL into (\w+) of (Readout plate \d|Solvent blank plate) on slot \w+ at ([\d.]+) uL/sec", ln):
+            key = (m.group(3), m.group(2), solvent)
+            out[key] = out.get(key, 0) + float(m.group(1)) - AIR_GAP[float(m.group(4))]
+    return out
+
+def expected(ot_csv, n_plates, blank=True):
+    rows = list(csv.DictReader(open(ot_csv)))
+    out = {}
+    for r in rows:
+        for col, v in r.items():
+            if col.startswith("vol_") and float(v or 0) > 0:
+                for p in range(n_plates):
+                    out[(f"Readout plate {p}", r["well"], col[4:-3])] = float(v)
+    if blank:
+        out.update({("Solvent blank plate", SOLVENT_TROUGHS[sv][0], sv): float(TOTAL_UL) for sv in SOLVENT_TROUGHS})
+    return out
+
+def same_volumes(got, want):
+    keys = set(got) | set(want)
+    bad = [k for k in keys if abs(got.get(k, 0) - want.get(k, 0)) > 1e-6]
+    return not bad, f"{len(want)} (plate, well, solvent) volumes" if not bad else f"{len(bad)} mismatches, e.g. {sorted(bad)[:2]}"
+
+rc, out = run_bo()
+check("campaign: run_bo.sh writes the round-0 seed design", rc == 0, out[-150:] if rc else "")
+ids = []
+for r in range(3):
+    ratios = os.path.join(CSVS, "ratios")
+    ot_csv, pm_path = os.path.join(ratios, f"ot_input_round{r}.csv"), os.path.join(ratios, f"plate_map_round{r}.csv")
+    pm = pd.read_csv(pm_path)
+    # the robot CSV runs and every plate well gets exactly its CSV volumes (plus the blank plate)
+    log = sim(f"campaign_round{r}_3plates", proto_with(ot_csv))
+    check(f"campaign round {r}: robot dispenses exactly the CSV volumes", *same_volumes(dispensed(log), expected(ot_csv, 3)))
+    log = sim(f"campaign_round{r}_1plate_no_blank_no_backup", proto_with(ot_csv, n_plates=1, blank_plate=False, backup_reservoir=False))
+    check(f"campaign round {r}: 1 plate, no blank: volumes", *same_volumes(dispensed(log), expected(ot_csv, 1, blank=False)))
+    ot = pd.read_csv(ot_csv).set_index("well")
+    vols = [c for c in ot.columns if c.startswith("vol_")]
+    check(f"campaign round {r}: robot CSV = plate map volumes, {TOTAL_UL} uL per well",
+          (pm.set_index("well")[vols].loc[ot.index].to_numpy() == ot[vols].to_numpy()).all() and (ot[vols].sum(axis=1) == TOTAL_UL).all())
+    # plate map carries the sample-id parts: cond = position in the block, cond0 = the DMF control
+    ctrl = pm[pm["cond"] == 0]
+    check(f"campaign round {r}: plate map cond0 = DMF control, one per solute",
+          set(ctrl["role"]) == {"control"} and sorted(ctrl["solute"]) == sorted(SOLUTES) and (pm.loc[pm["cond"] > 0, "role"] == "sample").all())
+    # the lab's reader exports for round r, then merge round r and design round r + 1
+    rng = np.random.default_rng(r + 1)
+    for p in range(FIRST_PLATE, FIRST_PLATE + N_PLATES):
+        fpr.spectra_export(pm.set_index("well"), rng).to_csv(os.path.join(CSVS, "uvvis", f"reader_round{r}_plate{p}.csv"), index=False)
+    rc, out = run_bo()
+    check(f"campaign: merge round {r} and lay out round {r + 1}", rc == 0 and os.path.exists(os.path.join(ratios, f"plate_map_round{r + 1}.csv")),
+          out[-150:] if rc else "")
+    wells = pd.read_csv(os.path.join(CSVS, f"results_round{r}_wells.csv"))
+    parts = wells["sample_id"].str.fullmatch(SAMPLE_ID.pattern)
+    solute_no = {s: i for i, s in enumerate(SOLUTES)}
+    want = [sample_id(r, p, solute_no[s], c) for p, s, c in zip(wells["plate"], wells["solute"], pm.set_index("well").loc[wells["well"], "cond"])]
+    check(f"campaign round {r}: every well on every plate has its sample id",
+          parts.all() and len(wells) == 96 * N_PLATES and list(wells["sample_id"]) == want,
+          f"e.g. {wells.loc[(wells.plate == FIRST_PLATE + 1) & (wells.well == 'A1'), 'sample_id'].iloc[0]}")
+    ids += list(wells["sample_id"])
+dataset = pd.read_csv(os.path.join(CSVS, "bo_dataset.csv"))
+check("campaign: sample ids unique over rounds 0-2", len(ids) == len(set(ids)) == 3 * 96 * N_PLATES, f"{len(ids)} ids")
+check("campaign: bo_dataset has 96 rows per round for rounds 0-2", dataset.groupby("round").size().to_dict() == {0: 96, 1: 96, 2: 96})
 
 w = max(len(n) for _, n, _ in results)
 for st, n, info in results:
