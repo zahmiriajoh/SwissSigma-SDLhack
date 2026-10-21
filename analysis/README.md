@@ -21,7 +21,7 @@ Part of the repo-wide uv environment (`bash setup.sh` at the repo root; run comm
 ```
 bo_bridge.py layout ──► plate_map_roundN.csv, ot_input_roundN.csv
 OT-2: 3 sample plates (ot_input_roundN.csv)
-plate reader ──► reader_roundN_plate{0,1,2}.csv                              lab ──► plate_log_roundN.csv (optional)
+plate reader ──► reader_roundN_plate{0,1,2}.xlsx ──► .csv (run_bo.sh: production/convert_reader_xlsx.py)   lab ──► plate_log_roundN.csv (optional)
 analysis reduce ──► endpoint_roundN_plate{0,1,2}.csv, wavelengths_roundN.csv
 bo_bridge.py merge --reader endpoint_... ──► results_roundN_wells.csv, bo_dataset.csv
 analysis qc / report (any time, all rounds so far)

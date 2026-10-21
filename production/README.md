@@ -25,7 +25,8 @@ and the test suite checks that it does.
     - Seed file (first round)
     - File for each subsequent round
   - `uvvis/`: Results from each round
-    - Results are uploaded here as CSVs
+    - Results are uploaded here as the plate reader saves them, `.xlsx` workbooks; `run_bo.sh` converts each one to a
+      `.csv` of the same name next to it (`production/convert_reader_xlsx.py`), so the folder ends up with both
 4. Bash script that runs the BO and outputs the files for the next round of experiments in `ratios/`:
    **`run_bo.sh`**, see below.
 5. Bash script to set up the environment needed to use this repo.
@@ -50,12 +51,15 @@ The script looks at what is in `csvs/` and does the next thing:
 It never overwrites a finished round, so it is safe to re-run, and it exits with code 2 while it is still waiting for reader
 files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC and report figures.
 
-**What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2):
+**What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2). Save the reader's workbooks as
+`.xlsx` under these names; `run_bo.sh` turns each `reader_roundN_*.xlsx` into the `.csv` the analysis reads (a `.csv` at
+least as new as its `.xlsx` is kept, so a hand-made `.csv` also works). The converter finds the spectra block on any sheet,
+with or without instrument rows around it, and stops with the well names if a reading is not a number (e.g. `OVER`):
 
 | File | Content |
 |---|---|
-| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate, as the reader writes it: `;`-separated, decimal commas, header `Wavel.;200;205;...;700`, one row per well (A1-H12). A long table `well, wavelength_nm, absorbance` is read too. Full 200-700 nm scans in 5 nm steps are planned |
-| `reader_roundN_solvents.csv` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
+| `reader_roundN_plate0.xlsx`, `..._plate1.xlsx`, `..._plate2.xlsx` | plate-reader export of each sample plate: header `Wavel.;200;205;...;700` (or wells across, wavelengths down), one row per well (A1-H12). A `.csv` of the same name is read instead if it is newer: `;`-separated with decimal commas as the reader writes it, or a long table `well, wavelength_nm, absorbance`. Full 200-700 nm scans in 5 nm steps are planned |
+| `reader_roundN_solvents.xlsx` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
 **What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (the pure-solvent blank wells are a separate small set, see the upload table below). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.

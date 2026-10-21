@@ -34,7 +34,7 @@ production/run_bo.sh production/csvs                  # the real campaign: one c
 ```
 python -m SDL_BO init                       ──► suggestions_round0.csv
 python bo_bridge.py layout                  ──► ot_input_round0.csv (robot) + plate_map_round0.csv
-OT-2 run (3 sample plates)                  ──► plate reader ──► reader_round0_plate{0,1,2}.csv
+OT-2 run (3 sample plates)                  ──► plate reader ──► reader_round0_plate{0,1,2}.xlsx (+ _solvents.xlsx) in uvvis/
 python -m analysis reduce                   ──► endpoint_round0_plate{0,1,2}.csv (one absorbance per well)
 python bo_bridge.py merge                   ──► bo_dataset.csv
 python -m SDL_BO suggest --branch           ──► suggestions_round1.csv (a solute column: one arm per solute group)   ... repeat
@@ -58,7 +58,7 @@ Succinimide sits near the noise; its solutes are the production ones, the two ad
 | `examples/toy_synergy_output/` | 3 × 3 | the contrasting case: the best mixture is a ternary that beats every single solvent (R2, z = 243), 177 of 180 synergies are significant (R5), the GP landscape shows an interior optimum (R4); Q4 flags the saturated Boc-hydroxyproline controls and the acetone wells read for glutarimide |
 
 Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
-`reader_roundN_plate{P}.csv` (+ `reader_roundN_solvents.csv`) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
+`reader_roundN_plate{P}.xlsx` (+ `reader_roundN_solvents.xlsx`) → `.csv` (`production/convert_reader_xlsx.py`) → `endpoint_roundN_plate{P}.csv` + `wavelengths_roundN.csv` →
 `results_roundN_wells.csv`, plus the cumulative `bo_dataset.csv` and `bo_dataset_shared.csv` (and `report.txt` from
 SDL_BO in the additive runs; `plate_log_roundN.csv` in the synergy
 run). Regenerate the synergy run with

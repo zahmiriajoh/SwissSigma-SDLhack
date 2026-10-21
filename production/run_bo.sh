@@ -5,8 +5,10 @@
 #
 # CSV_DIR is the folder exchanged with the lab (production/README.md, "Folder structure"):
 #   CSV_DIR/ratios/   robot inputs we write:  suggestions_roundN.csv, ot_input_roundN.csv, plate_map_roundN.csv,
-#   CSV_DIR/uvvis/    results the lab uploads: reader_roundN_plate0.csv, reader_roundN_plate1.csv, reader_roundN_plate2.csv,
-#                                            reader_roundN_solvents.csv (solvent blank plate; round N's wells are column N + 1), plate_log_roundN.csv (optional)
+#   CSV_DIR/uvvis/    results the lab uploads, as the plate reader saves them (.xlsx; .csv also accepted):
+#                                            reader_roundN_plate0.xlsx, reader_roundN_plate1.xlsx, reader_roundN_plate2.xlsx,
+#                                            reader_roundN_solvents.xlsx (solvent blank plate; round N's wells are column N + 1), plate_log_roundN.csv (optional)
+#                     each .xlsx is converted to a .csv of the same name next to it (production/convert_reader_xlsx.py)
 #   CSV_DIR/          what the analysis derives: endpoint_roundN_*.csv, wavelengths_roundN.csv, results_roundN_wells.csv,
 #                                            bo_dataset.csv, bo_dataset_shared.csv, figures/
 #
@@ -72,9 +74,9 @@ layout_round() {  # suggestions -> robot CSV + plate map for round $1
   echo "Round $r is ready for the lab. Upload to the Opentrons app:"
   echo "  $RATIOS/ot_input_round${r}.csv      (3 identical sample plates)"
   echo "Then ask the lab to save the plate-reader exports as:"
-  reader_files "$r" | sed 's/^/  /'
+  reader_files "$r" | sed 's/\.csv$/.xlsx/; s/^/  /'
   local c=$((r - FIRST_ROUND + 1))  # the protocol fills one blank-plate column per round
-  echo "  $UVVIS/reader_round${r}_solvents.csv   (the solvent blank plate; this round's wells: A$c DMF, B$c acetone, C$c EtOH, D$c iPrOH, E$c water, F$c iPrOAc, G$c tBuOAc)"
+  echo "  $UVVIS/reader_round${r}_solvents.xlsx   (the solvent blank plate; this round's wells: A$c DMF, B$c acetone, C$c EtOH, D$c iPrOH, E$c water, F$c iPrOAc, G$c tBuOAc)"
   echo "  $UVVIS/plate_log_round${r}.csv      (optional: plate,read_delay_min for plates $FIRST_PLATE-$((FIRST_PLATE + N_PLATES - 1)))"
 }
 
@@ -88,8 +90,10 @@ if [[ -z "$N" ]]; then
 fi
 
 # ----- round N measured? ---------------------------------------------------------------------------------------
+# The plate reader saves .xlsx: turn this round's workbooks into the .csv files the analysis reads (a newer .csv is kept).
+python -m production.convert_reader_xlsx "$UVVIS" --round "$N"
 missing=()
-while IFS= read -r f; do [[ -f "$f" ]] || missing+=("$f"); done < <(reader_files "$N")
+while IFS= read -r f; do [[ -f "$f" ]] || missing+=("${f%.csv}.xlsx"); done < <(reader_files "$N")
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "Round $N is laid out in $RATIOS but these plate-reader exports are not in $UVVIS yet:"
   printf '  %s\n' "${missing[@]}"

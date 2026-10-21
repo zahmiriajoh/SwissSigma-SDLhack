@@ -121,7 +121,7 @@ subtracts; a solvent-only plate with the same layout also works as `--blank`. `a
    **solvent blank plate** in slot 6, one column per round on the same plate for the whole campaign: round 0 fills
    column 1 (A1 DMF … G1 t-BuOAc, 300 µL of pure solvent from the matching trough, no solids), round 1 column 2,
    round 2 column 3, so columns 1-3 are full at the end. The column comes from the round in the CSV (`R1_DMFref` ->
-   column 2); the **Blank plate column** setting overrides it. Its read is saved as `uvvis/reader_roundN_solvents.csv`;
+   column 2); the **Blank plate column** setting overrides it. Its read is saved as `uvvis/reader_roundN_solvents.xlsx`;
    `run_bo.sh` passes it to `analysis reduce --solvent-blanks`, which predicts each sample well's background from
    that round's column and subtracts it before the BO. Leave earlier columns in place between rounds.
 2. **Pause:** you seal all plates (and the blank plate) by hand straight away, so plates 1–2

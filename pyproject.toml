@@ -13,6 +13,7 @@ dependencies = [
     "scikit-learn",
     "matplotlib",
     "pytest",
+    "openpyxl>=3.1.5",
 ]
 
 [tool.uv]
