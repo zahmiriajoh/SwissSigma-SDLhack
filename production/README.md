@@ -46,7 +46,7 @@ The script looks at what is in `csvs/` and does the next thing:
 | empty | round 0 seed design (`SDL_BO init`), robot files for round 0 into `ratios/` |
 | round N laid out, exports in `uvvis/` incomplete | stops (exit code 2) and lists the exact file names it is waiting for: the three plates and the solvent blank plate |
 | round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest --branch` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` into `csvs/figures/` and one `analysis report` per arm into `csvs/figures/phthalimide/` and `csvs/figures/others/` |
-| round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
+| re-run after a finished round | round N+1 is now the latest, so it waits for round N+1's exports (exit code 2); nothing is redone |
 
 It never overwrites a finished round, so it is safe to re-run, and it exits with code 2 while it is still waiting for reader
 files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC and report figures, `--allow-no-blank`

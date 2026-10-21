@@ -22,7 +22,7 @@ Default layout; solutes, solvents, troughs, volumes and numbering come from
   Pairs listed under `[[forbidden_pairs]]` in the config (water with either ester, immiscible) are
   skipped by `grid` and rejected by `layout`.
 - **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`) and replicates. The DMF control is
-  condition 0 and the mixtures count from 1 (`R0_grid01`). Well names stay `A1`–`H12`.
+  condition 0 and the mixtures count from 1 (`R0_seed01`). Well names stay `A1`–`H12`.
 
 Change the layout with flags on `grid` and `layout` (or the constants at the top of `bo_bridge.py`):
 
@@ -117,7 +117,7 @@ subtracts; a solvent-only plate with the same layout also works as `--blank`. `a
    volumes under 20 µL and the P300 everything from 20 µL up. Each tip aspirates enough for
    several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
-   touch their own solvent, so a full round uses about 7 tips. The same tips also fill the
+   touch their own solvent, so a round uses one tip per solvent and pipette: 7 to 14 (7-13 in the simulated campaign). The same tips also fill the
    **solvent blank plate** in slot 6, one column per round on the same plate for the whole campaign: round 0 fills
    column 1 (A1 DMF … G1 t-BuOAc, 300 µL of pure solvent from the matching trough, no solids), round 1 column 2,
    round 2 column 3, so columns 1-3 are full at the end. The column comes from the round in the CSV (`R1_DMFref` ->

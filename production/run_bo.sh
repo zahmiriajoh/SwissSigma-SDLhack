@@ -18,7 +18,7 @@
 #                                       plate included (--allow-no-blank: go on without it, nothing is subtracted)
 #   uvvis for round N present        -> analysis reduce -> bo_bridge merge -> SDL_BO suggest -> bo_bridge layout
 #                                       -> robot files for round N+1 into ratios/, then analysis qc + report into figures/
-#   ratios for N+1 already written   -> nothing to do (re-run after the lab uploads round N+1)
+#   re-run after a finished round    -> round N+1 is now the latest: it waits for N+1's reader files (exit 2)
 # Every step refuses to overwrite a finished round, so the script can be re-run safely.
 set -euo pipefail
 trap 'echo "run_bo.sh: failed at line $LINENO (see the message above)" >&2' ERR
