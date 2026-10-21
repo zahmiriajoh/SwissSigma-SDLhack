@@ -58,6 +58,10 @@ those values are not used.
 4. **The reader may not scan below 230 nm.** Reseller specifications give the Tecan Infinite 200 PRO's absorbance
    wavelength range as 230–1,000 nm [4], while the plan and the Scientist instructions scan 200–700 nm. Tecan's own
    datasheet was not found; confirm on the instrument.
+5. **Solubility, not just absorbance, limits the useful load** (added after reading [6], [7]; see "Solubility data"
+   below). No DMF solubility was found for any solute. Phthalimide dissolves only about 6 mg/mL in ethanol and
+   isopropanol and about 26 mg/mL in acetone at 25 °C, so a load low enough to read undiluted would dissolve fully in
+   every one of these solvents and not tell them apart.
 
 ## Caveats
 
@@ -97,6 +101,73 @@ What the analysis pipeline does with these wells today:
 Whatever the user decides on dilution or loading, points 2 and 3 suggest a guard: a DMF control above the reader's
 linear range should either stop the round or mark that solute not measurable, rather than enter the dataset as 4.0.
 
+## Solubility data: what limits the load
+
+Added 2026-10-21 after reading the two phthalimide solubility papers [6], [7]. The estimates above assume the whole load
+dissolves. What a well can actually hold is set by the solute's solubility in that well's solvent, so this section asks
+which loads are dissolved, and what a saturated well would read.
+
+### No DMF solubility was found for any solute
+
+Neither paper measures DMF. Xu et al. [6] measured phthalimide in ten solvents; Li et al. [7] measured phthalimide in
+mixtures of acetone, ethyl acetate or acetonitrile with methanol. Searches of the NIST WebBook, NIST ThermoML and
+PubChem found no measured solubility in DMF for phthalimide, succinimide, glutarimide or Boc-hydroxyproline. PubChem's
+phthalimide entry gives only water and hot-ethanol values [8]. **The step-0 DMF pre-test is therefore the only source
+of DMF solubility for this campaign.**
+
+### Phthalimide in three of our green solvents
+
+Xu et al. [6] include acetone, ethanol and isopropanol, three of the six green solvents in `production/config.toml`.
+Their mole fractions at 298.15 K (Table 2, relative standard uncertainty 0.02) convert to mg of phthalimide per mL of
+solvent with the paper's own molar volumes (Table 1): mg/mL = x / (1 − x) × M(phthalimide) / V(solvent) × 1,000. The
+absorbance columns apply the Beer-Lambert estimate above to a saturated well, treating mg per mL of solvent as mg per
+mL of solution (volume change on dissolving ignored).
+
+| Solvent | In our campaign | Mole fraction x, 298.15 K [6] | Solubility (mg per mL solvent) | Saturated well: A at 295 nm | A at 320 nm |
+|---|---|---|---|---|---|
+| Acetone | yes | 0.01278 | about 26 | about 310 | about 25 |
+| Ethyl acetate | no (i-PrOAc and t-BuOAc are) | 0.007494 | about 11 | about 130 | about 11 |
+| Methanol | no | 0.002604 | about 9.5 | about 110 | about 9 |
+| Acetonitrile | no | 0.003048 | about 8.5 | about 100 | about 8 |
+| Ethanol | yes | 0.002397 | about 6.0 | about 70 | about 6 |
+| Isopropanol | yes | 0.002983 | about 5.7 | about 70 | about 5 |
+| Toluene | no | 0.000577 | about 0.8 | about 9 | about 1 |
+
+Solubility rises with temperature in every solvent, by a factor of about 3 to 5 between 283 and 318 K [6], so a lab
+below 25 °C dissolves somewhat less. Water was not measured in [6]; PubChem gives 0.36 g/L for water [8], about 0.4 mg/mL.
+
+### What this means for the loading
+
+1. **A 5 mg/mL load does not discriminate phthalimide's solvents.** Acetone, ethanol and isopropanol each dissolve
+   at least 5.7 mg/mL, so all three would dissolve the whole load and read the same as DMF (relative value 1.0), as long
+   as DMF dissolves it too. Only poorer solvents, such as water, would fall below 1.0.
+2. **Separating acetone from the alcohols needs a load above about 26 mg/mL**, acetone's own solubility; separating the
+   alcohols from each other needs more than about 6 mg/mL.
+3. **Saturated phthalimide wells still overflow the reader.** At 295 nm a saturated ethanol or isopropanol well reads
+   about 70 and a saturated acetone well about 310. Even at the 320 nm shoulder the alcohols read 5 to 6 and acetone
+   about 25, all above 4. A load that discriminates the solvents therefore cannot be read undiluted at either wavelength.
+4. **Mixtures can beat pure solvents.** In acetone + methanol the solubility peaks at an acetone mass fraction of 0.9,
+   where x = 0.02045 at 298.15 K against 0.01278 in pure acetone [7], about 1.6 times higher (about 45 mg per mL of solvent).
+   This is the kind of non-additive mixture effect the BO is meant to find, and it raises the load needed to see it.
+5. **Both papers dilute before measuring.** They filter the saturated solution through a 0.2 µm PTFE filter, dilute
+   about 1 mL (or 0.5 mL) to 25 mL, and quantify by HPLC with UV detection at 290 nm [6], [7]. Detection at 290 nm agrees
+   with the band used above [1].
+
+### Lower loadings, for comparison
+
+With every load fully dissolved, the same Beer-Lambert estimate gives:
+
+| Solute and wavelength | 5 mg/mL | 10 mg/mL | 20 mg/mL | 50 mg/mL | 100 mg/mL |
+|---|---|---|---|---|---|
+| Phthalimide, 295 nm | 60 | 119 | 238 | 595 | 1,190 |
+| Phthalimide, 310 nm | 14 | 29 | 57 | 144 | 287 |
+| Phthalimide, 320 nm | 4.8 | 9.6 | 19 | 48 | 96 |
+| Succinimide, 230 nm | 4.2 | 8.5 | 17 | 42 | 85 |
+| Succinimide, 250 nm | 2.6 | 5.2 | 10 | 26 | 52 |
+
+At 5 mg/mL only succinimide at 250 nm is below 4, and that band is under DMF's cut-off. Phthalimide at 5 mg/mL drops
+below 4 only from about 324 nm, where the database spectrum's tail may be a baseline offset [1].
+
 ## References
 
 1. Taniguchi, M.; Lindsey, J. S. Database of absorption and fluorescence spectra of >300 common compounds for use in
@@ -115,3 +186,13 @@ linear range should either stop the round or mark that solute not measurable, ra
 5. Molar masses: Boc-hydroxyproline (CAS 13726-69-7) 231.25 g/mol from the supplier listing
    <https://www.thermofisher.com/order/catalog/product/H27110.06>; phthalimide, succinimide and glutarimide computed from
    their formulas (C₈H₅NO₂, C₄H₅NO₂, C₅H₇NO₂).
+6. Xu, R.; Wang, J.; Han, S.; Du, C.; Meng, L.; Zhao, H. Solubility modelling and thermodynamic dissolution functions of
+   phthalimide in ten organic solvents. *J. Chem. Thermodyn.* **2016**, 94, 160–168 (online 2015).
+   <https://doi.org/10.1016/j.jct.2015.10.024>. Local copy: `data/papers/`.
+7. Li, Y.; Li, C.; Du, C.; Cong, Y.; Cheng, C.; Zhao, H. Solubility determination and modelling for phthalimide in mixed
+   solvents of (acetone, ethyl acetate or acetonitrile + methanol) from (278.15 to 313.15) K. *J. Chem. Thermodyn.*
+   **2017**, 106, 123–131 (online 2016). <https://doi.org/10.1016/j.jct.2016.11.023>. Corrigendum (model parameters for
+   acetonitrile + methanol only; the measured solubilities are unchanged): *J. Chem. Thermodyn.* **2017**, 113, 399,
+   <https://doi.org/10.1016/j.jct.2017.07.001>. Local copy: `data/papers/`.
+8. PubChem, phthalimide (CID 6809), Solubility, citing the Merck Index (1989) and the Aquasol database (1992):
+   <https://pubchem.ncbi.nlm.nih.gov/compound/6809#section=Solubility>.
