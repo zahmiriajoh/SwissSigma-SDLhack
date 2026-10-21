@@ -85,6 +85,14 @@ PLATE_ATTACKERS = [s["name"] for s in _cfg["solvents"] if s["attacks_polystyrene
 FORBIDDEN_PAIRS = [frozenset(p["solvents"]) for p in _cfg.get("forbidden_pairs", [])]
 
 
+def blank_column(round_) -> int:
+    """Column of the solvent blank plate (OT-2 slot 6) filled in round_: round FIRST_ROUND -> column 1, the next -> 2, ..."""
+    column = int(round_) - FIRST_ROUND + 1
+    if not 1 <= column <= 12:
+        raise ValueError(f"round {round_} has no column on the 12-column solvent blank plate")
+    return column
+
+
 def sample_id(round_, plate, solute, cond) -> str:
     """Name of one well on one plate, e.g. round0_plate1_solute0_cond0 (solute = block number, cond = position in block)."""
     return SAMPLE_ID_FORMAT.format(round=round_, plate=plate, solute=solute, cond=cond)

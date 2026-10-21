@@ -55,7 +55,7 @@ files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC
 | File | Content |
 |---|---|
 | `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate, as the reader writes it: `;`-separated, decimal commas, header `Wavel.;200;205;...;700`, one row per well (A1-H12). A long table `well, wavelength_nm, absorbance` is read too. Full 200-700 nm scans in 5 nm steps are planned |
-| `reader_roundN_solvents.csv` | plate-reader export of the pure-solvent blank wells, same format: **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, one well each, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
+| `reader_roundN_solvents.csv` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
 **What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (the pure-solvent blank wells are a separate small set, see the upload table below). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.
@@ -111,7 +111,7 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
   `analysis reduce` was built to read every solute only inside the wavelength window where **every** solvent is
   transparent (blank below 1.0 absorbance) and to declare a solute **not measurable** when its DMF-control signal is
   within 3 x the noise (`wavelengths_roundN.csv`, column `measurable`; PLAN decision 15). That window needs solvent
-  blanks: the pure-solvent wells A1-G1 read each round (`reader_roundN_solvents.csv`) give them. Without that file the window
+  blanks: the round's column of pure-solvent wells (A1-G1 in round 0, A2-G2 in round 1, ...; `reader_roundN_solvents.csv`) gives them. Without that file the window
   is inactive, nothing is subtracted and the solvent's own absorbance stays in every well. **Set `wavelength_nm` for each solute in
   `config.toml` if the maxima are known**: left unset, round 0 picks each solute's wavelength from its blank-corrected DMF-control spectrum and every later round reuses it (`analysis reduce`), so no one has to intervene; without a solvent-blank file the peak is picked on the raw DMF-control spectrum and lands on DMF's own
   UV edge, saturated (`reduce` prints a warning). The `measurable` verdict still drops a solute from the worst-solute

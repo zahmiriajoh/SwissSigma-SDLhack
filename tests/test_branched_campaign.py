@@ -24,7 +24,7 @@ def run_bo(csvs):
 
 
 def read_round(csvs, r):
-    fpr.write_plate_reader_csv(fpr.solvent_blank_export(np.random.default_rng(100 + r)), csvs / "uvvis" / f"reader_round{r}_solvents.csv")
+    fpr.write_plate_reader_csv(fpr.solvent_blank_export(np.random.default_rng(100 + r), round_=r), csvs / "uvvis" / f"reader_round{r}_solvents.csv")
     plate_map = pd.read_csv(csvs / "ratios" / f"plate_map_round{r}.csv")
     rng = np.random.default_rng(r + 1)
     for p in range(N_PLATES):

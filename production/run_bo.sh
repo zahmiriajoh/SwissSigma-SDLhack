@@ -6,7 +6,7 @@
 # CSV_DIR is the folder exchanged with the lab (production/README.md, "Folder structure"):
 #   CSV_DIR/ratios/   robot inputs we write:  suggestions_roundN.csv, ot_input_roundN.csv, plate_map_roundN.csv,
 #   CSV_DIR/uvvis/    results the lab uploads: reader_roundN_plate0.csv, reader_roundN_plate1.csv, reader_roundN_plate2.csv,
-#                                            reader_roundN_solvents.csv (pure-solvent blank wells A1-G1), plate_log_roundN.csv (optional)
+#                                            reader_roundN_solvents.csv (solvent blank plate; round N's wells are column N + 1), plate_log_roundN.csv (optional)
 #   CSV_DIR/          what the analysis derives: endpoint_roundN_*.csv, wavelengths_roundN.csv, results_roundN_wells.csv,
 #                                            bo_dataset.csv, bo_dataset_shared.csv, figures/
 #
@@ -73,7 +73,8 @@ layout_round() {  # suggestions -> robot CSV + plate map for round $1
   echo "  $RATIOS/ot_input_round${r}.csv      (3 identical sample plates)"
   echo "Then ask the lab to save the plate-reader exports as:"
   reader_files "$r" | sed 's/^/  /'
-  echo "  $UVVIS/reader_round${r}_solvents.csv   (the pure-solvent blank wells: A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc)"
+  local c=$((r - FIRST_ROUND + 1))  # the protocol fills one blank-plate column per round
+  echo "  $UVVIS/reader_round${r}_solvents.csv   (the solvent blank plate; this round's wells: A$c DMF, B$c acetone, C$c EtOH, D$c iPrOH, E$c water, F$c iPrOAc, G$c tBuOAc)"
   echo "  $UVVIS/plate_log_round${r}.csv      (optional: plate,read_delay_min for plates $FIRST_PLATE-$((FIRST_PLATE + N_PLATES - 1)))"
 }
 

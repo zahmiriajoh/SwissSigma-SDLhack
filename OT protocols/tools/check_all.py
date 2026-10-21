@@ -72,6 +72,10 @@ sim("heated_37C_min", proto_with(ex, temperature_c=37))
 sim("heated_60C_max", proto_with(ex, temperature_c=60))
 sim("no_shake_0min", proto_with(ex, shake_minutes=0))
 sim("no_blank_plate", proto_with(ex, blank_plate=False))
+sim("blank_column_override_5", proto_with(ex, blank_column=5), True, "Solvent blank plate: column 5")
+no_ref = [r if not r[2].endswith("ref") else r[:2] + ["control"] + r[3:] for r in csv.reader(open(ex))]
+sim("ERR_blank_round_unknown", proto_with(rows=no_ref), False, "Cannot tell the round")
+sim("no_round_ok_without_blank_plate", proto_with(rows=no_ref, blank_plate=False))
 sim("no_backup_reservoir", proto_with(ex, backup_reservoir=False))
 sim("minimal_1plate_no_extras", proto_with(ex, n_plates=1, blank_plate=False, backup_reservoir=False))
 sim("ERR_temp_30C", proto_with(ex, temperature_c=30), False, "below 37")
@@ -149,7 +153,7 @@ import pandas as pd  # noqa: E402
 REPO = os.path.dirname(P)
 sys.path.insert(0, os.path.join(REPO, "analysis", "examples"))
 import fake_plate_reader as fpr  # noqa: E402
-from production.config import FIRST_PLATE, N_PLATES, SOLUTES, SOLVENT_TROUGHS, TOTAL_UL, sample_id  # noqa: E402
+from production.config import FIRST_PLATE, N_PLATES, SOLUTES, SOLVENT_TROUGHS, TOTAL_UL, blank_column, sample_id  # noqa: E402
 CSVS = os.path.join(T, "campaign")
 AIR_GAP = {10.0: 2, 92.0: 10}  # dispense flow rate -> that pipette's air gap (P20, P300 in PIPETTES)
 SAMPLE_ID = re.compile(r"round(\d+)_plate(\d+)_solute(\d+)_cond(\d+)")
@@ -171,7 +175,7 @@ def dispensed(log):
             out[key] = out.get(key, 0) + float(m.group(1)) - AIR_GAP[float(m.group(4))]
     return out
 
-def expected(ot_csv, n_plates, blank=True):
+def expected(ot_csv, n_plates, blank_round=None):
     rows = list(csv.DictReader(open(ot_csv)))
     out = {}
     for r in rows:
@@ -179,8 +183,9 @@ def expected(ot_csv, n_plates, blank=True):
             if col.startswith("vol_") and float(v or 0) > 0:
                 for p in range(n_plates):
                     out[(f"Readout plate {p}", r["well"], col[4:-3])] = float(v)
-    if blank:
-        out.update({("Solvent blank plate", SOLVENT_TROUGHS[sv][0], sv): float(TOTAL_UL) for sv in SOLVENT_TROUGHS})
+    if blank_round is not None:  # this round's blank column: <trough row><round + 1>
+        column = blank_column(blank_round)
+        out.update({("Solvent blank plate", f"{SOLVENT_TROUGHS[sv][0][0]}{column}", sv): float(TOTAL_UL) for sv in SOLVENT_TROUGHS})
     return out
 
 def same_volumes(got, want):
@@ -197,9 +202,9 @@ for r in range(3):
     pm = pd.read_csv(pm_path)
     # the robot CSV runs and every plate well gets exactly its CSV volumes (plus the blank plate)
     log = sim(f"campaign_round{r}_3plates", proto_with(ot_csv))
-    check(f"campaign round {r}: robot dispenses exactly the CSV volumes", *same_volumes(dispensed(log), expected(ot_csv, 3)))
+    check(f"campaign round {r}: robot dispenses exactly the CSV volumes", *same_volumes(dispensed(log), expected(ot_csv, 3, blank_round=r)))
     log = sim(f"campaign_round{r}_1plate_no_blank_no_backup", proto_with(ot_csv, n_plates=1, blank_plate=False, backup_reservoir=False))
-    check(f"campaign round {r}: 1 plate, no blank: volumes", *same_volumes(dispensed(log), expected(ot_csv, 1, blank=False)))
+    check(f"campaign round {r}: 1 plate, no blank: volumes", *same_volumes(dispensed(log), expected(ot_csv, 1)))
     ot = pd.read_csv(ot_csv).set_index("well")
     vols = [c for c in ot.columns if c.startswith("vol_")]
     check(f"campaign round {r}: robot CSV = plate map volumes, {TOTAL_UL} uL per well",
@@ -212,6 +217,8 @@ for r in range(3):
     rng = np.random.default_rng(r + 1)
     for p in range(FIRST_PLATE, FIRST_PLATE + N_PLATES):
         fpr.spectra_export(pm.set_index("well"), rng).to_csv(os.path.join(CSVS, "uvvis", f"reader_round{r}_plate{p}.csv"), index=False)
+    # the solvent blank plate as read after round r (columns 1..r + 1), so run_bo.sh subtracts the blank from column r + 1
+    fpr.write_plate_reader_csv(fpr.solvent_blank_export(rng, round_=r), os.path.join(CSVS, "uvvis", f"reader_round{r}_solvents.csv"))
     rc, out = run_bo()
     check(f"campaign: merge round {r} and lay out round {r + 1}", rc == 0 and os.path.exists(os.path.join(ratios, f"plate_map_round{r + 1}.csv")),
           out[-150:] if rc else "")

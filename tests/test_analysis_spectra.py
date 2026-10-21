@@ -110,6 +110,19 @@ def test_reduce_with_predicted_blank_agrees_with_full_blank(plates, blank, plate
     assert (ep_pred[-1]["absorbance"] - ep_full[-1]["absorbance"]).abs().max() < 0.03  # the blank endpoint merge subtracts
 
 
+def test_each_round_reads_its_own_blank_column(plate_map):
+    """The protocol fills column round + 1 of the solvent blank plate; a later round must not reuse column 1."""
+    from analysis.spectra import solvent_wells
+    first = read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv")
+    second = first.rename(columns=lambda w: f"{w[0]}2") * 2  # round R + 1's column, distinguishable from column 1
+    both = pd.concat([first, second], axis=1)
+    assert list(solvent_wells(R + 1).values()) == ["A2", "B2", "C2", "D2", "E2", "F2", "G2"]
+    later = plate_map.assign(round=R + 1)
+    dmf = later.index[later["frac_DMF"] == 1]
+    assert (predicted_blank(both, later)[dmf].sub(both["A2"], axis=0).abs() < 1e-9).all().all()
+    assert (predicted_blank(both, plate_map)[dmf].sub(both["A1"], axis=0).abs() < 1e-9).all().all()
+
+
 def test_solvent_blank_file_must_have_every_solvent_well(plate_map, tmp_path):
     solvents = read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv").drop(columns="G1")
     with pytest.raises(SpectraError, match="G1"):

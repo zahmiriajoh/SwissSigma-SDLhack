@@ -9,7 +9,7 @@ Synthetic plate-reader data for developing and testing the analysis step. Everyt
 - `make_example_plates.py`: regenerates the round-0 files below from `OT protocols/examples/plate_map_round0.csv` (4 solutes × 24 wells, 1 DMF control + 23 conditions each; numbering from zero as in the config).
 - `make_toy_run.py`: builds a complete fake campaign folder (3 rounds by default: suggestions, plate maps, spectra, plate logs, endpoint files, merged datasets) in seconds, without SDL_BO, for `analysis qc` and `analysis report`. It reads each fake solute at its known peak (no blanks, so nothing else fixes the wavelength). `--fixed-wavelengths` exports only the solute peaks plus 700 nm.
 - `reader_round0_plate{0,1,2}.csv`: full-spectrum exports of the 3 identical plates of round 0. In the plate reader's own export format (`;` separators, decimal commas, one row per well, `Wavel.` header, 200-700 nm in 5 nm steps), written by `fake_plate_reader.write_plate_reader_csv`; the long-table shape is still read too.
-- `reader_round0_solvents.csv`: the pure-solvent blank wells A1-G1 (DMF, acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc) for `--solvent-blanks`.
+- `reader_round0_solvents.csv`: the solvent blank plate after round 0, pure-solvent wells A1-G1 (DMF, acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc) for `--solvent-blanks`; later rounds add a column each (A2-G2, ...).
 - `reader_round0_blank.csv`: the same plate without solids (solvent background only), the older full blank-plate route; the tests check the predicted blank against it.
 - `plate_log_round0.csv`: fake shake-end-to-read minutes per plate.
 

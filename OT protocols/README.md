@@ -118,9 +118,12 @@ subtracts; a solvent-only plate with the same layout also works as `--blank`. `a
    several dispenses and fills the **same well on plates 0, 1, 2 back to back**, dispensing
    from above with an air gap between shots. Leftover goes back to the trough. Tips only
    touch their own solvent, so a full round uses about 7 tips. The same tips also fill the
-   **solvent blank plate** in slot 6, for the scientists to calibrate the UV-Vis reader (the analysis and the BO never
-   read it, and it is not the analysis `--blank`): well X1 gets 300 µL of the pure solvent from trough X1
-   (A1 DMF … G1 t-BuOAc), with no solids. It's filled once per run and serves all 3 plates.
+   **solvent blank plate** in slot 6, one column per round on the same plate for the whole campaign: round 0 fills
+   column 1 (A1 DMF … G1 t-BuOAc, 300 µL of pure solvent from the matching trough, no solids), round 1 column 2,
+   round 2 column 3, so columns 1-3 are full at the end. The column comes from the round in the CSV (`R1_DMFref` ->
+   column 2); the **Blank plate column** setting overrides it. Its read is saved as `uvvis/reader_roundN_solvents.csv`;
+   `run_bo.sh` passes it to `analysis reduce --solvent-blanks`, which predicts each sample well's background from
+   that round's column and subtracts it before the BO. Leave earlier columns in place between rounds.
 2. **Pause:** you seal all plates (and the blank plate) by hand straight away, so plates 1–2
    don't evaporate while plate 0 shakes. The blank plate isn't shaken, since it has no solids.
 3. **For plate 0, 1, 2 in turn:** the app prompts you to move the plate onto the
@@ -133,7 +136,7 @@ read and BO, so 3 rounds fit in about 10 h. These are estimates (the simulator d
 report run time), so time a dry run with water first. Refill the solvent troughs between
 rounds using the fill sheet from `layout`, when you load the next solid plates.
 
-**App settings:** identical plates (1–3), backup reservoir (on/off, default on), solvent blank plate (on/off, default on), start at
+**App settings:** identical plates (1–3), backup reservoir (on/off, default on), solvent blank plate (on/off, default on), blank plate column (0 = from the CSV's round), start at
 (fill / shake plate 0–2, to resume), shake speed, shake time, temperature.
 
 ## Deck (OT-2)

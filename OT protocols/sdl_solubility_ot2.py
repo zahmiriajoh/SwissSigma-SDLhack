@@ -27,7 +27,7 @@ metadata = {
 # Deck (OT-2, trash 12):
 #   10 heater-shaker + universal flat adapter   11 -               12 trash
 #    7 -                                          8 P300 tips        9 P20 tips
-#    4 backup solvent reservoir                   5 solvent reservoir 6 solvent blank plate
+#    4 backup solvent reservoir                   5 solvent reservoir 6 solvent blank plate (column = round + 1)
 #    1 readout plate 0                            2 readout plate 1  3 readout plate 2
 # Slots 7 and 11 (next to the heater-shaker) are kept free of tall labware.
 
@@ -61,9 +61,10 @@ SOLVENT_RESERVOIR = "axygen_8_reservoir_30000ul"
 HS_ADAPTER = "opentrons_universal_flat_adapter"      # custom JSONs declare this stacking offset
 
 PLATE_SLOTS = ["1", "2", "3"]   # up to 3 identical plates
-BLANK_SLOT = "6"                # solvent blank plate: well X1 = pure solvent from trough X1, no solids
+BLANK_SLOT = "6"                # solvent blank plate, kept for the whole campaign: one column per round, no solids
 BLANK_UL = 300                  # per blank well; matches total_ul in production/config.toml
 BLANK_SOLVENTS = [n for n in SOLVENT_TROUGHS if n != "diluent"]
+FIRST_ROUND = 0                 # config numbering.first_round: round FIRST_ROUND fills blank column 1, the next column 2, ...
 RESERVOIR_SLOT = "5"
 BACKUP_RESERVOIR_SLOT = "4"  # same trough layout as slot 5; a solvent switches here once its slot-5 trough is used up
 HS_SLOT = "10"
@@ -124,6 +125,14 @@ def add_parameters(parameters: protocol_api.ParameterContext):
         display_name="Solvent blank plate (slot 6)",
         description="Fill A1-G1 of a plate in slot 6 with pure solvent (one well per trough)",
         default=True,
+    )
+    parameters.add_int(
+        variable_name="blank_column",
+        display_name="Blank plate column",
+        description="0 = this round's column, from the round in the CSV (round 0 -> 1, round 1 -> 2, ...)",
+        default=0,
+        minimum=0,
+        maximum=12,
     )
     parameters.add_str(
         variable_name="start_step",
@@ -256,6 +265,27 @@ class Trough:
         raise RuntimeError("Solvent troughs exhausted")  # prevented by validate()
 
 
+def csv_round(wells):
+    """Round of the CSV, from its DMF-control condition id (bo_bridge writes R<round>_DMFref); None if there is none."""
+    rounds = {int(c[1:c.index("_")]) for _, _, c, _ in wells if c.startswith("R") and c.endswith("ref") and c[1:c.find("_")].isdigit()}
+    if len(rounds) > 1:
+        raise ValueError(f"CSV mixes DMF controls from rounds {sorted(rounds)}")
+    return rounds.pop() if rounds else None
+
+
+def blank_column(param_column, wells):
+    """Column of the blank plate this run fills: the App setting, or 1 + (CSV round - FIRST_ROUND)."""
+    if param_column:
+        return param_column
+    round_ = csv_round(wells)
+    if round_ is None:
+        raise ValueError("Cannot tell the round from the CSV (no R<round>_DMFref control): set 'Blank plate column'")
+    column = round_ - FIRST_ROUND + 1
+    if not 1 <= column <= 12:
+        raise ValueError(f"Round {round_} would need blank column {column}; the plate has 12: set 'Blank plate column'")
+    return column
+
+
 def distribute(protocol, pipette, trough, targets, air_gap, disposal):
     """Multi-dispense: aspirate several wells' worth plus a disposal volume, then dispense
     each well from above with an air gap in between. Leftover goes back to the trough."""
@@ -321,6 +351,10 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     csv_liquids, wells = validate(load_rows(protocol), pipettes[0][0].min_volume, plates[0], len(plates), blank_ul,
                                   len(reservoirs))
     liquids = [n for n in SOLVENT_TROUGHS if n in csv_liquids or n in blank_ul]
+    if blank:  # this round's column: well <trough row><column>, e.g. A2 DMF ... G2 tBuOAc in round 1
+        column = blank_column(params.blank_column, wells)
+        blank_well = {n: f"{SOLVENT_TROUGHS[n][0][0]}{column}" for n in BLANK_SOLVENTS}
+        protocol.comment(f"Solvent blank plate: column {column} ({', '.join(f'{w} {n}' for n, w in blank_well.items())})")
 
     # Define + load liquids (for the deck map in the app)
     colors = ["#e2d9e2", "#a6bfca", "#6d90c0", "#5f58b0", "#531e7c", "#64194b", "#9f3c50", "#c0755e"]
@@ -341,7 +375,8 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
             f"Check: {len(plates)} readout plate(s) with solids in slot(s) {', '.join(PLATE_SLOTS[: len(plates)])}, "
             f"solvent troughs filled ({TROUGH_FILL_UL / 1000:.0f} mL each"
             + (f", in slots {RESERVOIR_SLOT} and {BACKUP_RESERVOIR_SLOT})" if len(reservoirs) > 1 else ")")
-            + (f", empty blank plate in slot {BLANK_SLOT}" if blank else "") + ". Resume to start."
+            + (f", the solvent blank plate in slot {BLANK_SLOT} (column {column} is filled this round; "
+               f"earlier columns stay as they are)" if blank else "") + ". Resume to start."
         )
         heater_shaker.close_labware_latch()
         for name in liquids:
@@ -351,8 +386,8 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
                     (plate[well], v.get(name, 0)) for well, _, _, v in wells for plate in plates
                     if v.get(name, 0) > 0 and pipette_for(v[name]) is pip
                 ]
-                if name in blank_ul and pipette_for(BLANK_UL) is pip:  # blank well = trough well
-                    targets.append((blank[SOLVENT_TROUGHS[name][0]], BLANK_UL))
+                if name in blank_ul and pipette_for(BLANK_UL) is pip:
+                    targets.append((blank[blank_well[name]], BLANK_UL))
                 if not targets:
                     continue
                 protocol.comment(f"{name} with {pip.name}: {len(targets)} dispenses")

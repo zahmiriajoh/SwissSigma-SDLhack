@@ -73,7 +73,8 @@ Endpoint files carry `blank_abs` and a `flag` column (`saturated`, `opaque`); `b
 absorbance. See PLAN.md decision 15.
 
 **Blank handling (pure-solvent wells, decision of the user, 2026-10-20).** Each round the lab also reads one pure-solvent
-well per solvent, **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc** (config order), saved as
+well per solvent in that round's column of the solvent blank plate, **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc,
+G1 tBuOAc** (config order) in round 0, A2-G2 in round 1, ... (`solvent_wells(round)`, column = round + 1), saved as
 `reader_roundN_solvents.csv` and passed as `--solvent-blanks`. `reduce` predicts every sample well's blank as the
 volume-fraction-weighted sum of those spectra (equal 300 µL path length, ideal mixing; a DMF control well's blank is the
 DMF well). The predicted blank is used to pick the peaks and the usable window, and is written as
