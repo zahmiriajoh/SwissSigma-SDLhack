@@ -11,27 +11,27 @@ import pytest
 
 import fake_plate_reader as fpr
 from analysis.spectra import SpectraError, read_spectra
-from conftest import DEBUG_DIR, REPO
+from conftest import REPO
 from production.config import FIRST_ROUND
 from production.convert_reader_xlsx import OVER_ABS, convert_round, read_xlsx
 
 R = FIRST_ROUND
 
 
+WELL_ROW = 29  # 0-based row of A1 in a Tecan sheet: settings rows 0-27, the 'Wavel.' header in row 28
+
+
 @pytest.fixture
-def spectra():
-    return read_spectra(DEBUG_DIR / f"reader_round{R}_plate0.csv")  # wavelength x well
+def long():
+    """Fake full-plate spectra (well, wavelength_nm, absorbance) for the committed round-0 plate map."""
+    plate_map = pd.read_csv(REPO / "production" / "csvs" / "ratios" / f"plate_map_round{R}.csv").set_index("well")
+    return fpr.spectra_export(plate_map, np.random.default_rng(0))
 
 
-def reader_rows(spectra, as_text=False):
-    """The reader's layout: instrument rows, a 'Wavel.' header, one row per well (optionally numbers as decimal-comma text)."""
-    fmt = (lambda v: f"{v:.6f}".replace(".", ",")) if as_text else float
-    return ([["Absorbance scan"], ["User: lab"], [], ["Wavel."] + [int(w) for w in spectra.index]]
-            + [[w] + [fmt(v) for v in spectra[w]] for w in spectra.columns])
-
-
-def write_xlsx(rows, path):
-    pd.DataFrame(rows).to_excel(path, header=False, index=False)
+def write_xlsx(rows, path, extra_sheets=()):
+    with pd.ExcelWriter(path) as workbook:
+        for i, sheet in enumerate([rows, *extra_sheets]):
+            pd.DataFrame(sheet).to_excel(workbook, sheet_name=f"Sheet{i + 1}", header=False, index=False)
     return path
 
 
@@ -39,38 +39,56 @@ def as_wide(long):
     return long.pivot(index="wavelength_nm", columns="well", values="absorbance")
 
 
-@pytest.mark.parametrize("as_text", [False, True], ids=["numbers", "decimal-comma text"])
-def test_reader_layout_with_instrument_rows(spectra, tmp_path, as_text):
-    got = as_wide(read_xlsx(write_xlsx(reader_rows(spectra, as_text), tmp_path / "r.xlsx")))[spectra.columns]
-    assert np.allclose(got.to_numpy(), spectra.to_numpy(), atol=1e-6) and list(got.index) == list(spectra.index)
+def same(got, long):
+    want = as_wide(long)
+    return list(got.index) == list(want.index) and np.allclose(got[want.columns].to_numpy(), want.to_numpy(), atol=1e-6)
 
 
-def test_wells_across_layout(spectra, tmp_path):
-    rows = [["Wavelength"] + list(spectra.columns)] + [[nm] + list(spectra.loc[nm]) for nm in spectra.index]
-    got = as_wide(read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx")))[spectra.columns]
-    assert np.allclose(got.to_numpy(), spectra.to_numpy())
+def test_tecan_workbook_with_an_empty_sheet(long, tmp_path):
+    fpr.write_plate_reader_xlsx(long, tmp_path / "r.xlsx")
+    assert same(as_wide(read_xlsx(tmp_path / "r.xlsx")), long)
 
 
-def test_non_numeric_reading_names_the_well(spectra, tmp_path):
-    rows = reader_rows(spectra)
-    rows[5][3] = "n/a"  # second well row
-    with pytest.raises(SpectraError, match=spectra.columns[1]):
+def test_decimal_comma_text_and_any_wavelength_grid(long, tmp_path):
+    coarse = long[long["wavelength_nm"].between(230, 698)].assign(wavelength_nm=lambda d: d["wavelength_nm"] - 2)  # 228, 233, ...
+    rows = fpr.tecan_rows(coarse)
+    rows[WELL_ROW:WELL_ROW + 96] = [[r[0]] + [f"{v:.6f}".replace(".", ",") for v in r[1:]] for r in rows[WELL_ROW:WELL_ROW + 96]]
+    assert same(as_wide(read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx"))), coarse)
+
+
+def test_wells_across_layout(long, tmp_path):
+    wide = as_wide(long)
+    rows = [["Wavelength"] + list(wide.columns)] + [[nm] + list(wide.loc[nm]) for nm in wide.index]
+    assert same(as_wide(read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx"))), long)
+
+
+def test_several_scans_in_one_workbook_are_refused(long, tmp_path):
+    rows = fpr.tecan_rows(long)
+    with pytest.raises(SpectraError, match="2 scans.*Sheet1.*Sheet2"):
+        read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx", extra_sheets=[rows]))
+
+
+def test_non_numeric_reading_names_the_well(long, tmp_path):
+    rows = fpr.tecan_rows(long)
+    rows[WELL_ROW + 1][3] = "n/a"  # second well
+    with pytest.raises(SpectraError, match=rows[WELL_ROW + 1][0]):
         read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx"))
 
 
 @pytest.mark.parametrize("text", ["OVER", "Overflow", ">4.000"])
-def test_over_range_reading_is_capped(spectra, tmp_path, text):
-    rows = reader_rows(spectra)
-    rows[5][3] = text  # second well, third wavelength
+def test_over_range_reading_is_capped(long, tmp_path, text):
+    rows = fpr.tecan_rows(long)
+    rows[WELL_ROW + 1][3] = text  # second well, third wavelength
     got = as_wide(read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx")))
-    assert got.loc[spectra.index[2], spectra.columns[1]] == OVER_ABS
+    assert got.loc[rows[WELL_ROW - 1][3], rows[WELL_ROW + 1][0]] == OVER_ABS
 
 
-def test_convert_round_writes_csv_and_keeps_a_newer_one(spectra, tmp_path):
-    xlsx = write_xlsx(reader_rows(spectra), tmp_path / f"reader_round{R}_plate0.xlsx")
-    write_xlsx(reader_rows(spectra), tmp_path / f"reader_round{R + 1}_plate0.xlsx")  # another round: left alone
+def test_convert_round_writes_csv_and_keeps_a_newer_one(long, tmp_path):
+    xlsx = tmp_path / f"reader_round{R}_plate0.xlsx"
+    fpr.write_plate_reader_xlsx(long, xlsx)
+    fpr.write_plate_reader_xlsx(long, tmp_path / f"reader_round{R + 1}_plate0.xlsx")  # another round: left alone
     assert convert_round(tmp_path, R) == [xlsx.with_suffix(".csv")]
-    assert np.allclose(read_spectra(xlsx.with_suffix(".csv"))[spectra.columns].to_numpy(), spectra.to_numpy())
+    assert same(read_spectra(xlsx.with_suffix(".csv")), long)
     assert convert_round(tmp_path, R) == []  # the .csv is now at least as new
 
 
@@ -88,7 +106,7 @@ def upload_round(tmp_path, solvents=True):
     rng = np.random.default_rng(0)
     exports = [(f"plate{p}", fpr.spectra_export(plate_map, rng)) for p in range(3)]
     for name, long in exports + ([("solvents", fpr.solvent_blank_export(rng, round_=R))] if solvents else []):
-        write_xlsx(reader_rows(as_wide(long)), csvs / "uvvis" / f"reader_round{R}_{name}.xlsx")
+        fpr.write_plate_reader_xlsx(long, csvs / "uvvis" / f"reader_round{R}_{name}.xlsx")
     return csvs
 
 

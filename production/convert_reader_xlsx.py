@@ -3,10 +3,14 @@
     python -m production.convert_reader_xlsx CSV_DIR/uvvis --round N
 
 run_bo.sh calls this for the round it is about to analyse. Every uvvis/reader_roundN_*.xlsx gets a .csv of the same name
-next to it, unless a .csv at least as new is already there (a hand-made .csv always wins). The data block is found on
-the first sheet that has one, in either orientation - one row per well under a wavelength header ("Wavel.;300;310;...",
-as the reader exports it) or wavelengths down the first column with wells across - so metadata rows above, below or
-beside it are ignored. Numbers stored as text with decimal commas are read too. An over-range reading ("OVER", ">4")
+next to it, unless a .csv at least as new is already there (a hand-made .csv always wins).
+
+The workbook is the Tecan i-control export (Infinite 200 PRO): instrument and scan-settings rows, then a row 'Wavel.' with
+the wavelengths across, one row per well (A1, A2, ...) and an 'End Time:' row. Each workbook must hold exactly one scan
+sheet (empty sheets are ignored); one with several scans stops with their sheet names, so a plate is never taken from the
+wrong sheet. The block is found in either orientation (wells as rows, or wells across with wavelengths down), so the rows
+around it are ignored and any wavelength range and step is read. Numbers stored as text with decimal commas are read
+too. An over-range reading ("OVER", ">4")
 becomes OVER_ABS, so the analysis treats that wavelength as opaque and flags the well saturated; any other non-numeric
 reading stops the conversion with the wells it affects.
 """
@@ -75,19 +79,30 @@ def _block(grid):
     return None
 
 
-def read_xlsx(path) -> pd.DataFrame:
-    """The spectra in a plate-reader workbook as a long table; SpectraError if none is found or a reading is not a number."""
+def _scans(path) -> dict:
+    """{sheet name: spectra block} for every sheet of the workbook that holds one."""
+    scans = {}
     for name, grid in pd.read_excel(path, sheet_name=None, header=None).items():
         grid.columns = range(grid.shape[1])
-        data = _block(grid)
-        if data:
-            df = pd.DataFrame(data, columns=["well", "wavelength_nm", "absorbance"])
-            values = df["absorbance"].map(_reading)
-            bad = sorted(set(df.loc[values.isna(), "well"]))
-            if bad:
-                raise SpectraError(f"{path} (sheet {name!r}): non-numeric readings in wells {bad}")
-            return df.assign(absorbance=values)
-    raise SpectraError(f"{path}: no spectra block found (a 'Wavel.' header with one row per well, or wells across)")
+        if data := _block(grid):
+            scans[name] = data
+    return scans
+
+
+def read_xlsx(path) -> pd.DataFrame:
+    """The one scan in a plate-reader workbook as a long table; SpectraError if there is none, several, or a bad reading."""
+    scans = _scans(path)
+    if not scans:
+        raise SpectraError(f"{path}: no spectra block found (a 'Wavel.' header with one row per well, or wells across)")
+    if len(scans) > 1:
+        raise SpectraError(f"{path}: {len(scans)} scans (sheets {list(scans)}); save one plate per workbook")
+    (name, data), = scans.items()
+    df = pd.DataFrame(data, columns=["well", "wavelength_nm", "absorbance"])
+    values = df["absorbance"].map(_reading)
+    bad = sorted(set(df.loc[values.isna(), "well"]))
+    if bad:
+        raise SpectraError(f"{path} (sheet {name!r}): non-numeric readings in wells {bad}")
+    return df.assign(absorbance=values)
 
 
 def convert_round(uvvis, round_) -> list:

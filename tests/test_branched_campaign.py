@@ -1,4 +1,4 @@
-"""run_bo.sh through round 0 -> 2 on fake reader data: the two arms really diverge after the shared seed round."""
+"""run_bo.sh through round 0 -> 2 on fake reader workbooks: the two arms really diverge after the shared seed round."""
 import os
 import subprocess
 import sys
@@ -24,11 +24,11 @@ def run_bo(csvs):
 
 
 def read_round(csvs, r):
-    fpr.write_plate_reader_csv(fpr.solvent_blank_export(np.random.default_rng(100 + r), round_=r), csvs / "uvvis" / f"reader_round{r}_solvents.csv")
+    fpr.write_plate_reader_xlsx(fpr.solvent_blank_export(np.random.default_rng(100 + r), round_=r), csvs / "uvvis" / f"reader_round{r}_solvents.xlsx")
     plate_map = pd.read_csv(csvs / "ratios" / f"plate_map_round{r}.csv")
     rng = np.random.default_rng(r + 1)
     for p in range(N_PLATES):
-        fpr.write_plate_reader_csv(fpr.spectra_export(plate_map.set_index("well"), rng), csvs / "uvvis" / f"reader_round{r}_plate{p}.csv")
+        fpr.write_plate_reader_xlsx(fpr.spectra_export(plate_map.set_index("well"), rng), csvs / "uvvis" / f"reader_round{r}_plate{p}.xlsx")
 
 
 @pytest.fixture(scope="module")

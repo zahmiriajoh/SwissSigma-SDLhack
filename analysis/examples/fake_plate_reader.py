@@ -98,8 +98,34 @@ def solvent_blank_export(rng, delay_min=0.0, round_=None) -> pd.DataFrame:
     return spectra_export(wells.assign(solute=SOLUTES[0]), rng, solids=False, delay_min=delay_min)
 
 
+def tecan_rows(spectra_long) -> list:
+    """Cells of one Tecan i-control absorbance-scan sheet (Infinite 200 PRO), as the lab's plate reader saves it: settings
+    rows, a 'Wavel.' header with the wavelengths across, one row per well and an 'End Time:' row. Readings at
+    READER_MAX are written as the text 'OVER', as the reader does."""
+    wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
+    nm = [int(w) for w in wide.columns]
+    setting = lambda label, value, unit=None: [label, None, None, None, value] + ([unit] if unit else [])
+    meta = {1: setting("Application: Tecan i-control", "Tecan i-control , 2.0.10.0"), 2: setting("Device: infinite 200Pro", "Serial number: 0"),
+            5: ["Date:", "19.10.2026"], 6: ["Time:", "18:47:23"], 11: setting("Plate", "Sarstedt 96 Flat Bottom Transparent"),
+            16: setting("Mode", "Absorbance"), 17: setting("Wavelength Start", nm[0], "nm"), 18: setting("Wavelength End", nm[-1], "nm"),
+            19: setting("Wavelength Step Size", nm[1] - nm[0] if len(nm) > 1 else 0, "nm"), 20: setting("Scan Number", len(nm)),
+            25: setting("Part of Plate", f"{wide.index[0]}-{wide.index[-1]}"), 26: ["Start Time:", "19.10.2026 18:47:23"],
+            28: [None, "Temperature: 26 °C"]}
+    rows = [meta.get(i, []) for i in range(1, 29)] + [["Wavel."] + nm]
+    rows += [[w] + ["OVER" if v >= READER_MAX else float(v) for v in vals] for w, vals in wide.iterrows()]
+    return rows + [[]] * 4 + [["End Time:", "19.10.2026 18:49:40"]]
+
+
+def write_plate_reader_xlsx(spectra_long, path) -> None:
+    """Write a spectra table as the plate reader's workbook: one scan sheet (tecan_rows) plus the empty sheet Excel adds."""
+    with pd.ExcelWriter(path) as workbook:
+        pd.DataFrame(tecan_rows(spectra_long)).to_excel(workbook, sheet_name="Absorbance scan", header=False, index=False)
+        pd.DataFrame().to_excel(workbook, sheet_name="Sheet1")
+
+
 def write_plate_reader_csv(spectra_long, path) -> None:
-    """Write a spectra table the way the plate reader exports it: ';' separators, decimal commas, one row per well, wavelengths across the header."""
+    """Write a spectra table as a ';'-separated CSV with decimal commas, one row per well under a 'Wavel.' header (a
+    hand-made .csv run_bo.sh also accepts; the reader itself saves .xlsx, see write_plate_reader_xlsx)."""
     wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
     wide.columns = wide.columns.astype(int)
     wide.to_csv(path, sep=";", decimal=",", index_label="Wavel.", lineterminator="\r\n")
