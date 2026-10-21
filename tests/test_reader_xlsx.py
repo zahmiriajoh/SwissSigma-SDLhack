@@ -13,7 +13,7 @@ import fake_plate_reader as fpr
 from analysis.spectra import SpectraError, read_spectra
 from conftest import DEBUG_DIR, REPO
 from production.config import FIRST_ROUND
-from production.convert_reader_xlsx import convert_round, read_xlsx
+from production.convert_reader_xlsx import OVER_ABS, convert_round, read_xlsx
 
 R = FIRST_ROUND
 
@@ -53,9 +53,17 @@ def test_wells_across_layout(spectra, tmp_path):
 
 def test_non_numeric_reading_names_the_well(spectra, tmp_path):
     rows = reader_rows(spectra)
-    rows[5][3] = "OVER"  # second well row
+    rows[5][3] = "n/a"  # second well row
     with pytest.raises(SpectraError, match=spectra.columns[1]):
         read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx"))
+
+
+@pytest.mark.parametrize("text", ["OVER", "Overflow", ">4.000"])
+def test_over_range_reading_is_capped(spectra, tmp_path, text):
+    rows = reader_rows(spectra)
+    rows[5][3] = text  # second well, third wavelength
+    got = as_wide(read_xlsx(write_xlsx(rows, tmp_path / "r.xlsx")))
+    assert got.loc[spectra.index[2], spectra.columns[1]] == OVER_ABS
 
 
 def test_convert_round_writes_csv_and_keeps_a_newer_one(spectra, tmp_path):

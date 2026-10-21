@@ -54,7 +54,8 @@ files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC
 **What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2). Save the reader's workbooks as
 `.xlsx` under these names; `run_bo.sh` turns each `reader_roundN_*.xlsx` into the `.csv` the analysis reads (a `.csv` at
 least as new as its `.xlsx` is kept, so a hand-made `.csv` also works). The converter finds the spectra block on any sheet,
-with or without instrument rows around it, and stops with the well names if a reading is not a number (e.g. `OVER`):
+with or without instrument rows around it. An over-range reading (`OVER`, `>4`) is read as absorbance 4.0, so that
+wavelength counts as opaque and the well is flagged saturated; any other non-numeric reading stops it with the well names:
 
 | File | Content |
 |---|---|

@@ -6,10 +6,12 @@ run_bo.sh calls this for the round it is about to analyse. Every uvvis/reader_ro
 next to it, unless a .csv at least as new is already there (a hand-made .csv always wins). The data block is found on
 the first sheet that has one, in either orientation - one row per well under a wavelength header ("Wavel.;300;310;...",
 as the reader exports it) or wavelengths down the first column with wells across - so metadata rows above, below or
-beside it are ignored. Numbers stored as text with decimal commas are read too; any other non-numeric reading (e.g.
-"OVER") stops the conversion with the wells it affects.
+beside it are ignored. Numbers stored as text with decimal commas are read too. An over-range reading ("OVER", ">4")
+becomes OVER_ABS, so the analysis treats that wavelength as opaque and flags the well saturated; any other non-numeric
+reading stops the conversion with the wells it affects.
 """
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -17,15 +19,23 @@ import pandas as pd
 
 from analysis.spectra import SpectraError, normalize_well
 
+OVER_ABS = 4.0  # stands in for an over-range reading: above the blank limit (1.0) and the saturation flag (2.5)
+_OVER = re.compile(r"\s*(over\w*|>.*)\s*", re.IGNORECASE)
+
 
 def _number(x):
-    """A cell as float: numbers, or text like '0,4982' / '0.4982'; None for anything else (blank, 'OVER', labels)."""
+    """A cell as float: numbers, or text like '0,4982' / '0.4982'; None for anything else (blank, labels)."""
     if isinstance(x, (int, float)) and not isinstance(x, bool):
         return None if pd.isna(x) else float(x)
     try:
         return float(str(x).strip().replace(",", "."))
     except ValueError:
         return None
+
+
+def _reading(x):
+    """An absorbance cell as float: a number, OVER_ABS for an over-range reading, None for anything else."""
+    return OVER_ABS if isinstance(x, str) and _OVER.fullmatch(x) else _number(x)
 
 
 def _well(x):
@@ -72,7 +82,7 @@ def read_xlsx(path) -> pd.DataFrame:
         data = _block(grid)
         if data:
             df = pd.DataFrame(data, columns=["well", "wavelength_nm", "absorbance"])
-            values = df["absorbance"].map(_number)
+            values = df["absorbance"].map(_reading)
             bad = sorted(set(df.loc[values.isna(), "well"]))
             if bad:
                 raise SpectraError(f"{path} (sheet {name!r}): non-numeric readings in wells {bad}")
