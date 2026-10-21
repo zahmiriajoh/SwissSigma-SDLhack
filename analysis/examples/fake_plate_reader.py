@@ -106,10 +106,16 @@ def tecan_rows(spectra_long) -> list:
     wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
     nm = [int(w) for w in wide.columns]
     setting = lambda label, value, unit=None: [label, None, None, None, value] + ([unit] if unit else [])
-    meta = {1: setting("Application: Tecan i-control", "Tecan i-control , 2.0.10.0"), 2: setting("Device: infinite 200Pro", "Serial number: 0"),
-            5: ["Date:", "19.10.2026"], 6: ["Time:", "18:47:23"], 11: setting("Plate", "Sarstedt 96 Flat Bottom Transparent"),
-            16: setting("Mode", "Absorbance"), 17: setting("Wavelength Start", nm[0], "nm"), 18: setting("Wavelength End", nm[-1], "nm"),
+    meta = {1: setting("Application: Tecan i-control", "Tecan i-control , 2.0.10.0"),
+            2: setting("Device: infinite 200Pro", "Serial number: 0") + [None, None, None, "Serial number of connected stacker:"],
+            3: setting("Firmware: V_5.40_03/24_InfiniteRX (Mar 27 2024/11.48.46)", "MAI, V_5.40_03/24_InfiniteRX (Mar 27 2024/11.48.46)"),
+            5: ["Date:", "19.10.2026"], 6: ["Time:", "18:47:23"], 9: setting("System", "LAB_PC"), 10: setting("User", "LAB_PC\\lab"),
+            11: setting("Plate", "Sarstedt 96 Flat Bottom Transparent Polystyrene Cat. No.: 83-3924 [Sarstedt96fb_Transparent.pdfx]"),
+            12: ["Plate-ID (Stacker)"], 15: ["Label: Label1"], 16: setting("Mode", "Absorbance"),
+            17: setting("Wavelength Start", nm[0], "nm"), 18: setting("Wavelength End", nm[-1], "nm"),
             19: setting("Wavelength Step Size", nm[1] - nm[0] if len(nm) > 1 else 0, "nm"), 20: setting("Scan Number", len(nm)),
+            21: setting("Bandwidth (Range 1)", "230...315: 5nm"), 22: setting("Bandwidth (Range 2)", "316...1000: 9nm"),
+            23: setting("Number of Flashes", 10), 24: setting("Settle Time", 0, "ms"),
             25: setting("Part of Plate", f"{wide.index[0]}-{wide.index[-1]}"), 26: ["Start Time:", "19.10.2026 18:47:23"],
             28: [None, "Temperature: 26 °C"]}
     rows = [meta.get(i, []) for i in range(1, 29)] + [["Wavel."] + nm]
