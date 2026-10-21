@@ -24,6 +24,7 @@ def run_bo(csvs):
 
 
 def read_round(csvs, r):
+    fpr.write_plate_reader_csv(fpr.solvent_blank_export(np.random.default_rng(100 + r)), csvs / "uvvis" / f"reader_round{r}_solvents.csv")
     plate_map = pd.read_csv(csvs / "ratios" / f"plate_map_round{r}.csv")
     rng = np.random.default_rng(r + 1)
     for p in range(N_PLATES):
@@ -78,3 +79,8 @@ def test_each_arm_learns_only_from_its_own_wells(campaign):
     for arm, arm_solutes in ARMS.items():
         ids = set(samples.loc[samples["solute"].isin(arm_solutes), "condition_id"])
         assert all(i.startswith(f"R1_{arm}_") or not i.startswith("R1_") for i in ids)  # its own picks, or re-tests of earlier ones
+
+
+def test_blank_is_subtracted_from_the_solvent_wells(campaign):
+    wells = pd.read_csv(campaign / "results_round1_wells.csv")
+    assert (wells["abs_blank"] > 0).all() and np.allclose(wells["abs_corrected"], wells["abs_raw"] - wells["abs_blank"], atol=1e-3)

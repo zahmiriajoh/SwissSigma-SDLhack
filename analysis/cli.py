@@ -10,7 +10,7 @@ from pathlib import Path
 from production.config import ARMS, FIRST_PLATE, SOLUTE_WAVELENGTH_NM
 
 from .spectra import (ABS_MAX_DEFAULT, BLANK_MAX_DEFAULT, DEFAULT_NM_RANGE, MIN_SIGNAL_SIGMAS, SpectraError,
-                      read_plate_map, read_spectra, reduce_round)
+                      predicted_blank, read_plate_map, read_spectra, reduce_round)
 
 
 def _parse_overrides(items):
@@ -34,6 +34,8 @@ def _build_parser() -> argparse.ArgumentParser:
     reduce.add_argument("--plate-map", required=True, help="plate_map_roundN.csv from bo_bridge.py layout")
     reduce.add_argument("--reader", required=True, nargs="+", help="one full-spectrum export per plate, in plate order")
     reduce.add_argument("--blank", help="reader export of a solvent-only copy of the sample plate (same layout, no solids)")
+    reduce.add_argument("--solvent-blanks", help="reader export with one pure-solvent well per solvent (A1 DMF, B1 acetone, ...); "
+                        "each sample well's blank is predicted from its solvent fractions")
     reduce.add_argument("--outdir", help="where to write (default: next to the plate map)")
     reduce.add_argument("--wavelength", nargs="*", metavar="SOLUTE=NM",
                         help="fix a solute's wavelength (overrides production/config.toml) instead of picking it from its DMF control")
@@ -81,11 +83,15 @@ def _run_qc(args) -> None:
 def _run_reduce(args) -> None:
     plate_map = read_plate_map(args.plate_map)
     plates = [read_spectra(p) for p in args.reader]
+    if args.blank and args.solvent_blanks:
+        raise SpectraError("give either --blank or --solvent-blanks, not both")
     blank = read_spectra(args.blank) if args.blank else None
+    if args.solvent_blanks:
+        blank = predicted_blank(read_spectra(args.solvent_blanks), plate_map)
     fixed = {**{s: nm for s, nm in SOLUTE_WAVELENGTH_NM.items() if nm}, **_parse_overrides(args.wavelength)}  # config, then --wavelength
     loose = sorted(set(plate_map["solute"]) - set(fixed))
     if blank is None and loose:
-        print(f"  WARNING: no --blank and no fixed wavelength for {', '.join(loose)}: the peak is picked on the raw DMF-control "
+        print(f"  WARNING: no blank and no fixed wavelength for {', '.join(loose)}: the peak is picked on the raw DMF-control "
               "spectrum and can land on DMF's own UV edge. Set wavelength_nm in production/config.toml.")
     wavelengths, endpoints, corrected, report = reduce_round(
         plate_map, plates, blank, fixed, tuple(args.nm_range), args.bandwidth,
@@ -111,7 +117,7 @@ def _run_reduce(args) -> None:
     if flagged:
         print(f"  {flagged} sample well reading(s) flagged saturated/opaque (see the flag column of the endpoint files)")
     if blank is None:
-        print("  note: no --blank, so nothing is subtracted and peaks were picked on raw spectra (solvent baseline included)")
+        print("  note: no blank (--blank / --solvent-blanks), so nothing is subtracted and peaks were picked on raw spectra (solvent baseline included)")
     print("wrote " + ", ".join(names) + f", wavelengths_round{round_}.csv -> {outdir}")
     if args.plots:
         from .plots import plot_plates, plot_spectra  # matplotlib only when asked for

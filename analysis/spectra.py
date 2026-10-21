@@ -7,7 +7,8 @@ DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at
 
 Blank handling: the solvent-only readings are used here only to find the peaks. The endpoint files keep the
 raw absorbance (plates and blank alike), so `bo_bridge.py merge --blank` does the one and only subtraction.
-The blank is optional: a full solvent-only copy of the sample plate. Without one (the current plan) nothing is subtracted.
+The blank is optional: a full solvent-only copy of the sample plate, or (the plan) one pure-solvent well per solvent
+from which `predicted_blank` builds every well's background. Without either nothing is subtracted.
 """
 import re
 from pathlib import Path
@@ -15,9 +16,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from production.config import ALL_SOLVENTS
+
 ROWS = "ABCDEFGH"
 N_COLS = 12
 WELLS = [f"{r}{c}" for r in ROWS for c in range(1, N_COLS + 1)]  # row order, as in bo_bridge
+SOLVENT_WELLS = {s: f"{ROWS[i]}1" for i, s in enumerate(ALL_SOLVENTS)}  # pure-solvent blank wells: A1 DMF, B1 acetone, ... in config order
 CONTROL_ROLE = "control"  # plate-map role of the DMF reference wells
 DEFAULT_NM_RANGE = (230.0, 800.0)  # ignore the far-UV edge where solvents and plastics absorb
 SMOOTH_NM = 5  # rolling-mean width (nm) before picking the peak, so one noisy point cannot win; at least 3 points
@@ -104,6 +108,18 @@ def blank_correct(spectra, blank) -> pd.DataFrame:
     if blank[spectra.columns].isna().any().any():
         raise SpectraError("blank plate was read at different wavelengths from the sample plates")
     return spectra - blank[spectra.columns]
+
+
+def predicted_blank(solvent_spectra, plate_map) -> pd.DataFrame:
+    """Blank plate predicted from one pure-solvent well per solvent (SOLVENT_WELLS): each well's blank is the
+    volume-fraction-weighted sum of the pure-solvent spectra (equal path length, ideal mixing). Wavelength x well."""
+    check_wells(solvent_spectra, pd.DataFrame(index=list(SOLVENT_WELLS.values())), "solvent blank")
+    fraction_cols = [f"frac_{s}" for s in SOLVENT_WELLS]
+    missing = [c for c in fraction_cols if c not in plate_map.columns]
+    if missing:
+        raise SpectraError(f"plate map lacks columns {missing}")
+    pure = solvent_spectra[list(SOLVENT_WELLS.values())].set_axis(list(SOLVENT_WELLS), axis=1)
+    return pure @ plate_map[fraction_cols].set_axis(list(SOLVENT_WELLS), axis=1).T
 
 
 def check_wells(spectra, plate_map, name="reader export") -> None:

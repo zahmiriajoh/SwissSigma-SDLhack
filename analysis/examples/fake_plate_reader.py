@@ -89,6 +89,12 @@ def spectra_export(plate_map, rng, solids=True, delay_min=0.0) -> pd.DataFrame:
     return _long((well, spectrum(row, rng, solids, delay_min)) for well, row in plate_map.iterrows())
 
 
+def solvent_blank_export(rng, delay_min=0.0) -> pd.DataFrame:
+    """One pure-solvent well per solvent (A1 DMF, B1 acetone, ... in config order), as a long table like `spectra_export`."""
+    wells = pd.DataFrame(np.eye(len(ALL_SOLVENTS)), columns=FRACTION_COLUMNS, index=[f"{'ABCDEFGH'[i]}1" for i in range(len(ALL_SOLVENTS))])
+    return spectra_export(wells.assign(solute=SOLUTES[0]), rng, solids=False, delay_min=delay_min)
+
+
 def write_plate_reader_csv(spectra_long, path) -> None:
     """Write a long table the way the plate reader exports it: ';' separators, decimal commas, one row per well, wavelengths across the header."""
     wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
