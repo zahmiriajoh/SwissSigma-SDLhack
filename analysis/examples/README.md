@@ -1,7 +1,9 @@
 # analysis/examples
 
-Synthetic plate-reader data for developing and testing the analysis step. Everything here is fake. The reader exports follow the real plate reader's format
-(`production/UV-Vis/Absorbancescan.csv`); the other files follow `OT protocols/bo_bridge.py`.
+Synthetic plate-reader data for developing and testing the analysis step. Everything here is fake. The committed reader exports are
+CSVs that `analysis reduce` reads directly; the real reader saves `.xlsx` workbooks (Tecan i-control export, format in
+`production/README.md`), which `fake_plate_reader.write_plate_reader_xlsx` reproduces row for row for the tests. The other files
+follow `OT protocols/bo_bridge.py`.
 
 ## Files
 

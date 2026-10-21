@@ -41,7 +41,7 @@ def test_read_spectra_long_and_wide_agree(plates, tmp_path):
 
 
 def test_read_spectra_takes_the_lab_readers_own_export(plates, tmp_path):
-    """One row per well, one column per wavelength, ';'-separated with decimal commas, CRLF (Absorbancescan.csv)."""
+    """One row per well, one column per wavelength, ';'-separated with decimal commas, CRLF (a hand-made .csv run_bo.sh accepts)."""
     spectra = plates[0]
     lines = ["Wavel.;" + ";".join(f"{w:g}" for w in spectra.index)]
     lines += [f"{well};" + ";".join(f"{v:.9f}".replace(".", ",") for v in spectra[well]) for well in spectra.columns]
