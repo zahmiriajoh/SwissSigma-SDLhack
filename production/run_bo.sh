@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the BO step for the production campaign and write the next round's robot files.
 #
-#   production/run_bo.sh CSV_DIR [--seed N] [--no-figures]
+#   production/run_bo.sh CSV_DIR [--seed N] [--no-figures] [--allow-no-blank]
 #
 # CSV_DIR is the folder exchanged with the lab (production/README.md, "Folder structure"):
 #   CSV_DIR/ratios/   robot inputs we write:  suggestions_roundN.csv, ot_input_roundN.csv, plate_map_roundN.csv,
@@ -14,7 +14,8 @@
 #
 # What happens depends on what is there:
 #   nothing yet                      -> round 0 seed design (SDL_BO init) and its robot files into ratios/
-#   ratios for round N, no uvvis     -> stops and lists the reader files it is waiting for
+#   ratios for round N, no uvvis     -> stops (exit 2) and lists the reader files it is waiting for, the solvent blank
+#                                       plate included (--allow-no-blank: go on without it, nothing is subtracted)
 #   uvvis for round N present        -> analysis reduce -> bo_bridge merge -> SDL_BO suggest -> bo_bridge layout
 #                                       -> robot files for round N+1 into ratios/, then analysis qc + report into figures/
 #   ratios for N+1 already written   -> nothing to do (re-run after the lab uploads round N+1)
@@ -22,14 +23,16 @@
 set -euo pipefail
 trap 'echo "run_bo.sh: failed at line $LINENO (see the message above)" >&2' ERR
 
-usage() { sed -n '2,20p' "$0"; exit "${1:-0}"; }
+usage() { sed -n '2,22p' "$0"; exit "${1:-0}"; }
 [[ $# -ge 1 ]] || usage 1
+[[ $1 == -h || $1 == --help ]] && usage
 mkdir -p "$1"; CSV_DIR=$(cd "$1" && pwd); shift  # not realpath: macOS's fails on a folder that does not exist yet
-SEED=0; FIGURES=1
+SEED=0; FIGURES=1; ALLOW_NO_BLANK=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --seed) SEED="$2"; shift 2 ;;
     --no-figures) FIGURES=0; shift ;;
+    --allow-no-blank) ALLOW_NO_BLANK=1; shift ;;
     -h|--help) usage ;;
     *) echo "unknown option $1"; usage 1 ;;
   esac
@@ -67,6 +70,10 @@ reader_files() {  # the uvvis files round $1 needs
   local r=$1 p
   for ((p = FIRST_PLATE; p < FIRST_PLATE + N_PLATES; p++)); do echo "$UVVIS/reader_round${r}_plate${p}.csv"; done
 }
+required_files() {  # reader_files plus the solvent blank plate, unless --allow-no-blank
+  reader_files "$1"
+  [[ $ALLOW_NO_BLANK -eq 1 ]] || echo "$UVVIS/reader_round${1}_solvents.csv"
+}
 layout_round() {  # suggestions -> robot CSV + plate map for round $1
   local r=$1
   python "$BRIDGE" layout --round "$r" --suggestions "$RATIOS/suggestions_round${r}.csv" --outdir "$RATIOS"
@@ -93,11 +100,12 @@ fi
 # The plate reader saves .xlsx: turn this round's workbooks into the .csv files the analysis reads (a newer .csv is kept).
 python -m production.convert_reader_xlsx "$UVVIS" --round "$N"
 missing=()
-while IFS= read -r f; do [[ -f "$f" ]] || missing+=("${f%.csv}.xlsx"); done < <(reader_files "$N")
+while IFS= read -r f; do [[ -f "$f" ]] || missing+=("${f%.csv}.xlsx"); done < <(required_files "$N")
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "Round $N is laid out in $RATIOS but these plate-reader exports are not in $UVVIS yet:"
   printf '  %s\n' "${missing[@]}"
   echo "Nothing to do until the lab uploads them."
+  [[ $ALLOW_NO_BLANK -eq 1 ]] || echo "(If the solvent blank plate was not read this round: re-run with --allow-no-blank; then nothing is subtracted.)"
   exit 2
 fi
 

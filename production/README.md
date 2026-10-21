@@ -44,12 +44,18 @@ The script looks at what is in `csvs/` and does the next thing:
 | State of `csvs/` | What the script does |
 |---|---|
 | empty | round 0 seed design (`SDL_BO init`), robot files for round 0 into `ratios/` |
-| round N laid out, no exports in `uvvis/` | stops and lists the exact file names it is waiting for |
+| round N laid out, exports in `uvvis/` incomplete | stops (exit code 2) and lists the exact file names it is waiting for: the three plates and the solvent blank plate |
 | round N exports in `uvvis/` | `analysis reduce` → `bo_bridge merge` → `SDL_BO suggest --branch` → `bo_bridge layout` for round N+1 into `ratios/`; then `analysis qc` into `csvs/figures/` and one `analysis report` per arm into `csvs/figures/phthalimide/` and `csvs/figures/others/` |
 | round N+1 already laid out | nothing (re-run after the lab uploads round N+1) |
 
 It never overwrites a finished round, so it is safe to re-run, and it exits with code 2 while it is still waiting for reader
-files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC and report figures.
+files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC and report figures, `--allow-no-blank`
+goes on without `reader_roundN_solvents.xlsx` (only if the blank plate really was not read: nothing is then subtracted,
+and in round 0 the wavelengths every later round reuses are picked on raw spectra).
+
+Rounds are final once merged: a reader file corrected after `results_roundN_wells.csv` exists is converted but not
+re-analysed. To redo round N, delete `results_roundN_wells.csv` and the round N+1 files in `ratios/` (if the lab has not
+run them yet) and re-run.
 
 **What the lab uploads to `csvs/uvvis/`** (names matter; N = round, plates 0, 1, 2). Save the reader's workbooks as
 `.xlsx` under these names; `run_bo.sh` turns each `reader_roundN_*.xlsx` into the `.csv` the analysis reads (a `.csv` at
@@ -60,7 +66,7 @@ wavelength counts as opaque and the well is flagged saturated; any other non-num
 | File | Content |
 |---|---|
 | `reader_roundN_plate0.xlsx`, `..._plate1.xlsx`, `..._plate2.xlsx` | plate-reader export of each sample plate: header `Wavel.;200;205;...;700` (or wells across, wavelengths down), one row per well (A1-H12). A `.csv` of the same name is read instead if it is newer: `;`-separated with decimal commas as the reader writes it, or a long table `well, wavelength_nm, absorbance`. Full 200-700 nm scans in 5 nm steps are planned |
-| `reader_roundN_solvents.xlsx` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
+| `reader_roundN_solvents.xlsx` | plate-reader export of the solvent blank plate (OT-2 slot 6, kept for the whole campaign), same format. The robot fills one column per round, one well per solvent: round 0 **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, round 1 A2-G2, round 2 A3-G3; the analysis reads round N's column N + 1, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank. Required: `run_bo.sh` waits for it like the plate files (`--allow-no-blank` to go on without it, with nothing subtracted) |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 
 **What the lab gets from `csvs/ratios/`:** `ot_input_roundN.csv` (3 identical sample plates) (the pure-solvent blank wells are a separate small set, see the upload table below). `plate_map_roundN.csv` says what is in every well. From round 1 on the phthalimide block and the other three blocks hold different conditions (one per arm), so read the plate map, not the round's condition list, for what is in a well.

@@ -74,17 +74,35 @@ def test_convert_round_writes_csv_and_keeps_a_newer_one(spectra, tmp_path):
     assert convert_round(tmp_path, R) == []  # the .csv is now at least as new
 
 
-def test_run_bo_takes_xlsx_from_uvvis(tmp_path):
+def run_bo(csvs, *flags):
+    env = {**os.environ, "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(["bash", str(REPO / "production" / "run_bo.sh"), str(csvs), "--no-figures", *flags],
+                          capture_output=True, text=True, cwd=REPO, env=env)
+
+
+def upload_round(tmp_path, solvents=True):
+    """A copy of production/csvs with round R's plate workbooks (and the solvent blank plate) in uvvis/."""
     csvs = tmp_path / "csvs"
     shutil.copytree(REPO / "production" / "csvs", csvs)
     plate_map = pd.read_csv(csvs / "ratios" / f"plate_map_round{R}.csv").set_index("well")
     rng = np.random.default_rng(0)
-    for name, long in [*((f"plate{p}", fpr.spectra_export(plate_map, rng)) for p in range(3)),
-                       ("solvents", fpr.solvent_blank_export(rng, round_=R))]:
+    exports = [(f"plate{p}", fpr.spectra_export(plate_map, rng)) for p in range(3)]
+    for name, long in exports + ([("solvents", fpr.solvent_blank_export(rng, round_=R))] if solvents else []):
         write_xlsx(reader_rows(as_wide(long)), csvs / "uvvis" / f"reader_round{R}_{name}.xlsx")
-    env = {**os.environ, "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}"}
-    result = subprocess.run(["bash", str(REPO / "production" / "run_bo.sh"), str(csvs), "--no-figures"],
-                            capture_output=True, text=True, cwd=REPO, env=env)
+    return csvs
+
+
+def test_run_bo_waits_for_the_solvent_blank_plate(tmp_path):
+    csvs = upload_round(tmp_path, solvents=False)
+    result = run_bo(csvs)
+    assert result.returncode == 2 and f"reader_round{R}_solvents.xlsx" in result.stdout
+    assert not (csvs / f"results_round{R}_wells.csv").exists()
+    assert run_bo(csvs, "--allow-no-blank").returncode == 0
+
+
+def test_run_bo_takes_xlsx_from_uvvis(tmp_path):
+    csvs = upload_round(tmp_path)
+    result = run_bo(csvs)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"converted reader_round{R}_solvents.xlsx" in result.stdout
     assert (csvs / "ratios" / f"ot_input_round{R + 1}.csv").exists()
