@@ -8,7 +8,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
-PROTOCOLS = [REPO / "OT protocols" / "sdl_solubility_ot2.py"]
+PROTOCOLS = [REPO / "OT protocols" / "sdl_solubility_ot2.py", REPO / "production" / "sdl_solubility_ot2.py"]  # the lab uploads the second
 OT_EXAMPLES = REPO / "OT protocols" / "examples"
 DEBUG_DIR = REPO / "analysis" / "examples"
 SDL_BO_EXAMPLES = REPO / "SDL_BO" / "examples"

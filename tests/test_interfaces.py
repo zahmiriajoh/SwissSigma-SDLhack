@@ -34,7 +34,12 @@ def test_bo_bridge_and_sdl_bo_follow_the_config():
     assert space.FRACTION_COLUMNS == bridge.FRAC_COLS
 
 
-@pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.name)
+def test_production_protocol_is_the_simulated_one():
+    """tools/check_all.py simulates the OT protocols/ copy; the lab uploads the production/ copy."""
+    assert len({p.read_text() for p in PROTOCOLS}) == 1
+
+
+@pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.parent.name)
 def test_protocols_mirror_the_config_troughs(protocol):
     troughs = protocol_constant(protocol, "SOLVENT_TROUGHS")
     assert {k: v for k, v in troughs.items() if k != "diluent"} == config.SOLVENT_TROUGHS
