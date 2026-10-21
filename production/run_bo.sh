@@ -127,7 +127,7 @@ if [[ ! -f "$CSV_DIR/results_round${N}_wells.csv" ]]; then
   echo "== Round $N: merge into bo_dataset.csv (bo_bridge merge)"
   blank=(); [[ -f "$CSV_DIR/endpoint_round${N}_blank.csv" ]] && blank=(--blank "$CSV_DIR/endpoint_round${N}_blank.csv")  # written by reduce when solvent blanks were given
   python "$BRIDGE" merge --plate-map "$RATIOS/plate_map_round${N}.csv" --reader "${endpoints[@]}" \
-    ${blank[@]+"${blank[@]}"} --dataset "$CSV_DIR/bo_dataset.csv" --wells-out "$CSV_DIR/results_round${N}_wells.csv"
+    ${blank[@]+"${blank[@]}"} --value-col absorbance --dataset "$CSV_DIR/bo_dataset.csv" --wells-out "$CSV_DIR/results_round${N}_wells.csv"
 else
   echo "== Round $N already merged (results_round${N}_wells.csv exists)"
 fi

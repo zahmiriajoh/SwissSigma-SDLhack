@@ -52,7 +52,7 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | `--solvent-blanks` | none | export of the pure-solvent wells A1-G1; each well's blank is predicted from its solvent fractions |
 | `--blank` | none | optional export of a full solvent-only copy of the sample plate (alternative to `--solvent-blanks`) |
 | `--outdir` | next to the plate map | where the outputs go |
-| `--wavelength Glutarimide=275 ...` | config, else picked | fix a solute's wavelength (wins over `wavelength_nm` in `production/config.toml`) |
+| `--wavelength Glutarimide=275 ...` | config, else picked | fix a solute's wavelength (wins over `wavelength_nm` in `production/config.toml`; snapped to the nearest scanned wavelength) |
 | `--nm-range MIN MAX` | 200 700 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
 | `--blank-max` | 1.0 | with `--blank`: read only where every solvent blank is below this absorbance |

@@ -85,7 +85,7 @@ the UV readout can follow (see "Interpretation notes").
 | `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume | no QC plate; the pure-solvent blank wells A1-G1 are read each round separately; `limit_solvent_to_trough = false`: the BO is not held to one trough per solvent, so a round may need a spare trough (`bo_bridge.py layout` warns; add it to `SOLVENT_TROUGHS` here and in the protocol) |
 | `reference` | DMF | pure control in every solute block, never mixed |
 | `arms` | phthalimide: Phthalimide; others: Glutarimide, Boc-hydroxyproline, Succinimide | after the shared round-0 seed design the campaign splits into these independent trajectories, each optimising the minimum over its solutes with its own GPs; every solute is in exactly one arm (`SDL_BO/README.md`, "Arms") |
-| `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; set `wavelength_nm` to the absorption maximum before round 0 (absent = picked from the raw DMF-control spectrum, which lands on DMF's UV edge) |
+| `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; set `wavelength_nm` to the absorption maximum before round 0 (snapped to the nearest scanned wavelength; absent = picked from the raw DMF-control spectrum, which lands on DMF's UV edge) |
 | `solvents` | DMF (A1), acetone (B1), EtOH (C1), i-PrOH (D1), water (E1), i-PrOAc (F1), t-BuOAc (G1) | `name` without hyphens is the CSV identifier, `label` the display name; H1 stays the diluent |
 
 `attacks_polystyrene` marks the solvents expected to craze the polystyrene readout plate (acetone and the esters). Only

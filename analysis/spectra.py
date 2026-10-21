@@ -147,13 +147,18 @@ def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
     return blank_wide.max(axis=1) < blank_max
 
 
+def nearest_nm(index, nm) -> float:
+    """The scanned wavelength closest to nm (a fixed wavelength off the 5 nm grid would read nothing)."""
+    return float(index[np.abs(index.to_numpy(dtype=float) - float(nm)).argmin()])
+
+
 def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrides=None, usable=None):
     """Wavelength per solute: peak of the mean DMF-control spectrum over all plates, within nm_range and,
     if given, within the `usable` mask (wavelengths where every solvent is transparent enough).
 
     Returns (wavelengths Series, report DataFrame). The report says, per solute, where the unrestricted band maximum
     lies, whether the picked wavelength is that maximum or a shoulder, the usable window, and how much of the control
-    signal is left at the picked wavelength. `overrides` ({solute: nm}) win over the picked values.
+    signal is left at the picked wavelength. `overrides` ({solute: nm}) win over the picked values, snapped to the scan.
     """
     controls = plate_map[plate_map["role"] == CONTROL_ROLE]
     lo, hi = nm_range
@@ -164,8 +169,8 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
         allowed = spec if usable is None else spec[usable.reindex(spec.index).fillna(False).to_numpy()]
         if allowed.empty:
             raise SpectraError(f"{solute}: no usable wavelength in {lo:.0f}-{hi:.0f} nm (every point has a solvent blank above the limit)")
-        nm = float(overrides[solute]) if overrides and solute in overrides else float(allowed.idxmax())
         full = pd.concat([s[block.index] for s in spectra_list], axis=1).mean(axis=1)
+        nm = nearest_nm(full.index, overrides[solute]) if overrides and solute in overrides else float(allowed.idxmax())
         tail = full.loc[NOISE_NM[0]:NOISE_NM[1]]
         noise = float(tail.std()) if len(tail) > 3 else np.nan
         signal = float(spec.get(nm, np.nan))

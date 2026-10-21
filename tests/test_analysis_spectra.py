@@ -66,6 +66,11 @@ def test_override_wins_and_missing_control_is_an_error(plates, plate_map):
         reduce_round(no_controls, plates[:1])
 
 
+def test_override_off_the_scan_grid_snaps_to_the_nearest_wavelength(plates, plate_map):
+    wavelengths, endpoints, _, _ = reduce_round(plate_map, plates[:1], overrides={SOLUTES[1]: 302})
+    assert wavelengths[SOLUTES[1]] == 300 and endpoints[0]["absorbance"].notna().all()
+
+
 def test_missing_well_is_an_error(plates, plate_map):
     with pytest.raises(SpectraError, match="B5"):
         reduce_round(plate_map, [plates[0].drop(columns=["B5"])])
