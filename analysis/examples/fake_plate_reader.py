@@ -94,22 +94,6 @@ def fixed_wavelength_export(spectra_long, wavelengths_nm) -> pd.DataFrame:
     return spectra_long[spectra_long["wavelength_nm"].isin(list(wavelengths_nm))].reset_index(drop=True)
 
 
-def qc_spectrum(row, rng, delay_min=0.0) -> np.ndarray:
-    """One QC-plate well: blank = solvent background only; calibration = the loaded mass, capped by solubility in that pure solvent."""
-    fractions = np.array([row.get(f"frac_{s}", 0.0) for s in ALL_SOLVENTS], dtype=float)
-    band = 0.0
-    if row["role"] == "calibration":
-        solubility = dissolved_fraction(fractions, row["solute"])  # as a fraction of the nominal mass
-        band = _band(row["solute"], BAND_HEIGHTS.get(row["solute"], BAND_HEIGHT) * min(float(row["loading"]), solubility))
-    return np.minimum(baseline(WAVELENGTHS) + solvent_absorbance(fractions, WAVELENGTHS) + band + attack(fractions, delay_min, WAVELENGTHS)
-                      + rng.normal(0, NOISE, WAVELENGTHS.size), READER_MAX)
-
-
-def qc_export(qc_map, rng, delay_min=0.0) -> pd.DataFrame:
-    """Full-spectrum export of a QC plate (analysis.qc_layout.qc_plate_map)."""
-    return _long((well, qc_spectrum(row, rng, delay_min)) for well, row in qc_map.iterrows())
-
-
 def plate_log(plate_labels, rng, mean_min=8.0, spread_min=4.0) -> pd.DataFrame:
     """Fake lab log: minutes between the end of shaking and the read, per plate."""
     delays = np.clip(rng.normal(mean_min, spread_min, len(plate_labels)), 1.0, None).round(1)

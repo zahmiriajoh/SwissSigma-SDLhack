@@ -4,15 +4,11 @@
 # examples/ were made before this file existed and stay as frozen records of the earlier names and 1-based numbering.
 
 [numbering]
-# "Numbering for everything starts from zero": rounds, plates and condition counters.
+# "Numbering for everything starts from zero": rounds, plates and conditions (a condition is one solvent or one mixture of solvents).
 # Well names stay A1..H12 (plate-reader and Opentrons convention).
-first_round = 0       # files: plate_map_round0.csv, reader_round0_plate0.csv, ...; ids: R0_seed00 ...
+first_round = 0       # files: plate_map_round0.csv, reader_round0_plate0.csv, ...; ids: R0_seed01 ...
 first_plate = 0       # the three identical plates of a round are plate0, plate1, plate2
-first_condition = 0   # condition counters within an id start at 00
-# Every well on every plate is one sample (user, 2026-10-20): solute = block number in [[solutes]] order,
-# cond = position in that solute's block (cond0 = the DMF control, then the BO conditions in plate order).
-# A1 of round 0, plate 1 is round0_plate1_solute0_cond0. condition_id (the mixture) is kept alongside it.
-sample_id = "round{round}_plate{plate}_solute{solute}_cond{cond}"
+first_condition = 1   # condition 0 is the DMF control (A1 of every solute block); the mixtures are conditions 1-23
 
 [well]
 total_ul = 300                 # liquid per well; the reference control well is 300 uL of pure DMF
@@ -20,9 +16,13 @@ min_ul = 5                     # smallest dispensable component (P20)
 max_solvents_per_mixture = 3
 
 [plates]
-per_round = 3                  # identical sample plates per round (+ 1 QC plate, see analysis qc-layout)
+per_round = 3                  # identical sample plates per round (no QC or blank plate for now)
 trough_fill_ul = 25000         # loaded into every used reservoir trough
 trough_dead_ul = 1000          # left behind in the trough
+limit_solvent_to_trough = false  # false (user decision, 2026-10-20): the BO may ask for more of a solvent than one trough holds.
+                               # bo_bridge layout's fill sheet then says how much to load. Give that solvent a spare trough before the run:
+                               # trough = ["B1", "H1"] below AND the same list in SOLVENT_TROUGHS of both protocols (drop their "diluent"
+                               # entry if H1 is used). true = the BO keeps every round within one trough per solvent.
 
 [reference]
 solvent = "DMF"                # pure control in every solute block; never mixed, never a BO input
@@ -42,8 +42,19 @@ name = "Phthalimide"
 [[solutes]]
 name = "Succinimide"
 
+# After the shared seed round (round 0, every solute on the same conditions) the campaign splits into independent
+# trajectories ("arms"). Each arm optimises the minimum over its solutes, is designed by its own GPs trained only on the
+# seed round and its own wells, and owns the plate blocks of its solutes. Every solute belongs to exactly one arm.
+[[arms]]
+name = "phthalimide"        # letters only: it appears in condition ids (R1_phthalimide_exploit01)
+solutes = ["Phthalimide"]
+
+[[arms]]
+name = "others"
+solutes = ["Glutarimide", "Boc-hydroxyproline", "Succinimide"]
+
 # Solvents. `name` is the identifier used in CSV columns (frac_<name>, vol_<name>_ul) and must not contain hyphens or
-# spaces; `label` is for figures and text. `trough` is the well of the 8-trough reservoir (H1 stays the diluent).
+# spaces; `label` is for figures and text. `trough` is the well of the 8-trough reservoir, or a list of wells (H1 stays the diluent unless used as a spare).
 # attacks_polystyrene marks solvents known to craze or dissolve the polystyrene readout plate (acetone, esters).
 [[solvents]]
 name = "DMF"
@@ -88,8 +99,8 @@ trough = "G1"
 attacks_polystyrene = true
 
 # Solvent pairs that must never share a well: water is immiscible with the two esters, so such mixtures would
-# phase-separate (user decision, 2026-10-20). SDL_BO never proposes them, bo_bridge refuses them, and the QC plate
-# and toy generators skip them. A mixture is forbidden if it contains BOTH solvents of any pair, at any fraction.
+# phase-separate (user decision, 2026-10-20). SDL_BO never proposes them, bo_bridge refuses them, and the
+# toy generators skip them. A mixture is forbidden if it contains BOTH solvents of any pair, at any fraction.
 [[forbidden_pairs]]
 solvents = ["water", "iPrOAc"]
 

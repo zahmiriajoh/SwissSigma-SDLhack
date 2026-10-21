@@ -2,7 +2,7 @@
 
 Runs on a laptop, not on the robot. Standard library only (Python 3.11+ for tomllib). Solvents, solutes, troughs,
 volumes and the numbering convention come from ../production/config.toml (see ../production/README.md); rounds,
-plates and condition counters start at FIRST_ROUND / FIRST_PLATE / FIRST_CONDITION (0).
+plates start at FIRST_ROUND / FIRST_PLATE (0); the DMF control is condition 0, mixtures count from FIRST_CONDITION (1).
 
 Closed loop, one round = one well-level CSV run on up to 3 identical readout plates:
 
@@ -47,9 +47,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 from production.config import (  # noqa: E402
-    ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, MAX_SOLVENTS_PER_MIX, MIN_UL, N_PLATES,
-    REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
-    sample_id,
+    ALL_SOLVENTS, FIRST_CONDITION, FIRST_PLATE, FIRST_ROUND, GREEN_SOLVENTS, LIMIT_SOLVENT_TO_TROUGH, MAX_SOLVENTS_PER_MIX,
+    MIN_UL, N_PLATES, REFERENCE_SOLVENT, SOLUTES, SOLUTE_WAVELENGTH_NM, SOLVENT_TROUGHS, TOTAL_UL, TROUGH_USABLE_UL, is_allowed,
 )
 
 CONTROLS_PER_SOLUTE = 1   # reference-solvent wells per solute per plate
@@ -267,12 +266,12 @@ def cmd_layout(args):
 
     ref_vols, _ = fractions_to_volumes({REFERENCE_SOLVENT: 1.0}, args.total_ul)
     ref_id = f"R{args.round}_{REFERENCE_SOLVENT}ref"
-    wells = []  # (well, solute, condition_id, role, replicate, vols); replicates count from FIRST_CONDITION
+    wells = []  # (well, solute, condition_id, role, replicate, vols); replicates count from 0
     seen_ids = {}
     for s in solutes:
         block = blocks[s]
         for c in range(args.controls_per_solute):
-            wells.append((block[c], s, ref_id, "control", c + FIRST_CONDITION, ref_vols))
+            wells.append((block[c], s, ref_id, "control", c, ref_vols))
         conds = suggestions[s]
         for k, (cond_id, fracs) in enumerate(conds):
             vols, warnings = fractions_to_volumes(fracs, args.total_ul)
@@ -283,10 +282,8 @@ def cmd_layout(args):
             for r in range(args.replicates):
                 # replicate r of condition k: replicate blocks follow each other
                 idx = args.controls_per_solute + r * len(conds) + k
-                wells.append((block[idx], s, cond_id, "sample", r + FIRST_CONDITION, vols))
+                wells.append((block[idx], s, cond_id, "sample", r, vols))
     wells.sort(key=lambda w: PLATE_WELLS.index(w[0]))
-    # sample-id parts: solute block number and position within the block (cond0 = first well = DMF control)
-    block_pos = {w: (i, FIRST_CONDITION + blocks[s].index(w)) for i, s in enumerate(solutes) for w in blocks[s]}
 
     tag = f"round{args.round}"
     ot_path = os.path.join(args.outdir, f"ot_input_{tag}.csv")
@@ -301,9 +298,8 @@ def cmd_layout(args):
     )
     write_csv(
         map_path,
-        ["round", "well", "row", "col", "solute", "condition_id", "role", "replicate", "solute_index", "cond"]
-        + FRAC_COLS + VOL_COLS,
-        [[args.round, w, w[0], w[1:], s, cid, role, rep, *block_pos[w]]
+        ["round", "well", "row", "col", "solute", "condition_id", "role", "replicate"] + FRAC_COLS + VOL_COLS,
+        [[args.round, w, w[0], w[1:], s, cid, role, rep]
          + [fmt(v[x] / args.total_ul) for x in ALL_SOLVENTS] + [f"{v[x]:g}" for x in ALL_SOLVENTS]
          for w, s, cid, role, rep, v in wells],
     )
@@ -323,8 +319,11 @@ def cmd_layout(args):
         flag = "" if need <= have else "  <-- TOO MUCH: add the spare trough in the protocol + here"
         ok &= need <= have
         print(f"  {x:<7} trough {','.join(SOLVENT_TROUGHS[x]):<6} needs {need / 1000:5.2f} mL{flag}")
-    if not ok:
+    if not ok and LIMIT_SOLVENT_TO_TROUGH:
         sys.exit(1)
+    if not ok:  # the BO is not limited to one trough (production/config.toml): the lab loads spare troughs instead
+        print("\nWARNING: a solvent above needs more than one trough holds (limit_solvent_to_trough = false). Add spare troughs to "
+              "SOLVENT_TROUGHS in the protocol and in production/config.toml, and load them, before running this round.")
 
 
 # ---------------------------------------------------------------------------
@@ -405,13 +404,6 @@ def reader_lookup(readings):
     return absorbance
 
 
-def well_sample_id(m, plate):
-    """Sample id of plate-map row m on `plate`; needs the solute_index/cond columns that layout writes."""
-    if "cond" not in m:
-        sys.exit("plate map has no solute_index/cond columns: re-run bo_bridge.py layout to add sample ids")
-    return sample_id(m["round"], plate, m["solute_index"], m["cond"])
-
-
 def cmd_merge(args):
     plate_map = read_dicts(args.plate_map)
     round_ = plate_map[0]["round"]
@@ -446,9 +438,9 @@ def cmd_merge(args):
         os.path.dirname(os.path.abspath(args.plate_map)), f"results_round{round_}_wells.csv")
     write_csv(
         wells_path,
-        ["round", "plate", "well", "sample_id", "solute", "condition_id", "role", "replicate",
+        ["round", "plate", "well", "solute", "condition_id", "role", "replicate",
          "abs_raw", "abs_blank", "abs_corrected", "rel_to_DMF"],
-        [[round_, p, m["well"], well_sample_id(m, p), m["solute"], m["condition_id"], m["role"], m["replicate"],
+        [[round_, p, m["well"], m["solute"], m["condition_id"], m["role"], m["replicate"],
           fmt(raw), fmt(blank), fmt(c), fmt(rel(m, c))] for p, m, raw, blank, c in obs],
     )
 

@@ -93,7 +93,7 @@ cat <<EOF
 
 All good. The repository is ready. Run commands through uv, from this folder:
 
-    bash production/run_bo.sh csvs              # one BO round from the lab's csvs/ folder
+    bash production/run_bo.sh production/csvs              # one BO round from the lab's csvs/ folder
     uv run python -m analysis --help            # plate-reader analysis
     uv run python -m SDL_BO --help              # Bayesian optimisation
     uv run pytest tests/                        # all tests

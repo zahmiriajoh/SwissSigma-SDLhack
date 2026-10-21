@@ -36,6 +36,8 @@ def test_bo_bridge_and_sdl_bo_follow_the_config():
 def test_protocols_mirror_the_config_troughs(protocol):
     troughs = protocol_constant(protocol, "SOLVENT_TROUGHS")
     assert {k: v for k, v in troughs.items() if k != "diluent"} == config.SOLVENT_TROUGHS
+    used = {well for wells in config.SOLVENT_TROUGHS.values() for well in wells}
+    assert not used & set(troughs.get("diluent", []))  # a spare trough on H1 means dropping the protocol's diluent entry
     assert protocol_constant(protocol, "TROUGH_FILL_UL") == config.TROUGH_FILL_UL
     assert protocol_constant(protocol, "TROUGH_DEAD_UL") == config.TROUGH_DEAD_UL
 
@@ -52,7 +54,7 @@ def test_bo_bridge_layout_accepts_seed_design(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert "snapped" not in result.stdout  # 5 uL grid: nothing gets rounded
     plate_map = pd.read_csv(tmp_path / f"plate_map_round{R0}.csv")
-    assert plate_map["condition_id"].iloc[1] == f"R{R0}_seed{config.FIRST_CONDITION:02d}" and plate_map["replicate"].min() == config.FIRST_CONDITION
+    assert plate_map["condition_id"].iloc[1] == f"R{R0}_seed{config.FIRST_CONDITION:02d}" and plate_map["replicate"].min() == 0
     assert len(plate_map) == 96
     per_solute = plate_map.groupby("solute")["role"].value_counts().unstack()
     assert (per_solute["control"] == 1).all() and (per_solute["sample"] == campaign.N_CONDITIONS).all()
@@ -108,3 +110,14 @@ def test_bo_bridge_grid_and_layout_respect_forbidden_pairs(tmp_path):
         bad.to_csv(tmp_path / "bad.csv", index=False)
         result = run_bridge("layout", "--round", R0, "--suggestions", tmp_path / "bad.csv", "--outdir", tmp_path / "bad")
         assert result.returncode != 0 and "forbidden" in result.stdout + result.stderr
+
+
+def test_layout_warns_but_succeeds_when_a_solvent_exceeds_its_trough(tmp_path):
+    """Production has no solvent cap (limit_solvent_to_trough = false): layout says to add troughs instead of failing."""
+    assert not config.LIMIT_SOLVENT_TO_TROUGH
+    suggestions = tmp_path / "suggestions.csv"
+    rows = [{"condition_id": f"R0_x{i:02d}", **{f"frac_{s}": float(s == "acetone") for s in config.GREEN_SOLVENTS}} for i in range(23)]
+    pd.DataFrame(rows).to_csv(suggestions, index=False)  # 23 conditions of pure acetone: far more than one trough
+    result = run_bridge("layout", "--round", R0, "--suggestions", suggestions, "--outdir", tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "TOO MUCH" in result.stdout and "WARNING" in result.stdout and (tmp_path / f"ot_input_round{R0}.csv").exists()

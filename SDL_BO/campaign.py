@@ -3,18 +3,23 @@
     first round:  the pure green solvents + space-filling mixtures             (N_CONDITIONS rows)
     later rounds: N_RETESTS re-tests + N_EXPLOIT exploit + N_EXPLORE explore  (N_CONDITIONS rows)
 
-Rounds and condition counters start at production.config's FIRST_ROUND / FIRST_CONDITION (0): R0_seed00, R1_exploit00.
+Rounds start at production.config's FIRST_ROUND (0), mixture counters at FIRST_CONDITION (1; condition 0 is the DMF control): R0_seed01, R1_exploit01.
 
 `bo_bridge.py layout` adds the DMF control well itself, so no control row is written. With bo_bridge's default
 layout (4 solutes x 24 wells, 1 DMF control each) 23 conditions fit per round, each on 3 identical plates.
+
+After the shared seed round the campaign can split into arms (production/config.toml `[[arms]]`): `suggest_arms`
+designs each arm from its own solutes' rows and returns one table with a `solute` column.
 """
 import warnings
 
 import numpy as np
 import pandas as pd
 
+from production.config import ARMS
+
 from . import space
-from .dataset import load_dataset, next_round_number, score_mixtures, solutes, unmeasurable_solutes
+from .dataset import excluded_solutes, load_dataset, next_round_number, score_mixtures, solutes
 from .model import Budget, fit_best_gp, pick_exploit_batch, pick_explore_batch
 
 N_CONDITIONS = 23  # conditions per solute in the default bo_bridge layout
@@ -30,8 +35,9 @@ def suggestion_rows(green_ul, condition_ids) -> pd.DataFrame:
     return rows
 
 
-def _ids(round_number, tag, n) -> list:
-    return [f"R{round_number}_{tag}{i:02d}" for i in range(space.FIRST_CONDITION, space.FIRST_CONDITION + n)]
+def _ids(round_number, tag, n, arm=None) -> list:
+    prefix = f"R{round_number}_{arm}_" if arm else f"R{round_number}_"  # arms need distinct ids: they share no conditions
+    return [f"{prefix}{tag}{i:02d}" for i in range(space.FIRST_CONDITION, space.FIRST_CONDITION + n)]
 
 
 def _round_budget(n_solutes=space.N_SOLUTES) -> Budget:
@@ -88,19 +94,28 @@ def _retest_rows(dataset: pd.DataFrame, mixtures: pd.DataFrame, n_retests: int, 
     return suggestion_rows(np.array(chosen).reshape(-1, len(space.GREEN_SOLVENTS)), [first_id[k] for k in chosen])
 
 
-def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n_retests=N_RETESTS, seed=0):
-    """Design the next round from bo_dataset.csv; returns (suggestions DataFrame, info dict)."""
+def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n_retests=N_RETESTS, seed=0,
+                       arm=None, arm_solutes=None):
+    """Design the next round from bo_dataset.csv; returns (suggestions DataFrame, info dict).
+
+    With `arm_solutes` only those solutes' rows train the GPs and score the mixtures (one arm's trajectory); the trough
+    budget still assumes every solute of the campaign shares the round, and ids carry the `arm` name.
+    """
     dataset = load_dataset(dataset_path)
+    if arm_solutes is not None:
+        dataset = dataset[dataset["solute"].isin(arm_solutes)].reset_index(drop=True)
+        if dataset.empty:
+            raise ValueError(f"the dataset has no rows for the solutes of arm '{arm}': {arm_solutes}")
     round_number = next_round_number(dataset)
-    unmeasurable = unmeasurable_solutes(dataset_path)  # scored on the measurable solutes only, as analysis report does
+    unmeasurable = excluded_solutes(dataset_path, dataset)  # scored on the measurable solutes only, as analysis report does
     mixtures = score_mixtures(dataset, exclude=unmeasurable)
     if mixtures["score"].isna().all():
         raise ValueError("no mixture has been measured on every solute, so there is no score to improve on")
     fitted = fit_per_solute(dataset, seed)
-    gps = [fitted[s].gp for s in solutes(dataset)]
+    gps = [fitted[s].gp for s in solutes(dataset) if s not in unmeasurable]  # the picks and the incumbent use the same solutes
     rng = np.random.default_rng(seed + round_number)
 
-    budget = _round_budget(len(gps))
+    budget = _round_budget(space.N_SOLUTES if arm else len(solutes(dataset)))
     retests = _retest_rows(dataset, mixtures, n_retests, budget)
     untested = _untested_mixtures(set(dataset["mixture_key"]))
     candidates = space.to_fractions(untested)
@@ -112,8 +127,8 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
 
     suggestions = pd.concat([
         retests,
-        suggestion_rows(untested[exploit], _ids(round_number, "exploit", len(exploit))),
-        suggestion_rows(untested[explore], _ids(round_number, "explore", len(explore))),
+        suggestion_rows(untested[exploit], _ids(round_number, "exploit", len(exploit), arm)),
+        suggestion_rows(untested[explore], _ids(round_number, "explore", len(explore), arm)),
     ], ignore_index=True)
     if len(suggestions) < n_retests + n_exploit + n_explore:
         warnings.warn(f"round {round_number}: only {len(suggestions)} conditions fit the solvent budget")
@@ -126,3 +141,17 @@ def suggest_next_round(dataset_path, n_exploit=N_EXPLOIT, n_explore=N_EXPLORE, n
         "unmeasurable": unmeasurable,
     }
     return suggestions, info
+
+
+def suggest_arms(dataset_path, arms=None, seed=0):
+    """Next round for every arm ({arm: solutes}, default production's); returns (suggestions, {arm: info}).
+
+    One table in bo_bridge's `solute` format: each arm's conditions are listed once per solute of that arm, so
+    `bo_bridge.py layout` puts them in those solutes' plate blocks only.
+    """
+    arms = ARMS if arms is None else arms
+    parts, infos = [], {}
+    for arm, arm_solutes in arms.items():
+        suggestions, infos[arm] = suggest_next_round(dataset_path, seed=seed, arm=arm, arm_solutes=arm_solutes)
+        parts += [suggestions.assign(solute=s) for s in arm_solutes]
+    return pd.concat(parts, ignore_index=True), infos

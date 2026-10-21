@@ -21,8 +21,8 @@ Default layout; solutes, solvents, troughs, volumes and numbering come from
   (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`).
   Pairs listed under `[[forbidden_pairs]]` in the config (water with either ester, immiscible) are
   skipped by `grid` and rejected by `layout`.
-- **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`), condition
-  counters (`R0_grid00`) and replicates. Well names stay `A1`–`H12`.
+- **Numbering starts at 0:** rounds (`round0`), plates (`plate0`–`plate2`) and replicates. The DMF control is
+  condition 0 and the mixtures count from 1 (`R0_grid01`). Well names stay `A1`–`H12`.
 
 Change the layout with flags on `grid` and `layout` (or the constants at the top of `bo_bridge.py`):
 
@@ -72,7 +72,8 @@ giving the solvent ratio. Missing columns count as 0, and rows are renormalised 
 and scaled to 300 µL. Optional columns:
 - `solute`: empty means the condition runs on **every** solute (a shared condition).
   Filled in, it runs on that solute only. This lets BO either optimise one mixture for
-  all solutes, or each solute separately, or both in the same round.
+  all solutes, or each solute separately, or both in the same round. `SDL_BO suggest --branch`
+  uses it: each arm's conditions are listed once per solute of that arm.
 - `condition_id`: generated if omitted.
 
 Each solute can take at most "conditions per solute" rows (23 by default). Unfilled wells
@@ -105,11 +106,9 @@ in both files.
 **Plate reader exports**: one file per plate, passed to `--reader` in plate order. Each
 can be either a long table with a `Well` column (`A1`/`A01`, plus an optional wavelength
 column; pick one with `--wavelength`, or set `SOLUTE_WAVELENGTH_NM` for a different
-wavelength per solute), or an 8×12 grid with a row letter in the first cell. To subtract
-solvent background pass a blank export as `--blank`: either a solvent-only plate with the same
-layout, or the per-well blank that `python -m analysis reduce` builds from the QC plate's
-pure-solvent wells (`endpoint_roundN_blank.csv`; see `../analysis/README.md`). `analysis reduce`
-also turns full-spectrum exports into the single-value files this command takes.
+wavelength per solute), or an 8×12 grid with a row letter in the first cell. No blanks are run
+for now, so nothing is subtracted; to subtract solvent background later, pass a solvent-only plate with the
+same layout as `--blank`. `analysis reduce` also turns full-spectrum exports into the single-value files this command takes.
 
 ## What the robot does
 
@@ -153,7 +152,12 @@ Reservoir troughs (25 mL each, from `production/config.toml`; `SOLVENT_TROUGHS` 
 is a hand-kept mirror checked by the tests): A1 DMF, B1 acetone, C1 EtOH, D1 i-PrOH, E1 water,
 F1 i-PrOAc, G1 t-BuOAc, H1 diluent. With this volume model the diluent isn't used. The protocol
 fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
-needs per round; round 0 needs up to about 14.4 mL per solvent.
+needs per round; the committed round 0 needs up to about 19 mL (acetone).
+
+**More than 24 mL of a solvent.** The BO is not limited to one trough per solvent (`limit_solvent_to_trough = false`), so a
+later round can need more (`layout` then prints "TOO MUCH" and a warning, and the protocol refuses to run). Give that solvent a
+second trough: `trough = ["D1", "H1"]` for it in the config and the same list in `SOLVENT_TROUGHS` of both protocols (this one
+and `../OTFlex analog/`), dropping their `diluent` entry if H1 is used, then load both troughs. `tests/` check the three agree.
 
 **Backup reservoir (slot 4):** a second `axygen_8_reservoir_30000ul` with the same trough layout. Fill it like
 slot 5 (the protocol assumes 25 mL in every used trough of both). A solvent draws from its slot-5 trough until that
@@ -196,12 +200,9 @@ polystyrene, and the polypropylene plates have U- or V-bottom wells and are not
 UV-transparent.
 
 To limit and measure the effect:
-- **Blank wells:** the QC plate (`python -m analysis qc-layout`, one extra 1-plate run per
-  round) holds solvent-only wells; `analysis reduce` combines them into a per-well blank for
-  `merge --blank`, and `analysis qc` checks whether acetone- and ester-rich blanks read high
-  and whether they grow with the read delay. A full solvent-only copy of the sample plate
-  (same `ot_input` CSV, no solids) also works as `--blank` and sees exactly the same solvent
-  and contact time per well.
+- **Blank wells (not run for now):** a full solvent-only copy of the sample plate (same
+  `ot_input` CSV, no solids) works as `--blank` and sees exactly the same solvent and contact
+  time per well. Without one, acetone- and ester-rich wells cannot be checked for plate attack.
 - **Consistent timing:** read each plate soon after shaking, and keep the timing the same
   every round.
 - **Check plates by eye:** look for cloudy or warped wells before reading, and note any.
@@ -236,7 +237,7 @@ OT protocols/
 ├── sdl_solubility_ot2.py   OT-2 protocol (upload to the Opentrons app)
 ├── bo_bridge.py            grid / layout / merge / plate-svg (runs on a laptop)
 ├── labware/                custom labware JSONs (import into the Opentrons app)
-├── examples/               round-1 suggestions, robot CSV and plate map
+├── examples/               round-0 suggestions, robot CSV and plate map
 ├── maps/                   plate_layout.svg, deck_map.svg
 ├── tools/                  check_all.py, draw_deck_map.py, draw_plate_map.py
 └── archive/                earlier Flex version (not maintained)

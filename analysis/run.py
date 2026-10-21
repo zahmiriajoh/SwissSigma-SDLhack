@@ -6,13 +6,13 @@ Expected files in the folder, per round N (missing optional ones are skipped by 
     bo_dataset.csv, bo_dataset_shared.csv   bo_bridge merge   per solute x condition / per shared condition, all rounds
     wavelengths_roundN.csv          analysis reduce       solute -> wavelength_nm                      (optional)
     reader_roundN_plate{P}.csv, reader_roundN_blank.csv   plate reader   spectra                      (optional)
-    reader_roundN_qc.csv, qc_plate_map_roundN.csv        QC plate: blanks + calibration series       (optional)
     plate_log_roundN.csv            lab notes             plate, read_delay_min (shake end -> read)   (optional)
 
 Files may sit in the folder itself or in its `ratios/` (robot inputs, plate maps) and `uvvis/` (reader exports, plate
 logs) subfolders, the production layout (production/README.md); the first match wins.
 """
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +20,7 @@ import pandas as pd
 
 from production.config import REFERENCE_SOLVENT
 
-from .spectra import SpectraError, read_plate_map, read_spectra, synthetic_blank
+from .spectra import SpectraError, read_plate_map, read_spectra
 
 KINDS = ["control", "seed", "exploit", "explore", "retest"]
 NOISE_FLOOR = 0.01  # per-well relative noise assumed when a campaign has neither replicate plates nor re-tests
@@ -28,8 +28,8 @@ _KIND_TAGS = {"dmfref": "control", "grid": "seed", "seed": "seed", "exploit": "e
 
 
 def condition_kind(condition_id, round_) -> str:
-    """'R2_exploit03' in round 2 -> 'exploit'; an id first used in an earlier round -> 'retest'."""
-    m = re.fullmatch(r"R(\d+)_([A-Za-z]+?)(?:ref)?\d*", str(condition_id))
+    """'R2_exploit03' (or 'R2_others_exploit03', an arm's id) in round 2 -> 'exploit'; an id first used earlier -> 'retest'."""
+    m = re.fullmatch(r"R(\d+)_(?:[A-Za-z]+_)?([A-Za-z]+?)(?:ref)?\d*", str(condition_id))
     if m is None:
         return "seed"
     if m.group(2).lower() == "dmf":
@@ -56,7 +56,8 @@ def mixture_key(row, cols) -> str:
 class Run:
     """Lazy reader for a campaign folder."""
 
-    def __init__(self, folder):
+    def __init__(self, folder, solutes=None):
+        """`solutes` restricts the run to those solutes' wells and rows: one arm's view, so every objective is that arm's."""
         self.folder = Path(folder)
         self.dirs = [d for d in (self.folder, self.folder / "ratios", self.folder / "uvvis") if d.is_dir()]
         laid_out = sorted({int(m.group(1)) for d in self.dirs for p in d.glob("plate_map_round*.csv")
@@ -75,12 +76,18 @@ class Run:
         if dataset is None:
             raise SpectraError(f"bo_dataset.csv missing in {self.folder}: run bo_bridge.py merge first")
         self.dataset = self._with_kind(pd.read_csv(dataset))
+        if solutes is not None:
+            self.wells = self.wells[self.wells["solute"].isin(solutes)].reset_index(drop=True)
+            self.dataset = self.dataset[self.dataset["solute"].isin(solutes)].reset_index(drop=True)
         shared = self._optional("bo_dataset_shared.csv")
         self.shared = self._with_kind(pd.read_csv(shared)) if shared else None
         self.solutes = list(dict.fromkeys(self.dataset["solute"]))
         self.solvents = solvent_names(self.dataset)
         self.green_solvents = [s for s in self.solvents if s != REFERENCE_SOLVENT]
-        self.unmeasurable = self._unmeasurable_solutes()  # declared by `analysis reduce` (wavelengths_roundN.csv, column measurable)
+        self.unmeasurable = [s for s in self._unmeasurable_solutes() if s in self.solutes]  # `analysis reduce` (column measurable)
+        if self.unmeasurable == sorted(self.solutes):
+            warnings.warn(f"every solute ({', '.join(self.solutes)}) is flagged not measurable; scoring them anyway")
+            self.unmeasurable = []
         self.measurable_solutes = [s for s in self.solutes if s not in self.unmeasurable]
 
     # ----- per-round optional files -----------------------------------------------------------
@@ -114,24 +121,9 @@ class Run:
         path = self._optional(f"reader_round{r}_plate{plate}.csv")
         return read_spectra(path) if path else None
 
-    def blank_spectra(self, r):
-        path = self._optional(f"reader_round{r}_blank.csv")
-        return read_spectra(path) if path else None
-
     def blank(self, r):
-        """Blank spectra for round r: the solvent-only plate if read, else built from the QC plate's pure-solvent blanks."""
-        plate = self.blank_spectra(r)
-        if plate is not None:
-            return plate
-        qc_map, qc_spec = self.qc_map(r), self.qc_spectra(r)
-        return synthetic_blank(qc_spec, qc_map, self.plate_maps[r]) if qc_map is not None and qc_spec is not None else None
-
-    def qc_map(self, r):
-        path = self._optional(f"qc_plate_map_round{r}.csv")
-        return pd.read_csv(path, index_col="well") if path else None
-
-    def qc_spectra(self, r):
-        path = self._optional(f"reader_round{r}_qc.csv")
+        """Solvent-only plate spectra for round r, or None (no blanks are run at the moment)."""
+        path = self._optional(f"reader_round{r}_blank.csv")
         return read_spectra(path) if path else None
 
     def plate_log(self):

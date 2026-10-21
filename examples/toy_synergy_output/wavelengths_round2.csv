@@ -1,5 +1,5 @@
-solute,wavelength_nm
-S1,275.0
-S2,320.0
-S3,351.0
-S4,416.0
+solute,wavelength_nm,band_max_nm,at_band_max,window_min_nm,window_max_nm,control_signal,signal_fraction,noise,measurable
+Boc-hydroxyproline,350.0,230.0,False,230.0,800.0,2.68,0.836,0.003,True
+Glutarimide,275.0,253.0,False,230.0,800.0,2.383,0.697,0.002,True
+Phthalimide,295.0,230.0,False,230.0,800.0,0.745,0.232,0.002,True
+Succinimide,410.0,230.0,False,230.0,800.0,0.128,0.04,0.002,True

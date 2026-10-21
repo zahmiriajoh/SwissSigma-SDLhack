@@ -6,10 +6,10 @@ Fake solubility of a mixture = sum over solvents of (fraction x that solvent's p
 synergy, and one solvent (DOMINANT) is best for every solute. The optimum is then 100% DOMINANT: the report's best
 mixture must be the pure solvent and the exploit picks should move towards it.
 
-How far they can move is capped by the hardware: one 25 mL trough per solvent feeds 3 plates x 4 solutes, so a
-round's 23 conditions may hold at most ~1960 uL of any solvent (mean fraction 0.28). With that cap the BO instead
-spends the whole DOMINANT budget on the DOMINANT-richest untested mixtures. `--one-plate` loosens the cap
-(5880 uL) and shows the exploit picks themselves becoming DOMINANT-rich.
+With the solvent cap on (`limit_solvent_to_trough = true`) how far they can move is capped by the hardware: one 25 mL
+trough per solvent feeds 3 plates x 4 solutes, so a round's 23 conditions may hold at most ~1960 uL of any solvent (mean
+fraction 0.28), and the BO spends the whole DOMINANT budget on the DOMINANT-richest untested mixtures. `--one-plate`
+loosens that cap (5880 uL). Production has the cap off, so the picks are not limited unless the config says `true`.
 
 Run from the repo root with `uv run` (~1 min per round on the 5 uL grid, ~10 s with --coarse):
     python examples/toy_additive_pipeline.py [--rounds 3] [--coarse] [--one-plate] [--dominant EtOH] [--outdir DIR]

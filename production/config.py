@@ -16,6 +16,11 @@ from pathlib import Path
 CONFIG_PATH = Path(__file__).with_name("config.toml")
 
 
+def _as_list(trough) -> list:
+    """A solvent's `trough` is one well ("B1") or several ("B1", "H1") when a round needs more than one trough holds."""
+    return [trough] if isinstance(trough, str) else list(trough)
+
+
 def load(path=CONFIG_PATH) -> dict:
     """The validated config as a dict; raises ValueError on an inconsistent file."""
     with open(path, "rb") as f:
@@ -29,7 +34,7 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError("solvent names appear in CSV columns and ids: use labels for hyphens (e.g. name iPrOH, label i-PrOH)")
     if len(set(solvents)) != len(solvents) or len(set(solutes)) != len(solutes):
         raise ValueError("duplicate solvent or solute name")
-    troughs = [s["trough"] for s in cfg["solvents"]]
+    troughs = [t for s in cfg["solvents"] for t in _as_list(s["trough"])]
     if len(set(troughs)) != len(troughs):
         raise ValueError(f"two solvents share a trough: {troughs}")
     if cfg["reference"]["solvent"] not in solvents:
@@ -39,6 +44,13 @@ def load(path=CONFIG_PATH) -> dict:
         raise ValueError(f"numbering.sample_id needs {{round}}, {{plate}}, {{solute}} and {{cond}}, got {sorted(fields)}")
     if cfg["well"]["total_ul"] % cfg["well"]["min_ul"]:
         raise ValueError("total_ul must be a multiple of min_ul")
+    arms = cfg.get("arms", [])
+    if arms:
+        names, in_arms = [a["name"] for a in arms], [s for a in arms for s in a["solutes"]]
+        if any(not re.fullmatch(r"[A-Za-z]+", n) for n in names) or len(set(names)) != len(names):
+            raise ValueError(f"arm names must be unique and letters only (they are part of condition ids): {names}")
+        if sorted(in_arms) != sorted(solutes):
+            raise ValueError(f"every solute must be in exactly one arm: arms hold {in_arms}, solutes are {solutes}")
     for pair in cfg.get("forbidden_pairs", []):
         if len(pair["solvents"]) != 2 or not set(pair["solvents"]) <= set(solvents):
             raise ValueError(f"forbidden pair must name two known solvents: {pair}")
@@ -60,12 +72,13 @@ N_PLATES = _cfg["plates"]["per_round"]
 TROUGH_FILL_UL = _cfg["plates"]["trough_fill_ul"]
 TROUGH_DEAD_UL = _cfg["plates"]["trough_dead_ul"]
 TROUGH_USABLE_UL = TROUGH_FILL_UL - TROUGH_DEAD_UL
+LIMIT_SOLVENT_TO_TROUGH = _cfg["plates"].get("limit_solvent_to_trough", True)  # BO's per-round solvent cap, see SDL_BO/space.py
 
 REFERENCE_SOLVENT = _cfg["reference"]["solvent"]
 ALL_SOLVENTS = [s["name"] for s in _cfg["solvents"]]                     # reference first, as in bo_bridge
 GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]
 SOLVENT_LABELS = {s["name"]: s["label"] for s in _cfg["solvents"]}
-SOLVENT_TROUGHS = {s["name"]: [s["trough"]] for s in _cfg["solvents"]}   # bo_bridge / protocol format (list per solvent)
+SOLVENT_TROUGHS = {s["name"]: _as_list(s["trough"]) for s in _cfg["solvents"]}   # bo_bridge / protocol format (list per solvent)
 PLATE_ATTACKERS = [s["name"] for s in _cfg["solvents"] if s["attacks_polystyrene"]]
 
 # Pairs of solvents that may not share a well (immiscible). See is_allowed().
@@ -84,4 +97,5 @@ def is_allowed(solvent_names) -> bool:
 
 
 SOLUTES = [s["name"] for s in _cfg["solutes"]]
+ARMS = {a["name"]: a["solutes"] for a in _cfg.get("arms", [])}  # {arm: its solutes}; empty = one shared trajectory
 SOLUTE_WAVELENGTH_NM = {s["name"]: s.get("wavelength_nm") for s in _cfg["solutes"]}  # None = unknown, pick from data

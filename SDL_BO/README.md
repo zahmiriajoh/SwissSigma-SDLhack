@@ -2,7 +2,7 @@
 
 Bayesian optimisation for the green-solvent screen. **`bo_dataset.csv` in, suggestions CSV out.** It knows
 nothing about the robot or the plate reader: `OT protocols/bo_bridge.py` owns every file format, and SDL_BO
-reads and writes exactly those. The dataset file is the only state.
+reads and writes exactly those. The dataset file is the only state (plus the `wavelengths_roundN.csv` files next to it, read for the `measurable` flags).
 
 ## Install
 
@@ -17,6 +17,7 @@ python bo_bridge.py layout            ──► ot_input_round0.csv + plate_map_
 OT-2 run, plate reader, analysis      ──► one absorbance per well per plate
 python bo_bridge.py merge             ──► bo_dataset.csv
 python -m SDL_BO suggest              ──► suggestions_round1.csv   ... repeat layout / run / merge / suggest
+python -m SDL_BO suggest --branch     ──► the same with one trajectory per arm of production/config.toml (production)
 ```
 
 ```bash
@@ -28,25 +29,25 @@ python -m SDL_BO report  --dataset runs/bo_dataset.csv
 | Command | What it does |
 |---|---|
 | `init [--out FILE] [--force]` | First-round (round 0) design: the 6 pure green solvents + 17 space-filling mixtures. Refuses to overwrite without `--force`. |
-| `suggest --dataset FILE [--out FILE] [--seed N]` | Next round from the dataset: 3 re-tests + 12 exploit + 8 explore. Default output `suggestions_round<N>.csv`. |
-| `report --dataset FILE` | Best mixture, best pure solvent, Pareto front. |
+| `suggest --dataset FILE [--out FILE] [--seed N] [--branch]` | Next round from the dataset: 3 re-tests + 12 exploit + 8 explore. Default output `suggestions_round<N>.csv`. `--branch` designs every arm separately (see "Arms"). |
+| `report --dataset FILE [--branch]` | Best mixture, best pure solvent, Pareto front; `--branch` prints one per arm. |
 
 `bo_bridge.py grid` is an alternative first-round design (random balanced binaries/ternaries); `init` picks maximin-spread mixtures instead.
 
 ## Formats (all defined by bo_bridge.py; names, volumes and numbering come from `production/config.toml`)
 
-**Output, `suggestions_roundN.csv`**: one row per condition, run on every solute (no `solute` column).
+**Output, `suggestions_roundN.csv`**: one row per condition, run on every solute (no `solute` column). With `--branch` it has a `solute` column instead: see "Arms".
 
 ```csv
 condition_id,frac_acetone,frac_EtOH,frac_iPrOH,frac_water,frac_iPrOAc,frac_tBuOAc
-R1_exploit00,0.2833,0.0,0.35,0.0,0.3667,0.0
+R1_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 ```
 
-- 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
+- 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). With `--branch` the file lists 23 conditions for each of the 4 solutes (92 rows). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
 - Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
 - Mixtures containing a forbidden (immiscible) pair from `production/config.toml` (water with i-PrOAc or t-BuOAc) are never enumerated, so neither the seed design nor any pick contains one.
-- Per round, the conditions use at most 1960 µL of any one solvent in a single well set, so 3 plates × 4 solutes fit one 25 mL trough (24 mL usable, 2 % margin). Re-tests, exploit and explore picks are chosen within this budget; if fewer fit, fewer rows are written (bo_bridge leaves wells empty).
-- `condition_id`: `R<round>_seed00`, `R<round>_exploit00`, `R<round>_explore00` (rounds and counters start at 0, as in `production/config.toml`); a re-test keeps the id it was first run under.
+- **No solvent cap in production** (`limit_solvent_to_trough = false` in `production/config.toml`): picks are not limited by one trough per solvent, so `bo_bridge.py layout` may report a solvent that needs a spare trough (it warns and still writes the files). With `true`, the conditions use at most 1960 µL of any one solvent in a single well set (3 plates × 4 solutes fit one 25 mL trough: 24 mL usable, 2 % margin), and fewer rows are written if fewer fit.
+- `condition_id`: `R<round>_seed01`, `R<round>_exploit01`, `R<round>_explore01`; in an arm `R<round>_<arm>_exploit01` etc. (rounds start at 0 and mixture counters at 1, as in `production/config.toml`; condition 0 is the DMF control); a re-test keeps the id it was first run under.
 
 **Input, `bo_dataset.csv`** (from `bo_bridge.py merge`): one row per round × solute × condition with `round, solute,
 condition_id, is_reference, frac_<solvent>..., rel_mean, ...`. SDL_BO uses `rel_mean` (absorbance relative to the
@@ -56,17 +57,33 @@ warning. Malformed files (fractions not summing to 1, DMF in a mixture, non-inte
 ## How results are scored
 
 - **ratio_\<solute\>** = `rel_mean`, averaged over every condition row with the same composition (re-tests across rounds).
-- **score** of a mixture = its worst solute's ratio. 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
+- **score** of a mixture = its worst solute's ratio (in an arm: the worst among the arm's solutes). 1.0 means as good as DMF for every solute. The optimizer maximizes it; a mixture that some solute never saw has no score.
 - Solutes flagged `measurable = False` in any `wavelengths_roundN.csv` next to the dataset (written by `analysis reduce` when a solute's DMF control is within the noise) stay in the data but are left out of the score, as in `analysis report`; `suggest` and `report` say which.
+
+## Arms: one shared seed round, then independent trajectories
+
+`production/config.toml` defines `[[arms]]`: **phthalimide** (the phthalimide solubility alone) and **others** (the minimum over
+glutarimide, Boc-hydroxyproline and succinimide). Round 0 is the shared seed design on all four solutes. From round 1 on,
+`suggest --branch` designs each arm on its own:
+
+- an arm's GPs (one per solute of the arm, so 1 and 3) train only on that solute's rows: the seed round and the arm's own wells;
+- the arm's score is the minimum over its solutes (for phthalimide, just its ratio); the arm's 23 conditions fill 23 wells in each of its solutes' plate blocks;
+- the output lists each arm's conditions once per solute of the arm in a `solute` column, which `bo_bridge.py layout` already
+  understands, so the phthalimide block and the other three blocks get different conditions on the same plates;
+- ids carry the arm (`R1_others_exploit01`) so the arms' conditions never collide; a re-test keeps the id it was first run under;
+- with the cap on, the trough budget is split by plate blocks, one quarter of each solvent's trough per solute, so every arm's
+  conditions stay within the same 1960 µL per solvent as before; with it off (production) the arms are not limited;
+- if every solute of an arm is flagged not measurable, they are scored anyway, with a warning.
 
 ## Use from Python
 
 ```python
-from SDL_BO.campaign import seed_design, suggest_next_round
+from SDL_BO.campaign import seed_design, suggest_arms, suggest_next_round
 from SDL_BO.report import make_report
 
 seed_design()                                         # DataFrame, round-0 suggestions
 suggestions, info = suggest_next_round("bo_dataset.csv")  # info: round, kernels, cv_rmse, incumbent_score
+suggestions, infos = suggest_arms("bo_dataset.csv")        # branched: `solute` column, infos per arm
 print(make_report("bo_dataset.csv"))
 ```
 
@@ -76,16 +93,17 @@ print(make_report("bo_dataset.csv"))
 
 `examples/make_examples.py` runs the real loop (SDL_BO → `bo_bridge.py layout` → fake plate reader from
 `analysis/examples/fake_plate_reader.py` → `bo_bridge.py merge` → SDL_BO) for 3 rounds and leaves the files in
-`examples/`: `suggestions_round0..3.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results.
+`examples/`: `suggestions_round0..3.csv`, `bo_dataset.csv`, `bo_dataset_shared.csv`. Invented data, not results. This is the shared, unbranched loop;
+the branched one (`suggest --branch` through `run_bo.sh`) is exercised by `tests/test_branched_campaign.py`.
 
 ## What is inside
 
 | File | Role |
 |---|---|
-| `space.py` | Solvents, 5 µL grid (35,111 allowed mixtures), trough budget. Constants mirror `bo_bridge.py`. |
+| `space.py` | Solvents, 5 µL grid (23,016 allowed mixtures), the optional trough cap. Constants mirror `bo_bridge.py`. |
 | `dataset.py` | Reads and validates `bo_dataset.csv`; per-mixture scores. |
 | `model.py` | One Gaussian process per solute (kernel by cross-validation); exploit (batch expected improvement) and explore picks under a solvent `Budget`. |
-| `campaign.py` | Round-1 design, `fit_per_solute` (GP per solute for plots), `suggest_next_round`. |
+| `campaign.py` | Round-0 design, `fit_per_solute` (GP per solute for plots), `suggest_next_round`, `suggest_arms` (one design per arm). |
 | `report.py` | Text report and Pareto front. |
 | `cli.py`, `__main__.py` | Command line. |
 

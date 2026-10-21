@@ -58,13 +58,8 @@ def test_bo_bridge_layout_refuses_any_mixture_with_a_pair(tmp_path, mixture):
     assert result.returncode != 0 and not (tmp_path / "out" / f"ot_input_round{FIRST_ROUND}.csv").exists()
 
 
-def test_qc_plate_and_toy_generator_avoid_pairs():
+def test_toy_generator_avoids_pairs():
     import sys
-    from analysis.qc_layout import qc_plate_map
-    from analysis.spectra import read_plate_map
-    qc = qc_plate_map(read_plate_map(OT_EXAMPLES / f"plate_map_round{FIRST_ROUND}.csv"))
-    solvents = [c[len("frac_"):] for c in qc.columns if c.startswith("frac_")]
-    assert not any(has_pair(support(row, solvents)) for _, row in qc.iterrows())
     sys.path.insert(0, str(DEBUG_DIR))
     import make_toy_run
     rng = np.random.default_rng(0)
