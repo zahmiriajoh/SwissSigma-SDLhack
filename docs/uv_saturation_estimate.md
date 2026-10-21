@@ -58,10 +58,10 @@ those values are not used.
 4. **The reader may not scan below 230 nm.** Reseller specifications give the Tecan Infinite 200 PRO's absorbance
    wavelength range as 230–1,000 nm [4], while the plan and the Scientist instructions scan 200–700 nm. Tecan's own
    datasheet was not found; confirm on the instrument.
-5. **Solubility, not just absorbance, limits the useful load** (added after reading [6], [7]; see "Solubility data"
+5. **Solubility, not just absorbance, limits the useful load** (added after reading [6], [7], [9]; see "Solubility data"
    below). No DMF solubility was found for any solute. Phthalimide dissolves only about 6 mg/mL in ethanol and
-   isopropanol and about 26 mg/mL in acetone at 25 °C, so a load low enough to read undiluted would dissolve fully in
-   every one of these solvents and not tell them apart.
+   isopropanol and about 26 mg/mL in acetone at 25 °C, and succinimide about 42 mg/mL in ethanol and 330 mg/mL in water
+   at 20 °C [9], so a load low enough to read undiluted would dissolve fully in these solvents and not tell them apart.
 
 ## Caveats
 
@@ -114,6 +114,16 @@ mixtures of acetone, ethyl acetate or acetonitrile with methanol. Searches of th
 PubChem found no measured solubility in DMF for phthalimide, succinimide, glutarimide or Boc-hydroxyproline. PubChem's
 phthalimide entry gives only water and hot-ethanol values [8]. **The step-0 DMF pre-test is therefore the only source
 of DMF solubility for this campaign.**
+
+### Succinimide in two of our solvents
+
+The *Encyclopedia of Reagents for Organic Synthesis* entry [9] gives succinimide's solubility as 1 g in 3 mL of water
+and 1 g in 24 mL of ethanol at 20 °C (1 g in 0.7 mL of water at the boiling point, 1 g in 5 mL of ethanol at 60 °C),
+insoluble in ether and chloroform. Per mL of solvent that is about 330 mg/mL in water and about 42 mg/mL in ethanol at
+20 °C. It mentions DMF only as a solvent for preparing succinimide's alkali-metal salt, not as a solubility value.
+
+Both are far above the loads that keep succinimide's band below absorbance 4 (4.7 mg/mL at 230 nm, 7.6 mg/mL at
+250 nm). A load that low would dissolve fully in water and ethanol and read the same in both, as with phthalimide.
 
 ### Phthalimide in three of our green solvents
 
@@ -196,3 +206,5 @@ below 4 only from about 324 nm, where the database spectrum's tail may be a base
    <https://doi.org/10.1016/j.jct.2017.07.001>. Local copy: `data/papers/`.
 8. PubChem, phthalimide (CID 6809), Solubility, citing the Merck Index (1989) and the Aquasol database (1992):
    <https://pubchem.ncbi.nlm.nih.gov/compound/6809#section=Solubility>.
+9. de Koning, H.; Speckamp, W. N. Succinimide. In *Encyclopedia of Reagents for Organic Synthesis*; Wiley, **2001**.
+   <https://doi.org/10.1002/047084289X.rs126>. Local copy: `data/papers/`.
