@@ -123,7 +123,7 @@ def add_parameters(parameters: protocol_api.ParameterContext):
     parameters.add_bool(
         variable_name="blank_plate",
         display_name="Solvent blank plate (slot 6)",
-        description="Fill A1-G1 of a plate in slot 6 with pure solvent (one well per trough)",
+        description="Fill this round's column of the slot-6 plate with pure solvent (row A DMF ... G t-BuOAc)",
         default=True,
     )
     parameters.add_int(
@@ -420,6 +420,7 @@ def run(protocol: protocol_api.ProtocolContext) -> None:
     heater_shaker.deactivate_heater()
 
     protocol.comment(
-        f"Done: {len(plates)} plate(s), {len(wells)} wells each. Read each plate, then: "
-        "python bo_bridge.py merge --reader plate0.csv plate1.csv plate2.csv ..."
+        f"Done: {len(plates)} plate(s), {len(wells)} wells each. Read each plate (and the blank plate), save the workbooks "
+        "in production/csvs/uvvis/ as reader_roundN_plate0.xlsx ... reader_roundN_solvents.xlsx, then run "
+        "bash production/run_bo.sh production/csvs"
     )

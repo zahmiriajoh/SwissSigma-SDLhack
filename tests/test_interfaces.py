@@ -135,3 +135,12 @@ def test_layout_warns_but_succeeds_when_a_solvent_exceeds_its_trough(tmp_path):
     result = run_bridge("layout", "--round", R0, "--suggestions", suggestions, "--outdir", tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "TOO MUCH" in result.stdout and "WARNING" in result.stdout and (tmp_path / f"ot_input_round{R0}.csv").exists()
+
+
+@pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.parent.name)
+def test_protocol_parameter_texts_fit_the_opentrons_limits(protocol):
+    """The Opentrons app refuses a protocol whose parameter description exceeds 100 characters (or display name 30)."""
+    calls = [n for n in ast.walk(ast.parse(protocol.read_text())) if isinstance(n, ast.Call) and getattr(n.func, "attr", "").startswith("add_")]
+    for call in calls:
+        texts = {k.arg: k.value.value for k in call.keywords if isinstance(k.value, ast.Constant) and isinstance(k.value.value, str)}
+        assert len(texts.get("description", "")) <= 100 and len(texts.get("display_name", "")) <= 30, texts
