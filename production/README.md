@@ -113,7 +113,7 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
   within 3 x the noise (`wavelengths_roundN.csv`, column `measurable`; PLAN decision 15). That window needs solvent
   blanks: the pure-solvent wells A1-G1 read each round (`reader_roundN_solvents.csv`) give them. Without that file the window
   is inactive, nothing is subtracted and the solvent's own absorbance stays in every well. **Set `wavelength_nm` for each solute in
-  `config.toml` before round 0**: left unset, the peak is picked on the raw DMF-control spectrum and lands on DMF's own
+  `config.toml` if the maxima are known**: left unset, round 0 picks each solute's wavelength from its blank-corrected DMF-control spectrum and every later round reuses it (`analysis reduce`), so no one has to intervene; without a solvent-blank file the peak is picked on the raw DMF-control spectrum and lands on DMF's own
   UV edge, saturated (`reduce` prints a warning). The `measurable` verdict still drops a solute from the worst-solute
   objective in `analysis report` and in SDL_BO's scoring.
 - ~~Immiscible pairs~~: decided, see "Forbidden solvent pairs" above.

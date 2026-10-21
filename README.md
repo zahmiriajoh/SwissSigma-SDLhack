@@ -98,5 +98,5 @@ Open before the first real round; the details and current placeholders live in t
 - **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
   Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
   readout may not work for them. Blanks are one pure-solvent well per solvent per round (`reader_roundN_solvents.csv`); without that file nothing is subtracted, and
-  `wavelength_nm` must be set per solute in `production/config.toml` before round 0 or the peak lands on DMF's own UV edge.
+  `wavelength_nm` is best set per solute in `production/config.toml`; if not, round 0 picks it from the blank-corrected DMF control and later rounds reuse it (without the solvent wells that pick lands on DMF's own UV edge).
 - **Protocol notes** (`data/261018_protocol/`, not yet in git): run naming convention and where plate-reader exports are stored.

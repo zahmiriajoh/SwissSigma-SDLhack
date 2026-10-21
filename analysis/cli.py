@@ -5,7 +5,10 @@
     report     campaign folder -> study-aim figures and report_summary.md
 """
 import argparse
+import re
 from pathlib import Path
+
+import pandas as pd
 
 from production.config import ARMS, FIRST_PLATE, SOLUTE_WAVELENGTH_NM
 
@@ -80,6 +83,16 @@ def _run_qc(args) -> None:
     print(f"wrote {path} and figures to {path.parent}")
 
 
+def _earlier_wavelengths(outdir, round_) -> tuple:
+    """(round, {solute: nm}) from the latest wavelengths_roundK.csv in outdir with K < round_, else (None, {})."""
+    found = [(int(m.group(1)), f) for f in Path(outdir).glob("wavelengths_round*.csv")
+             if (m := re.fullmatch(r"wavelengths_round(\d+)\.csv", f.name)) and int(m.group(1)) < int(round_)]
+    if not found:
+        return None, {}
+    k, path = max(found)
+    return k, pd.read_csv(path, index_col=0)["wavelength_nm"].dropna().to_dict()
+
+
 def _run_reduce(args) -> None:
     plate_map = read_plate_map(args.plate_map)
     plates = [read_spectra(p) for p in args.reader]
@@ -88,7 +101,13 @@ def _run_reduce(args) -> None:
     blank = read_spectra(args.blank) if args.blank else None
     if args.solvent_blanks:
         blank = predicted_blank(read_spectra(args.solvent_blanks), plate_map)
-    fixed = {**{s: nm for s, nm in SOLUTE_WAVELENGTH_NM.items() if nm}, **_parse_overrides(args.wavelength)}  # config, then --wavelength
+    round_ = plate_map["round"].iloc[0]
+    outdir = Path(args.outdir or Path(args.plate_map).parent)
+    earlier_round, earlier = _earlier_wavelengths(outdir, round_)  # a solute keeps the wavelength first picked for it
+    fixed = {**earlier, **{s: nm for s, nm in SOLUTE_WAVELENGTH_NM.items() if nm}, **_parse_overrides(args.wavelength)}  # earlier round, config, --wavelength
+    reused = sorted((set(earlier) & set(plate_map["solute"])) - {s for s, nm in SOLUTE_WAVELENGTH_NM.items() if nm} - set(_parse_overrides(args.wavelength)))
+    if reused:
+        print(f"  reusing the wavelengths picked in round {earlier_round} for {', '.join(reused)} (set wavelength_nm in production/config.toml to change them)")
     loose = sorted(set(plate_map["solute"]) - set(fixed))
     if blank is None and loose:
         print(f"  WARNING: no blank and no fixed wavelength for {', '.join(loose)}: the peak is picked on the raw DMF-control "
@@ -97,8 +116,6 @@ def _run_reduce(args) -> None:
         plate_map, plates, blank, fixed, tuple(args.nm_range), args.bandwidth,
         args.blank_max, args.abs_max)
 
-    round_ = plate_map["round"].iloc[0]
-    outdir = Path(args.outdir or Path(args.plate_map).parent)
     outdir.mkdir(parents=True, exist_ok=True)
     plate_numbers = range(FIRST_PLATE, FIRST_PLATE + len(plates))
     names = [f"endpoint_round{round_}_plate{i}.csv" for i in plate_numbers]

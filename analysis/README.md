@@ -60,7 +60,10 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |
 
 Each solute is read at its **fixed wavelength** (`wavelength_nm` in `production/config.toml`, or `--wavelength`). When none
-is set it is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, 5 nm smoothing).
+is set it is read at the **peak of its DMF-control spectrum** (controls averaged over all plates, 5 nm smoothing), picked in
+the first round reduced and then **reused in every later round** from the latest earlier `wavelengths_roundK.csv` in the
+output folder, so one solute is read at one wavelength all campaign (a run with nobody to review the picks). The
+`measurable` verdict is still evaluated every round at that wavelength. Order of precedence: `--wavelength`, config, earlier round, pick.
 **With no blank that peak is the raw spectrum's, and DMF's own UV edge (below about 270 nm) can win**: the run prints a
 warning, so set the wavelengths before the first real round. With a blank (`--solvent-blanks` or `--blank`), the peak is restricted to the
 **usable window** (wavelengths where every solvent blank stays below `--blank-max`; acetone is opaque below about

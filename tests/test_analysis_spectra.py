@@ -103,3 +103,11 @@ def test_solvent_blank_file_must_have_every_solvent_well(plate_map, tmp_path):
     solvents = read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv").drop(columns="G1")
     with pytest.raises(SpectraError, match="G1"):
         predicted_blank(solvents, plate_map)
+
+
+def test_earlier_round_wavelengths_are_reused_unless_overridden(tmp_path):
+    from analysis.cli import _earlier_wavelengths
+    for k, nm in ((0, 275.0), (1, 280.0)):
+        pd.DataFrame({"wavelength_nm": [nm, None]}, index=pd.Index(["A", "B"], name="solute")).to_csv(tmp_path / f"wavelengths_round{k}.csv")
+    assert _earlier_wavelengths(tmp_path, 0) == (None, {})
+    assert _earlier_wavelengths(tmp_path, 2) == (1, {"A": 280.0})  # the latest earlier round; unset (NaN) solutes are skipped

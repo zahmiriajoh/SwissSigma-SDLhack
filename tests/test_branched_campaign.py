@@ -84,3 +84,8 @@ def test_each_arm_learns_only_from_its_own_wells(campaign):
 def test_blank_is_subtracted_from_the_solvent_wells(campaign):
     wells = pd.read_csv(campaign / "results_round1_wells.csv")
     assert (wells["abs_blank"] > 0).all() and np.allclose(wells["abs_corrected"], wells["abs_raw"] - wells["abs_blank"], atol=1e-3)
+
+
+def test_wavelengths_picked_in_round_0_are_reused_in_round_1(campaign):
+    picked = pd.read_csv(campaign / "wavelengths_round0.csv", index_col=0)["wavelength_nm"]
+    assert pd.read_csv(campaign / "wavelengths_round1.csv", index_col=0)["wavelength_nm"].equals(picked)

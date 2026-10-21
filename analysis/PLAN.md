@@ -122,7 +122,8 @@ The user dropped the QC plate: only the main sample wells are run. Consequences,
 - **Update (2026-10-20, later): blanks are back as pure-solvent wells.** One well per solvent each round (A1 DMF ... G1 tBuOAc, `reader_roundN_solvents.csv`, `reduce --solvent-blanks`); each sample well's blank is the volume-fraction-weighted sum of them. Decision 15's window and flags are active again when the file is given; the bullets below describe the run without it.
 - **Without a blank nothing is subtracted**, so every well includes its solvent's own absorbance (acetone absorbs below about 330 nm, DMF
   below about 270 nm). Decision 15's usable-window machinery needs a blank (`--blank`) and is inactive without one.
-- **Wavelengths must be set.** With no blank and no `wavelength_nm` in `production/config.toml` the peak is picked on the raw
+- **Wavelengths are frozen after round 0 (unattended run).** `reduce` picks each unset solute's wavelength in the first round and reuses it from the latest earlier `wavelengths_roundK.csv` in later rounds, so a solute is read at one wavelength all campaign; the `measurable` verdict is still computed every round. Config and `--wavelength` win. Without a solvent-blank file in round 0 the frozen pick is the raw one (next bullet).
+- **Wavelengths should be set if known.** With no blank and no `wavelength_nm` in `production/config.toml` the peak is picked on the raw
   DMF-control spectrum and lands on DMF's own UV edge (about 230 nm, saturated) for most solutes; `reduce` prints a warning.
   Set the absorption maxima in the config before the first real round.
 - The toy run now passes the fake solutes' known peaks as fixed wavelengths, so its "band hidden under acetone's cut-off"
