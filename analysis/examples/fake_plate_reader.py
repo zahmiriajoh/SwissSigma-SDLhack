@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from production.config import ALL_SOLVENTS, GREEN_SOLVENTS, PLATE_ATTACKERS, SOLUTES  # noqa: E402
 
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]
-WAVELENGTHS = np.arange(200, 801)  # nm, 1 nm steps
+WAVELENGTHS = np.arange(200, 705, 5)  # nm: the plate reader's 200-700 nm scan in 5 nm steps
 # Invented band centre / width per solute (production order); only the Phthalimide value is anywhere near reality.
 PEAK_NM = dict(zip(SOLUTES, [275, 350, 295, 410]))
 WIDTH_NM = dict(zip(SOLUTES, [18, 25, 22, 35]))
@@ -87,6 +87,13 @@ def _long(spectra_by_well) -> pd.DataFrame:
 def spectra_export(plate_map, rng, solids=True, delay_min=0.0) -> pd.DataFrame:
     """Full-spectrum export as a long table (well, wavelength_nm, absorbance), readable by bo_bridge merge."""
     return _long((well, spectrum(row, rng, solids, delay_min)) for well, row in plate_map.iterrows())
+
+
+def write_plate_reader_csv(spectra_long, path) -> None:
+    """Write a long table the way the plate reader exports it: ';' separators, decimal commas, one row per well, wavelengths across the header."""
+    wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
+    wide.columns = wide.columns.astype(int)
+    wide.to_csv(path, sep=";", decimal=",", index_label="Wavel.", lineterminator="\r\n")
 
 
 def fixed_wavelength_export(spectra_long, wavelengths_nm) -> pd.DataFrame:

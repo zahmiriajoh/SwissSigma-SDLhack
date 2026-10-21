@@ -63,7 +63,7 @@ is set it is read at the **peak of its DMF-control spectrum** (controls averaged
 warning, so set the wavelengths before the first real round. With a `--blank` plate, the peak is restricted to the
 **usable window** (wavelengths where every solvent blank stays below `--blank-max`; acetone is opaque below about
 330 nm), and a band maximum outside it is read on its shoulder. `wavelengths_roundN.csv` records `band_max_nm`,
-`at_band_max`, the window, `signal_fraction` and a `measurable` verdict (control signal above 3 x the 600–800 nm noise).
+`at_band_max`, the window, `signal_fraction` and a `measurable` verdict (control signal above 3 x the 600–800 nm noise; 600–700 nm with the planned scan).
 Endpoint files carry `blank_abs` and a `flag` column (`saturated`, `opaque`); `bo_bridge.py merge` reads only the
 absorbance. See PLAN.md decision 15.
 

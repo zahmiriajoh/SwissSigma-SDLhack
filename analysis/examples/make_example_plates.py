@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fake_plate_reader import plate_log, read_plate_map, spectra_export
+from fake_plate_reader import plate_log, read_plate_map, spectra_export, write_plate_reader_csv
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parents[1]))
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng(0)
     plate_map = read_plate_map(PLATE_MAP)
     for i in PLATES:
-        spectra_export(plate_map, rng).to_csv(HERE / f"reader_round{R}_plate{i}.csv", index=False)
-    spectra_export(plate_map, rng, solids=False).to_csv(HERE / f"reader_round{R}_blank.csv", index=False)
+        write_plate_reader_csv(spectra_export(plate_map, rng), HERE / f"reader_round{R}_plate{i}.csv")
+    write_plate_reader_csv(spectra_export(plate_map, rng, solids=False), HERE / f"reader_round{R}_blank.csv")
     plate_log(list(PLATES), rng).to_csv(HERE / f"plate_log_round{R}.csv", index=False)
     print(f"wrote {N_PLATES} plates + blank for {len(plate_map)} wells to {HERE}")

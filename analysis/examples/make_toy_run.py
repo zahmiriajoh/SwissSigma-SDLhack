@@ -98,7 +98,7 @@ def measure(round_, outdir, rng, fixed):
     delays = dict(zip(log["plate"].astype(str), log["read_delay_min"]))
     exports = [(f"reader_round{round_}_plate{p}.csv", fpr.spectra_export(plate_map, rng, delay_min=delays[str(p)])) for p in PLATES]
     for name, df in exports:
-        (fpr.fixed_wavelength_export(df, FIXED_NM) if fixed else df).to_csv(outdir / name, index=False)
+        fpr.write_plate_reader_csv(fpr.fixed_wavelength_export(df, FIXED_NM) if fixed else df, outdir / name)
 
 
 def one_round(round_, outdir, rng, fixed):
