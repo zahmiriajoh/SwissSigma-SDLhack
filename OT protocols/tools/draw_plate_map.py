@@ -84,7 +84,7 @@ def main():
                                          f"{min(samples)}–{max(samples)} = conditions"))
     y = ly + len(solutes) * 22 + 6
     out.append(f'<circle cx="{X0 + 8}" cy="{y - 4}" r="8" fill="{DARK}"/>')
-    out.append(svg_text(X0 + 24, y, f"{cfg.FIRST_CONDITION} = {cfg.REFERENCE_SOLVENT}-only control (reference = 1.0)"))
+    out.append(svg_text(X0 + 24, y, f"0 = {cfg.REFERENCE_SOLVENT}-only control (reference = 1.0)"))
     out.append(f'<circle cx="{X0 + 330}" cy="{y - 4}" r="8" fill="#ffffff" stroke="{LIGHT}" stroke-dasharray="3 3"/>')
     out.append(svg_text(X0 + 346, y, "unused"))
     out.append("</svg>")
