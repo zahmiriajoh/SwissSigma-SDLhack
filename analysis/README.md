@@ -85,10 +85,10 @@ subtracted, and the solvent's own absorbance stays in every well. If a solvent-o
 ## File formats
 
 **Reader exports** (input): a long table with columns `well`, `wavelength_nm`, `absorbance` (any numeric column
-name), or a wide matrix with `wavelength_nm` in the first column and one column per well. Well names may be `A1` or
-`A01`. Full spectra or a few fixed wavelengths both work; include a reading near 700 nm in fixed mode so the scattering
-check has data. These shapes were chosen before any real export existed: run the instrument's first file through
-`reduce` before the first round (PLAN.md, decision 13).
+name), a wide matrix with a wavelength column (`wavelength_nm`, `Wavel.`, ...) and one column per well, or its
+transpose with one row per well and the wavelengths across the header (the plate reader's own export). `,` or `;`
+separators (`;` implies decimal commas). Well names may be `A1` or `A01`. The planned scans are 200-700 nm in 5 nm
+steps on 96 wells; a few fixed wavelengths also work (include one near 700 nm for the noise check).
 
 **Plate log** (lab notes, optional): `plate_log_roundN.csv` with `plate` (0, 1, 2) and `read_delay_min`.
 

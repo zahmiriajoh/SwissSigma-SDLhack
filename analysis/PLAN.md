@@ -86,12 +86,14 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 12. **GP landscape** fits SDL_BO's per-solute GPs on `bo_dataset.csv` and plots the minimum over solutes of the posterior
     means (the objective's posterior mean, approximately) and the mean posterior std, over 2.5 % grids of the three
     most-sampled solvent trios. `--no-gp` skips it.
-13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): two shapes are accepted, a long table with columns
-    `well`, `wavelength_nm` and one numeric absorbance column (any name), or a wide matrix with `wavelength_nm` as the first
-    column and one column per well; well names may be `A1` or `A01`. Both were chosen from invented files. **The first
-    real export must be run through `analysis reduce` before the first round**; if the instrument writes another shape
-    (one block per wavelength, extra header rows, a different wavelength column name) the parser needs a small
-    addition. The accepted formats are documented in `README.md` ("File formats").
+13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): three shapes are accepted, a long table with columns
+    `well`, `wavelength_nm` and one numeric absorbance column (any name), a wide matrix with a wavelength column and one
+    column per well, or its transpose (one row per well, wavelengths across the header), which is how the plate reader
+    exports (`production/UV-Vis/Absorbancescan.csv`, first header `Wavel.`). `;`-separated files with decimal commas are
+    read too; well names may be `A1` or `A01`. The real scans will be 200-700 nm in 5 nm steps on full 96-well plates;
+    a scan with steps up to 5 nm counts as a full spectrum, and the peak-picking smoothing is 5 nm wide but at least
+    3 points. Wavelengths fixed in `production/config.toml` should lie on the 5 nm grid. The accepted formats are documented
+    in `README.md` ("File formats").
 14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
     `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check
     and the toy generator. See `production/README.md`.
