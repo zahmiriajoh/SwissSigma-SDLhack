@@ -49,7 +49,7 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | Flag | Default | Effect |
 |---|---|---|
 | `--reader` | required | one reader export per sample plate, in plate order |
-| `--solvent-blanks` | none | export of the pure-solvent wells A1-G1; each well's blank is predicted from its solvent fractions |
+| `--solvent-blanks` | none | export of the solvent blank plate; the round's column of pure-solvent wells (A1-G1 in round 0, A2-G2 in round 1, ...) is used, and each well's blank is predicted from its solvent fractions |
 | `--blank` | none | optional export of a full solvent-only copy of the sample plate (alternative to `--solvent-blanks`) |
 | `--outdir` | next to the plate map | where the outputs go |
 | `--wavelength Glutarimide=275 ...` | config, else picked | fix a solute's wavelength (wins over `wavelength_nm` in `production/config.toml`) |
