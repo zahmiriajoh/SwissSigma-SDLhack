@@ -54,7 +54,7 @@ files. `--seed N` changes the BO's random fallbacks, `--no-figures` skips the QC
 
 | File | Content |
 |---|---|
-| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate: `well, wavelength_nm, absorbance` (full spectra preferred; fixed wavelengths work) |
+| `reader_roundN_plate0.csv`, `..._plate1.csv`, `..._plate2.csv` | plate-reader export of each sample plate, as the reader writes it: `;`-separated, decimal commas, header `Wavel.;200;205;...;700`, one row per well (A1-H12). A long table `well, wavelength_nm, absorbance` is read too. Full 200-700 nm scans in 5 nm steps are planned |
 | `reader_roundN_solvents.csv` | plate-reader export of the pure-solvent blank wells, same format: **A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc**, one well each, measured every round at the same delay and fill (300 µL) as the sample plates. Used to predict every sample well's blank; without it no blank is subtracted |
 | `plate_log_roundN.csv` (optional) | `plate,read_delay_min` with rows 0, 1, 2: minutes from end of shaking to the read |
 

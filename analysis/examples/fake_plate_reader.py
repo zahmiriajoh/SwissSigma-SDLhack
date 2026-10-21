@@ -96,7 +96,7 @@ def solvent_blank_export(rng, delay_min=0.0) -> pd.DataFrame:
 
 
 def write_plate_reader_csv(spectra_long, path) -> None:
-    """Write a long table the way the plate reader exports it: ';' separators, decimal commas, one row per well, wavelengths across the header."""
+    """Write a spectra table the way the plate reader exports it: ';' separators, decimal commas, one row per well, wavelengths across the header."""
     wide = spectra_long.pivot(index="well", columns="wavelength_nm", values="absorbance").reindex(spectra_long["well"].unique())
     wide.columns = wide.columns.astype(int)
     wide.to_csv(path, sep=";", decimal=",", index_label="Wavel.", lineterminator="\r\n")
