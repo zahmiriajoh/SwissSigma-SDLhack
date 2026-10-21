@@ -101,9 +101,12 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
   pure DMF (confirmed by the user).
 - Zero-based numbering applies to rounds, plates, solutes and conditions, not to well names. A condition is one solvent
   or one mixture of solvents; each solute block has conditions 0-23, with the DMF control as condition 0 and the mixtures
-  as 1-23 (`R0_seed01`…). A1 is `round0_plate0_solute0_cond0` (naming convention given by the user, 2026-10-20). The
-  per-well name is not yet written to any file; `condition_id` (`R0_seed01`) still identifies a mixture across solutes
-  and plates.
+  as 1-23 (`R0_seed01`…). Every well on every plate is named `round{R}_plate{P}_solute{S}_cond{C}` (naming convention
+  given by the user, 2026-10-20; `numbering.sample_id`): A1 of round 0, plate 1 is `round0_plate1_solute0_cond0`.
+  `bo_bridge.py layout` writes `solute_index` and `cond` (position in the block, cond0 = DMF control) into the plate
+  map and `merge` writes `sample_id` into `results_roundN_wells.csv`. `condition_id` still identifies a mixture across
+  solutes and plates; its counter equals `cond` only in the round-0 seed design, because later rounds put re-tested
+  mixtures first and name new picks per arm (`R1_others_exploit07`).
 - **UV readout concern and the conservative answer.** DMF is opaque below about 270 nm and acetone below about
   330 nm, while glutarimide, succinimide and Boc-hydroxyproline have little absorbance above about 250 nm; only
   phthalimide (about 295 nm) has a comfortable band. Since the plan cannot change once the campaign starts,

@@ -84,8 +84,9 @@ stay empty.
 well's position in its block, 0–23 with cond0 = the DMF control. So A1 of round 0 on the second plate is
 `round0_plate1_solute0_cond0`. `layout` writes the parts as `solute_index` and `cond` columns in
 `plate_map_roundN.csv`, and `merge` writes the full `sample_id` on every row of `results_roundN_wells.csv`.
-`condition_id` stays as the mixture name (`R0_DMFref`, `R0_grid00`, …). It links the 3 plates and the solutes
-for BO and analysis, so cond C holds condition_id counter C − 1 (cond1 = `R0_grid00`).
+`condition_id` stays as the mixture name (`R0_DMFref`, `R0_seed01`, `R1_others_exploit07`, …) that links the 3
+plates and the solutes for BO and analysis. In the round-0 seed design its counter equals `cond` (`R0_seed01` is
+cond1); later rounds put re-tested mixtures first and name new picks per arm, so rely on `cond` for position.
 
 **`bo_dataset.csv`**: one row per round × solute × condition:
 
@@ -219,8 +220,11 @@ packages refuse to simulate OT-2 protocols; the repo's uv environment (`../setup
 uv run opentrons_simulate -L labware sdl_solubility_ot2.py
 ```
 
-`tools/check_all.py` runs the full set: every protocol setting, the expected-error cases,
-and a two-round BO loop with fake plate-reader data (30 checks).
+`tools/check_all.py` runs the full set (73 checks, a few minutes): every protocol setting and every expected input
+error, a two-round `bo_bridge` loop with fake plate-reader data, and the production campaign. That last part drives
+`production/run_bo.sh` through rounds 0-2 with real SDL_BO suggestions and fake spectra, simulates every round's robot
+CSV, checks from the simulator log that each well of each plate receives exactly its CSV volume of each solvent, and
+checks that every well gets a unique, correct `sample_id`.
 ```bash
 uv run python tools/check_all.py
 ```
