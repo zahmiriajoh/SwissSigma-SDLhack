@@ -72,7 +72,10 @@ sim("ERR_overvolume", proto_with(rows=over), False, "exceeds")
 bad = [rows[0][:3] + ["vol_Toluene_ul"], ["A1", "Glutarimide", "x", "100"]]
 sim("ERR_unknown_solvent", proto_with(rows=bad), False, "no reservoir trough")
 flood = [rows[0][:3] + ["vol_acetone_ul"]] + [[f"{r}{c}", "Glutarimide", "x", "300"] for r in "ABCDEFGH" for c in range(1, 13)]
-sim("ERR_trough_overflow", proto_with(rows=flood), False, "only supply")
+sim("ERR_trough_overflow", proto_with(rows=flood), False, "only supply")  # 86 mL > both reservoirs
+# one plate of pure acetone needs 28.8 mL: more than one trough (24 mL usable), so the slot-4 backup takes over
+sim("backup_reservoir_takes_over", proto_with(rows=flood, n_plates=1, blank_plate=False), True, "Backup solvent reservoir")
+sim("ERR_no_backup_reservoir", proto_with(rows=flood, n_plates=1, blank_plate=False, backup_reservoir=False), False, "only supply")
 
 # --- BO loop: 2 rounds ---------------------------------------------------------------
 rc, out = sh(B, "grid", "--round", "0", "-o", "s0.csv"); check("grid round 0", rc == 0, out.strip().splitlines()[-1])

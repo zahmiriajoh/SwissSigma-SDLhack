@@ -132,7 +132,7 @@ read and BO, so 3 rounds fit in about 10 h. These are estimates (the simulator d
 report run time), so time a dry run with water first. Refill the solvent troughs between
 rounds using the fill sheet from `layout`, when you load the next solid plates.
 
-**App settings:** identical plates (1–3), solvent blank plate (on/off, default on), start at
+**App settings:** identical plates (1–3), backup reservoir (on/off, default on), solvent blank plate (on/off, default on), start at
 (fill / shake plate 0–2, to resume), shake speed, shake time, temperature.
 
 ## Deck (OT-2)
@@ -143,7 +143,7 @@ rounds using the fill sheet from `layout`, when you load the next solid plates.
 |---|---|---|---|
 | **back (10–12)** | heater-shaker + universal flat adapter (10) | – (11) | trash (12) |
 | **7–9** | – (7) | P300 tips (8) | P20 tips (9) |
-| **4–6** | – (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | solvent blank plate (6) |
+| **4–6** | backup solvent reservoir (4) | solvent reservoir `axygen_8_reservoir_30000ul` (5) | solvent blank plate (6) |
 | **front (1–3)** | readout plate 0 | readout plate 1 | readout plate 2 |
 
 Pipettes: P300 GEN2 single on the left mount, P20 GEN2 single on the right (`PIPETTES` in
@@ -154,6 +154,12 @@ is a hand-kept mirror checked by the tests): A1 DMF, B1 acetone, C1 EtOH, D1 i-P
 F1 i-PrOAc, G1 t-BuOAc, H1 diluent. With this volume model the diluent isn't used. The protocol
 fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
 needs per round; round 0 needs up to about 14.4 mL per solvent.
+
+**Backup reservoir (slot 4):** a second `axygen_8_reservoir_30000ul` with the same trough layout. Fill it like
+slot 5 (the protocol assumes 25 mL in every used trough of both). A solvent draws from its slot-5 trough until that
+trough is down to its 1 mL dead volume, then carries on from the same trough in slot 4. With the backup each solvent
+can supply 48 mL per run instead of 24 mL. If a run would need more than that, or more than 24 mL with the backup
+switched off, the protocol stops before dispensing anything and names the solvent.
 
 Slots 7 and 11, next to the heater-shaker, are kept free of tall labware.
 
