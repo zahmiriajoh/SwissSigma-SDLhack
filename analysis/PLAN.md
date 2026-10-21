@@ -44,7 +44,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 
 ## Answers (2026-10-20)
 
-- **Q-a blank plate and calibration:** first answered as one extra QC plate per round (solvent blanks and a calibration series). **Withdrawn 2026-10-20: no extra plate, no blanks and no calibration series for now; only the sample wells are run. Blanks will have to be added back later.**
+- **Q-a blank plate and calibration:** first answered as one extra QC plate per round (solvent blanks and a calibration series). **Withdrawn 2026-10-20: no extra plate and no calibration series. Blanks came back the same day as one pure-solvent well per solvent per round (see "Revision"); only the sample wells otherwise.**
 - **Q-b solutes and reader:** solutes and solvents are now fixed in `production/config.toml` (Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide; DMF, acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc; numbering from zero). Still unknown (**remind the user**): the solutes' absorption maxima, the reader's linear range and export format. Assume a range of absorbance values to test the full range; assume fixed wavelengths. See `production/README.md` for the UV-readout and immiscibility concerns.
 - **Q-c timing:** shake-end-to-read time will be recorded per plate.
 - **Q-d solid loading:** same mass in every well, recorded.
@@ -86,12 +86,14 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 12. **GP landscape** fits SDL_BO's per-solute GPs on `bo_dataset.csv` and plots the minimum over solutes of the posterior
     means (the objective's posterior mean, approximately) and the mean posterior std, over 2.5 % grids of the three
     most-sampled solvent trios. `--no-gp` skips it.
-13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): two shapes are accepted, a long table with columns
-    `well`, `wavelength_nm` and one numeric absorbance column (any name), or a wide matrix with `wavelength_nm` as the first
-    column and one column per well; well names may be `A1` or `A01`. Both were chosen from invented files. **The first
-    real export must be run through `analysis reduce` before the first round**; if the instrument writes another shape
-    (one block per wavelength, extra header rows, a different wavelength column name) the parser needs a small
-    addition. The accepted formats are documented in `README.md` ("File formats").
+13. **Reader export format** (`analysis/spectra.py`, `read_spectra`): three shapes are accepted, a long table with columns
+    `well`, `wavelength_nm` and one numeric absorbance column (any name), a wide matrix with a wavelength column and one
+    column per well, or its transpose (one row per well, wavelengths across the header), which is how the plate reader
+    exports (`production/UV-Vis/Absorbancescan.csv`, first header `Wavel.`). `;`-separated files with decimal commas are
+    read too; well names may be `A1` or `A01`. The real scans will be 200-700 nm in 5 nm steps on full 96-well plates;
+    a scan with steps up to 5 nm counts as a full spectrum, and the peak-picking smoothing is 5 nm wide but at least
+    3 points. Wavelengths fixed in `production/config.toml` should lie on the 5 nm grid. The accepted formats are documented
+    in `README.md` ("File formats").
 14. **Forbidden solvent pairs** (user decision): water + iPrOAc and water + tBuOAc are immiscible and listed in
     `production/config.toml`; `is_allowed()` is applied in SDL_BO's search space, bo_bridge's seed grid and layout check
     and the toy generator. See `production/README.md`.
@@ -107,8 +109,8 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     Consequences: measurements stay valid in every well at the cost of sensitivity; a solute that cannot be measured is
     declared unmeasurable up front rather than reported as insoluble, and a solute flagged in **any** round is excluded
     from the worst-solute objective by both `analysis report` (`Run.measurable_solutes`) and SDL_BO's scoring
-    (`SDL_BO.dataset.unmeasurable_solutes`), while staying in the data and fits. **This needs a blank, so it is inactive while no blanks
-    are run** (see "Revision"); read `wavelengths_round0.csv` after round 0 for which solutes the UV readout can follow at all.
+    (`SDL_BO.dataset.unmeasurable_solutes`), while staying in the data and fits. **This needs a blank (`--solvent-blanks` or `--blank`), so it is inactive without one**
+    (see "Revision"); read `wavelengths_round0.csv` after round 0 for which solutes the UV readout can follow at all.
     Prefer full-spectrum exports; with fixed wavelengths, take the maxima from the literature or a first spectrum, plus 700 nm.
 
 ## Revision (2026-10-20): QC plate removed
@@ -117,9 +119,11 @@ The user dropped the QC plate: only the main sample wells are run. Consequences,
 
 - `analysis qc-layout`, `--qc-reader` / `--qc-map`, `qc_layout.py`, Q3 (blank wells, plate attack, read delay, additivity)
   and Q7 (calibration) are gone. Q5's detection limit is now 3 × the reader noise from `wavelengths_roundN.csv`.
-- **No blank is subtracted**, so every well includes its solvent's own absorbance (acetone absorbs below about 330 nm, DMF
+- **Update (2026-10-20, later): blanks are back as pure-solvent wells.** One well per solvent each round (A1 DMF ... G1 tBuOAc, `reader_roundN_solvents.csv`, `reduce --solvent-blanks`); each sample well's blank is the volume-fraction-weighted sum of them. Decision 15's window and flags are active again when the file is given; the bullets below describe the run without it.
+- **Without a blank nothing is subtracted**, so every well includes its solvent's own absorbance (acetone absorbs below about 330 nm, DMF
   below about 270 nm). Decision 15's usable-window machinery needs a blank (`--blank`) and is inactive without one.
-- **Wavelengths must be set.** With no blank and no `wavelength_nm` in `production/config.toml` the peak is picked on the raw
+- **Wavelengths are frozen after round 0 (unattended run).** `reduce` picks each unset solute's wavelength in the first round and reuses it from the latest earlier `wavelengths_roundK.csv` in later rounds, so a solute is read at one wavelength all campaign; the `measurable` verdict is still computed every round. Config and `--wavelength` win. Without a solvent-blank file in round 0 the frozen pick is the raw one (next bullet).
+- **Wavelengths should be set if known.** With no blank and no `wavelength_nm` in `production/config.toml` the peak is picked on the raw
   DMF-control spectrum and lands on DMF's own UV edge (about 230 nm, saturated) for most solutes; `reduce` prints a warning.
   Set the absorption maxima in the config before the first real round.
 - The toy run now passes the fake solutes' known peaks as fixed wavelengths, so its "band hidden under acetone's cut-off"

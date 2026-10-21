@@ -6,7 +6,7 @@
 # CSV_DIR is the folder exchanged with the lab (production/README.md, "Folder structure"):
 #   CSV_DIR/ratios/   robot inputs we write:  suggestions_roundN.csv, ot_input_roundN.csv, plate_map_roundN.csv,
 #   CSV_DIR/uvvis/    results the lab uploads: reader_roundN_plate0.csv, reader_roundN_plate1.csv, reader_roundN_plate2.csv,
-#                                            plate_log_roundN.csv (optional)
+#                                            reader_roundN_solvents.csv (pure-solvent blank wells A1-G1), plate_log_roundN.csv (optional)
 #   CSV_DIR/          what the analysis derives: endpoint_roundN_*.csv, wavelengths_roundN.csv, results_roundN_wells.csv,
 #                                            bo_dataset.csv, bo_dataset_shared.csv, figures/
 #
@@ -73,6 +73,7 @@ layout_round() {  # suggestions -> robot CSV + plate map for round $1
   echo "  $RATIOS/ot_input_round${r}.csv      (3 identical sample plates)"
   echo "Then ask the lab to save the plate-reader exports as:"
   reader_files "$r" | sed 's/^/  /'
+  echo "  $UVVIS/reader_round${r}_solvents.csv   (the pure-solvent blank wells: A1 DMF, B1 acetone, C1 EtOH, D1 iPrOH, E1 water, F1 iPrOAc, G1 tBuOAc)"
   echo "  $UVVIS/plate_log_round${r}.csv      (optional: plate,read_delay_min for plates $FIRST_PLATE-$((FIRST_PLATE + N_PLATES - 1)))"
 }
 
@@ -106,10 +107,12 @@ readers=(); for ((p = FIRST_PLATE; p < FIRST_PLATE + N_PLATES; p++)); do readers
 endpoints=(); for ((p = FIRST_PLATE; p < FIRST_PLATE + N_PLATES; p++)); do endpoints+=("$CSV_DIR/endpoint_round${N}_plate${p}.csv"); done
 if [[ ! -f "$CSV_DIR/results_round${N}_wells.csv" ]]; then
   echo "== Round $N: spectra -> one absorbance per well (analysis reduce)"
+  solvents=(); [[ -f "$UVVIS/reader_round${N}_solvents.csv" ]] && solvents=(--solvent-blanks "$UVVIS/reader_round${N}_solvents.csv")
+  [[ ${#solvents[@]} -gt 0 ]] || echo "  note: no reader_round${N}_solvents.csv in $UVVIS, so no blank is subtracted"
   python -m analysis reduce --plate-map "$RATIOS/plate_map_round${N}.csv" --reader "${readers[@]}" \
-    --outdir "$CSV_DIR" --plots
+    ${solvents[@]+"${solvents[@]}"} --outdir "$CSV_DIR" --plots
   echo "== Round $N: merge into bo_dataset.csv (bo_bridge merge)"
-  blank=(); [[ -f "$CSV_DIR/endpoint_round${N}_blank.csv" ]] && blank=(--blank "$CSV_DIR/endpoint_round${N}_blank.csv")  # no blanks run for now
+  blank=(); [[ -f "$CSV_DIR/endpoint_round${N}_blank.csv" ]] && blank=(--blank "$CSV_DIR/endpoint_round${N}_blank.csv")  # written by reduce when solvent blanks were given
   python "$BRIDGE" merge --plate-map "$RATIOS/plate_map_round${N}.csv" --reader "${endpoints[@]}" \
     ${blank[@]+"${blank[@]}"} --dataset "$CSV_DIR/bo_dataset.csv" --wells-out "$CSV_DIR/results_round${N}_wells.csv"
 else

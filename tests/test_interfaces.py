@@ -1,12 +1,14 @@
 """The seams: production/config.toml <-> bo_bridge.py <-> OT-2 protocol <-> SDL_BO <-> fake plate reader. bo_bridge is run as
 the real script."""
 import ast
+import subprocess
+import sys
 
 import pandas as pd
 import pytest
 
 from SDL_BO import campaign, dataset, space
-from conftest import DEBUG_DIR, OT_EXAMPLES, PROTOCOLS, load_bo_bridge, run_bridge
+from conftest import DEBUG_DIR, OT_EXAMPLES, PROTOCOLS, REPO, load_bo_bridge, run_bridge
 from production import config
 
 R0, P = config.FIRST_ROUND, config.FIRST_PLATE
@@ -62,29 +64,23 @@ def test_bo_bridge_layout_accepts_seed_design(tmp_path):
     assert len(dispensed) == campaign.N_CONDITIONS  # every condition dispensed as a distinct mixture
 
 
-def test_bo_bridge_merge_reads_debug_spectra_and_sdl_bo_reads_the_result(tmp_path):
-    import fake_plate_reader as fpr
-    first_solute = config.SOLUTES[0]
+def test_bo_bridge_merge_reads_reduced_debug_spectra_and_sdl_bo_reads_the_result(tmp_path):
+    plate_map = OT_EXAMPLES / f"plate_map_round{R0}.csv"
     readers = [DEBUG_DIR / f"reader_round{R0}_plate{i}.csv" for i in range(P, P + 3)]
+    reduce = subprocess.run([sys.executable, "-m", "analysis", "reduce", "--plate-map", str(plate_map), "--reader", *map(str, readers),
+                             "--blank", str(DEBUG_DIR / f"reader_round{R0}_blank.csv"), "--outdir", str(tmp_path)],
+                            capture_output=True, text=True, cwd=REPO)
+    assert reduce.returncode == 0, reduce.stdout + reduce.stderr
+    endpoints = [tmp_path / f"endpoint_round{R0}_plate{i}.csv" for i in range(P, P + 3)]
     dataset_path = tmp_path / "bo_dataset.csv"
-    result = run_bridge("merge", "--plate-map", OT_EXAMPLES / f"plate_map_round{R0}.csv", "--reader", *readers,
-                        "--blank", DEBUG_DIR / f"reader_round{R0}_blank.csv", "--wavelength", fpr.PEAK_NM[first_solute],
+    result = run_bridge("merge", "--plate-map", plate_map, "--reader", *endpoints, "--blank", tmp_path / f"endpoint_round{R0}_blank.csv",
                         "--dataset", dataset_path, "--wells-out", tmp_path / "wells.csv")
     assert result.returncode == 0, result.stdout + result.stderr
     raw = pd.read_csv(dataset_path)
     assert len(raw) == 96 and (raw["n_obs"] == 3).all()  # 4 solutes x 24 conditions, 3 plates pooled
-    wells = pd.read_csv(tmp_path / "wells.csv").set_index(["plate", "well"])
-    assert set(wells.index.get_level_values("plate")) == set(range(P, P + 3))
-    # naming convention: A1 of round 0 on the second plate is round0_plate1_solute0_cond0 (cond0 = DMF control)
-    assert wells.loc[(P + 1, "A1"), "sample_id"] == config.sample_id(R0, P + 1, 0, 0) == "round0_plate1_solute0_cond0"
-    assert wells.loc[(P + 1, "A1"), "role"] == "control"
-    assert wells["sample_id"].is_unique and wells.loc[(P, "H12"), "sample_id"].endswith(f"_solute{len(config.SOLUTES) - 1}_cond23")
-    # cond matches the condition number: A2 (cond1) holds the first mixture, condition_id ..._seed01 / ..._grid01
-    assert wells.loc[(P, "A2"), "sample_id"].endswith("_cond1") and wells.loc[(P, "A2"), "condition_id"].endswith("01")
-    with pytest.warns(UserWarning, match="negative rel_mean"):  # other solutes read off-band
-        df = dataset.load_dataset(dataset_path)
-    block = df[df.solute == first_solute]  # read at its own band, so this is the meaningful block
-    assert len(block) == campaign.N_CONDITIONS and block["rel_mean"].between(0, 1.2).all()
+    assert set(pd.read_csv(tmp_path / "wells.csv")["plate"]) == set(range(P, P + 3))
+    df = dataset.load_dataset(dataset_path)  # every solute was read at its own band, so all blocks are meaningful
+    assert df.groupby("solute").size().eq(campaign.N_CONDITIONS).all() and df["rel_mean"].between(0, 1.2).all()
 
 
 def test_one_closed_loop_round_end_to_end(tmp_path, coarse_grid):

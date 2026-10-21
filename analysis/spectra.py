@@ -1,27 +1,31 @@
 """Plate-reader spectra -> one absorbance per well, in the single-value export `bo_bridge.py merge` reads.
 
-Input: one full-spectrum export per plate, as a long table (well, wavelength_nm, absorbance), a wide
-matrix (wavelength_nm rows, one column per well), or the lab reader's own export (one row per well, one column
-per wavelength, e.g. "Wavel.;300;310;..." then "A1;0,498;..."). Comma- or semicolon-separated; with semicolons,
-decimal commas are read too. The plate map from `bo_bridge.py layout` says which
+Input: one full-spectrum export per plate: the plate reader's own layout (one row per well, wavelengths across the header,
+`;` separators and decimal commas), a long table (well, wavelength_nm, absorbance) or a wavelength-by-well matrix. The plate map from `bo_bridge.py layout` says which
 solute sits in each well. Each solute is read at its own wavelength: the peak of its blank-corrected
 DMF-control spectrum, unless overridden. Output per plate: (well, absorbance) at that wavelength.
 
 Blank handling: the solvent-only readings are used here only to find the peaks. The endpoint files keep the
 raw absorbance (plates and blank alike), so `bo_bridge.py merge --blank` does the one and only subtraction.
-The blank is optional: a full solvent-only copy of the sample plate. Without one (the current plan) nothing is subtracted.
+The blank is optional: a full solvent-only copy of the sample plate, or (the plan) one pure-solvent well per solvent
+from which `predicted_blank` builds every well's background. Without either nothing is subtracted.
 """
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from production.config import ALL_SOLVENTS
+
 ROWS = "ABCDEFGH"
 N_COLS = 12
 WELLS = [f"{r}{c}" for r in ROWS for c in range(1, N_COLS + 1)]  # row order, as in bo_bridge
+SOLVENT_WELLS = {s: f"{ROWS[i]}1" for i, s in enumerate(ALL_SOLVENTS)}  # pure-solvent blank wells: A1 DMF, B1 acetone, ... in config order
 CONTROL_ROLE = "control"  # plate-map role of the DMF reference wells
 DEFAULT_NM_RANGE = (230.0, 800.0)  # ignore the far-UV edge where solvents and plastics absorb
-SMOOTH_NM = 5  # rolling-mean width before picking the peak, so one noisy point cannot win
+SMOOTH_NM = 5  # rolling-mean width (nm) before picking the peak, so one noisy point cannot win; at least 3 points
+MAX_SCAN_STEP_NM = 5  # a scan with a median step up to this counts as a full spectrum (200-700 nm in 5 nm steps)
 BLANK_MAX_DEFAULT = 1.0  # a wavelength is usable only where every solvent blank stays below this absorbance (PLAN decision 15)
 NOISE_NM = (600.0, 800.0)  # no solute absorbs here: the spread of the corrected control spectrum estimates the reader noise
 MIN_SIGNAL_SIGMAS = 3.0    # a solute counts as measurable when its control signal exceeds this many noise sigmas
@@ -45,43 +49,39 @@ def _find_column(df, test):
 
 
 def _read_table(path) -> pd.DataFrame:
-    """The export as a table: ',' separated, or ';' separated with decimal commas (European locale)."""
-    with open(path, encoding="utf-8-sig") as f:
-        header = f.readline()
-    if header.count(";") > header.count(","):
-        return pd.read_csv(path, sep=";", decimal=",", encoding="utf-8-sig")
-    return pd.read_csv(path, encoding="utf-8-sig")
+    """CSV with ',' separators and '.' decimals, or ';' separators and ',' decimals (European locale export)."""
+    semicolon = ";" in Path(path).read_text().splitlines()[0]
+    return pd.read_csv(path, sep=";" if semicolon else ",", decimal="," if semicolon else ".")
 
 
-def _wells_as_rows(df):
-    """The reader's own layout - first column well names, other column names wavelengths - as wavelength x well, else None."""
+def _is_well(name) -> bool:
     try:
-        wavelengths = [float(c) for c in df.columns[1:]]
-        wells = [normalize_well(w) for w in df.iloc[:, 0]]
-    except (ValueError, SpectraError):
-        return None
-    wide = df.iloc[:, 1:].T
-    wide.index, wide.columns = wavelengths, wells
-    return wide.apply(pd.to_numeric)
+        normalize_well(name)
+        return True
+    except SpectraError:
+        return False
 
 
 def read_spectra(path) -> pd.DataFrame:
-    """Wide table: index wavelength_nm (float, sorted), one column per well."""
+    """Wide table: index wavelength_nm (float, sorted), one column per well.
+
+    Accepts a long table (well, wavelength, absorbance), a wavelength-by-well matrix, or its transpose (one row per
+    well, wavelengths across the header, as the plate reader exports it).
+    """
     df = _read_table(path)
-    wl_col = _find_column(df, lambda c: "wavelength" in c or c in ("nm", "lambda"))
+    wl_col = _find_column(df, lambda c: "wavel" in c or c in ("nm", "lambda"))
     well_col = _find_column(df, lambda c: c == "well")
-    if wl_col is None and (wide := _wells_as_rows(df)) is not None:  # the lab reader's export
-        wide.index.name = "wavelength_nm"
-        return wide.sort_index()
-    if wl_col is None:
+    if well_col is None and df.iloc[:, 0].map(_is_well).all():  # wells down the rows: transpose
+        wide = df.set_index(df.columns[0]).T
+    elif wl_col is None:
         raise SpectraError(f"{path}: no wavelength column (expected 'wavelength_nm')")
-    if well_col is not None:  # long table
+    elif well_col is not None:  # long table
         value_col = next((c for c in df.columns if c not in (wl_col, well_col)
                           and pd.api.types.is_numeric_dtype(df[c])), None)
         if value_col is None:
             raise SpectraError(f"{path}: no numeric absorbance column")
         wide = df.pivot(index=wl_col, columns=well_col, values=value_col)
-    else:  # wide matrix
+    else:  # wavelength-by-well matrix
         wide = df.set_index(wl_col)
     wide.columns = [normalize_well(c) for c in wide.columns]
     wide.index = wide.index.astype(float)
@@ -110,16 +110,23 @@ def blank_correct(spectra, blank) -> pd.DataFrame:
     return spectra - blank[spectra.columns]
 
 
+def predicted_blank(solvent_spectra, plate_map) -> pd.DataFrame:
+    """Blank plate predicted from one pure-solvent well per solvent (SOLVENT_WELLS): each well's blank is the
+    volume-fraction-weighted sum of the pure-solvent spectra (equal path length, ideal mixing). Wavelength x well."""
+    check_wells(solvent_spectra, pd.DataFrame(index=list(SOLVENT_WELLS.values())), "solvent blank")
+    fraction_cols = [f"frac_{s}" for s in SOLVENT_WELLS]
+    missing = [c for c in fraction_cols if c not in plate_map.columns]
+    if missing:
+        raise SpectraError(f"plate map lacks columns {missing}")
+    pure = solvent_spectra[list(SOLVENT_WELLS.values())].set_axis(list(SOLVENT_WELLS), axis=1)
+    return pure @ plate_map[fraction_cols].set_axis(list(SOLVENT_WELLS), axis=1).T
+
+
 def check_wells(spectra, plate_map, name="reader export") -> None:
     """Every plate-map well has a spectrum."""
     missing = plate_map.index.difference(spectra.columns)
     if len(missing):
         raise SpectraError(f"{name}: no spectrum for wells {list(missing)}")
-
-
-def _is_full_spectrum(index) -> bool:
-    """True for a dense scan (many points, ~1 nm apart), False for a handful of fixed wavelengths."""
-    return len(index) >= 20 and float(pd.Series(index).diff().median()) <= 2.0
 
 
 def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
@@ -132,8 +139,8 @@ def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
 
 
 def _is_full_spectrum(index) -> bool:
-    """True for a dense scan (many points, ~1 nm apart), False for a handful of fixed wavelengths."""
-    return len(index) >= 20 and float(pd.Series(index).diff().median()) <= 2.0
+    """True for a dense scan (many points, at most 5 nm apart), False for a handful of fixed wavelengths."""
+    return len(index) >= 20 and float(pd.Series(index).diff().median()) <= MAX_SCAN_STEP_NM
 
 
 def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrides=None, usable=None):
@@ -149,7 +156,7 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
     rows = []
     for solute, block in controls.groupby("solute"):
         spec = pd.concat([s.loc[lo:hi, block.index] for s in spectra_list], axis=1).mean(axis=1)
-        window = SMOOTH_NM if _is_full_spectrum(spec.index) else 1  # a few fixed wavelengths: no smoothing
+        window = max(3, round(SMOOTH_NM / float(spec.index.to_series().diff().median()))) if _is_full_spectrum(spec.index) else 1  # a few fixed wavelengths: no smoothing
         smooth = spec.rolling(window, center=True, min_periods=1).mean()
         band_max = float(smooth.idxmax())
         allowed = smooth if usable is None else smooth[usable.reindex(smooth.index).fillna(False).to_numpy()]

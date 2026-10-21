@@ -8,7 +8,7 @@ import pytest
 
 from conftest import DEBUG_DIR, OT_EXAMPLES, REPO
 from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
-from analysis.spectra import SpectraError, read_plate_map, read_spectra, reduce_round
+from analysis.spectra import SOLVENT_WELLS, SpectraError, predicted_blank, read_plate_map, read_spectra, reduce_round
 
 EXAMPLES = DEBUG_DIR
 R = FIRST_ROUND
@@ -90,3 +90,35 @@ def test_cli_output_feeds_bo_bridge_merge(tmp_path):
     controls = dataset[dataset["is_reference"] == 1]
     assert len(dataset) == 96 and (controls["rel_mean"] == 1.0).all()
     assert (dataset.loc[dataset["is_reference"] == 0, "rel_mean"] < 1.0).all()
+
+
+def test_predicted_blank_matches_the_full_blank_plate(blank, plate_map):
+    solvents = read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv")
+    predicted = predicted_blank(solvents, plate_map)
+    assert list(SOLVENT_WELLS.values()) == ["A1", "B1", "C1", "D1", "E1", "F1", "G1"]
+    assert list(predicted.columns) == list(plate_map.index) and predicted.shape == blank.shape
+    assert (predicted - blank[predicted.columns]).abs().to_numpy().max() < 0.03  # reader noise of one well plus the weighted sum
+    pure = predicted[plate_map.index[plate_map["frac_DMF"] == 1]]
+    assert (pure.sub(solvents["A1"], axis=0).abs() < 1e-9).all().all()  # a DMF control well's blank is the DMF well
+
+
+def test_reduce_with_predicted_blank_agrees_with_full_blank(plates, blank, plate_map):
+    predicted = predicted_blank(read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv"), plate_map)
+    wl_full, ep_full, *_ = reduce_round(plate_map, plates, blank)
+    wl_pred, ep_pred, *_ = reduce_round(plate_map, plates, predicted)
+    assert (wl_full == wl_pred).all() and len(ep_pred) == 4
+    assert (ep_pred[-1]["absorbance"] - ep_full[-1]["absorbance"]).abs().max() < 0.03  # the blank endpoint merge subtracts
+
+
+def test_solvent_blank_file_must_have_every_solvent_well(plate_map, tmp_path):
+    solvents = read_spectra(EXAMPLES / f"reader_round{R}_solvents.csv").drop(columns="G1")
+    with pytest.raises(SpectraError, match="G1"):
+        predicted_blank(solvents, plate_map)
+
+
+def test_earlier_round_wavelengths_are_reused_unless_overridden(tmp_path):
+    from analysis.cli import _earlier_wavelengths
+    for k, nm in ((0, 275.0), (1, 280.0)):
+        pd.DataFrame({"wavelength_nm": [nm, None]}, index=pd.Index(["A", "B"], name="solute")).to_csv(tmp_path / f"wavelengths_round{k}.csv")
+    assert _earlier_wavelengths(tmp_path, 0) == (None, {})
+    assert _earlier_wavelengths(tmp_path, 2) == (1, {"A": 280.0})  # the latest earlier round; unset (NaN) solutes are skipped

@@ -5,7 +5,7 @@ Expected files in the folder, per round N (missing optional ones are skipped by 
     results_roundN_wells.csv        bo_bridge merge       per well and plate: abs_raw, abs_blank, abs_corrected, rel_to_DMF
     bo_dataset.csv, bo_dataset_shared.csv   bo_bridge merge   per solute x condition / per shared condition, all rounds
     wavelengths_roundN.csv          analysis reduce       solute -> wavelength_nm                      (optional)
-    reader_roundN_plate{P}.csv, reader_roundN_blank.csv   plate reader   spectra                      (optional)
+    reader_roundN_plate{P}.csv, reader_roundN_blank.csv or reader_roundN_solvents.csv   plate reader   spectra   (blank optional)
     plate_log_roundN.csv            lab notes             plate, read_delay_min (shake end -> read)   (optional)
 
 Files may sit in the folder itself or in its `ratios/` (robot inputs, plate maps) and `uvvis/` (reader exports, plate
@@ -20,7 +20,7 @@ import pandas as pd
 
 from production.config import REFERENCE_SOLVENT
 
-from .spectra import SpectraError, read_plate_map, read_spectra
+from .spectra import SpectraError, predicted_blank, read_plate_map, read_spectra
 
 KINDS = ["control", "seed", "exploit", "explore", "retest"]
 NOISE_FLOOR = 0.01  # per-well relative noise assumed when a campaign has neither replicate plates nor re-tests
@@ -122,9 +122,12 @@ class Run:
         return read_spectra(path) if path else None
 
     def blank(self, r):
-        """Solvent-only plate spectra for round r, or None (no blanks are run at the moment)."""
+        """Blank spectra for round r: a solvent-only plate, else predicted from the pure-solvent wells, else None."""
         path = self._optional(f"reader_round{r}_blank.csv")
-        return read_spectra(path) if path else None
+        solvents = self._optional(f"reader_round{r}_solvents.csv")
+        if path:
+            return read_spectra(path)
+        return predicted_blank(read_spectra(solvents), self.plate_maps[r]) if solvents else None
 
     def plate_log(self):
         """round, plate, read_delay_min for every logged plate, or None."""
