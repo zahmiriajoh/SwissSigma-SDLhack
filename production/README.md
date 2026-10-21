@@ -107,6 +107,18 @@ the UV readout can follow (see "Interpretation notes").
 `attacks_polystyrene` marks the solvents expected to craze the polystyrene readout plate (acetone and the esters). Only
 the fake plate reader and toy runs read it now: the plate-attack check went with the QC plate.
 
+## Solid loading and dilution (user decisions, 2026-10-21)
+
+- **No dilution.** Every sample plate and the solvent blank plate are read undiluted, as the OT-2 fills them.
+- **Step-0 DMF pre-test at 5, 10, 20 and 50 mg/mL.** For each solute, the highest of these that dissolves in DMF is
+  weighed into every well of that solute's block: 1.5, 3, 6 or 15 mg in the 300 µL well. The four solutes may end up at
+  different loads. The pipeline does not need the load: every relative value divides by the same solute's DMF control.
+- **Expected consequence:** at these loads phthalimide's DMF control is predicted to read above the plate reader's range,
+  so good solvents and DMF would all read about 1.0 relative to DMF. The estimate, its sources and what stays open are in
+  [`../docs/uv_saturation_estimate.md`](../docs/uv_saturation_estimate.md).
+- **Over-range readings stay 4.0.** A capped reading (`OVER` in the reader workbook) is analysed as absorbance 4.0, like
+  any other value; the round is not stopped and the solute is not marked not measurable.
+
 ## Forbidden solvent pairs
 
 Water is immiscible with i-PrOAc and with t-BuOAc, so a well containing either pair would phase-separate and its

@@ -65,6 +65,9 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 4. **Fixed wavelengths:** read at each solute's peak **plus 700 nm** so the scattering check (Q4) still works. The peak-shift
    map needs full spectra and is skipped otherwise. Peaks are picked on the unsmoothed spectrum.
 5. **Saturation threshold** `--abs-max` defaults to 2.5 absorbance until the reader's linear range is known (Q-b).
+   **User decision (2026-10-21):** an over-range reading stays absorbance 4.0 and is used as a real value; the
+   `saturated` flag is informational only (no guard, the round is not stopped, the solute is not marked not
+   measurable). See decision 3 in `docs/uv_saturation_estimate.md`.
 6. **Peak-shift masking:** wells whose blank-corrected band is below 0.05 absorbance are left grey in the peak-shift map,
    otherwise the UV edge wins the argmax for weak wells and every low-solubility well looks shifted.
 7. **Dropped: calibration metrics** (Q7), with the calibration series.

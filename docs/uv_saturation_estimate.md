@@ -4,6 +4,33 @@ Written 2026-10-21 for the production campaign in `production/config.toml`. Noth
 plate reader: every number is a Beer-Lambert estimate from literature spectra. The direct check is a plate-reader
 scan of the step-0 DMF pre-test wells (Scientist instructions, section B, step 0).
 
+## Decisions (user, 2026-10-21)
+
+1. **No dilution step.** Every plate is read undiluted, as filled by the OT-2.
+2. **Step-0 DMF pre-test at 5, 10, 20 and 50 mg/mL**, replacing 50, 100, 200 and 400 mg/mL. For each solute, the
+   highest of these concentrations that dissolves in DMF sets that solute's load in every well of its block. In a
+   300 µL well that is 1.5, 3, 6 or 15 mg of solid.
+3. **A capped reading counts as a real reading.** An over-range cell stays absorbance 4.0 and enters the dataset like
+   any other value; no guard stops the round or marks the solute not measurable. This keeps the current implementation
+   and settles the guard suggested in "Cross-check and consequences for the analysis".
+
+What the estimates below predict for these decisions, assuming the published absorptivities hold in our solvents:
+
+| Load chosen | Phthalimide DMF control, A at 295 / 320 nm | Succinimide DMF control, A at 230 / 250 nm |
+|---|---|---|
+| 5 mg/mL (1.5 mg per well) | about 60 / 4.8 | about 4.2 / 2.6, but both under DMF's UV cut-off |
+| 10 mg/mL (3 mg) | about 120 / 9.6 | about 8.5 / 5.2, under DMF's cut-off |
+| 20 mg/mL (6 mg) | about 240 / 19 | about 17 / 10, under DMF's cut-off |
+| 50 mg/mL (15 mg) | about 600 / 48 | about 42 / 26, under DMF's cut-off |
+
+- **Phthalimide's DMF control will read over range at any of the four loads**, at both 295 and 320 nm, and be capped
+  at 4.0. So will every well whose solvent dissolves more than about 0.34 mg/mL (295 nm) or about 4.2 mg/mL (320 nm).
+  With acetone, ethanol and isopropanol dissolving at least 5.7 mg/mL [6], their wells would read the same capped value
+  as DMF, a relative value of about 1.0. Only solvents that dissolve less than about 4 mg/mL, such as water (about
+  0.4 mg/mL [8]), would give a measured value.
+- **Succinimide's only bands in range sit under DMF's cut-off**, so its DMF control cannot be read at any load.
+- **Glutarimide and Boc-hydroxyproline remain unknown** (no data above 207 nm).
+
 ## Question
 
 The Scientist instructions load each well with the highest concentration from a DMF pre-test at 50, 100, 200 and
