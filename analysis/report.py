@@ -93,10 +93,13 @@ def r2_objective(run, outdir):
     fig.tight_layout()
     rel_cols = [c for c in obj.columns if c.startswith("rel_")]
     obj["worst_solute"] = obj[rel_cols].idxmin(axis=1).str[len("rel_"):]
+    single = [f"One solute in this view ({run.measurable_solutes[0]}): the objective is simply its relative solubility."] \
+        if len(run.measurable_solutes) == 1 else []
     table = obj.head(TOP_N)[["mixture", "obj_min_rel", "obj_err", "worst_solute", "n_solvents", "first_round"]].copy()
     table.insert(0, "rank", range(1, len(table) + 1))
     notes = [f"Objective over the measurable solutes {run.measurable_solutes}; excluded as NOT measurable by `analysis reduce` "
              f"(control signal within the noise at every usable wavelength): {run.unmeasurable}."] if run.unmeasurable else []
+    notes = single + notes
     if best_pure is not None and len(obj):
         best = obj.iloc[0]
         z = _z(best["obj_min_rel"], best["obj_err"], best_pure["obj_min_rel"], best_pure["obj_err"])
@@ -125,7 +128,7 @@ def r3_progress(run, outdir):
     ax = axes[0]
     ax.step(incumbent.index, incumbent.to_numpy(), where="post", color=OKABE_ITO[0], lw=1.5, label="Best so far")
     ax.plot(best_by_round.index, best_by_round.to_numpy(), "o", color=OKABE_ITO[1], label="Best of the round")
-    ax.axhline(best_by_round.iloc[0], color="k", ls="--", lw=0.8, label="Round-1 grid best")
+    ax.axhline(best_by_round.iloc[0], color="k", ls="--", lw=0.8, label="Seed-round best")
     ax.axhline(1.0, color="k", ls=":", lw=0.8, label="DMF")
     ax.set_xticks(run.rounds)
     ax.set_xlabel("Round", fontsize=9)
@@ -344,8 +347,10 @@ def r5_synergy(run, outdir):
 # ----- R6 do the solutes agree? ---------------------------------------------------------------------------
 
 def r6_solute_agreement(run, outdir):
-    obj = run.pooled_objective()
     solutes = run.measurable_solutes
+    if len(solutes) < 2:  # e.g. a one-solute arm: nothing to compare
+        return pd.DataFrame(), [f"Only {len(solutes)} measurable solute in this view ({', '.join(solutes)}): nothing to compare."], []
+    obj = run.pooled_objective()
     rel = obj[[f"rel_{s}" for s in solutes]].rename(columns=lambda c: c[len("rel_"):])
     corr = rel.corr()
     fig, axes = panel_grid(2, 2, (5.2, 4.2))
@@ -380,7 +385,7 @@ def r7_dataset(run, outdir):
     wide["worst"] = wide.min(axis=1)
     fig, ax = plt.subplots(figsize=(6.5, max(4.0, 0.13 * len(wide) + 1)))
     im = ax.imshow(wide.to_numpy(), cmap="viridis", aspect="auto", vmin=0, vmax=max(1.0, np.nanmax(wide.to_numpy())))
-    ax.set_xticks(range(wide.shape[1]), list(wide.columns), fontsize=8)
+    ax.set_xticks(range(wide.shape[1]), list(wide.columns), fontsize=8, rotation=30, ha="right", rotation_mode="anchor")
     ax.set_yticks(range(len(wide)), [f"R{r} {c}  {m}" for r, c, m in wide.index], fontsize=5)
     rounds = wide.index.get_level_values("round").to_numpy()
     for k in np.where(np.diff(rounds) != 0)[0]:
@@ -390,8 +395,8 @@ def r7_dataset(run, outdir):
     ax.set_title("All conditions by solute, grouped by round", fontsize=11)
     fig.tight_layout()
     files = ["bo_dataset.csv", "bo_dataset_shared.csv"] + [f"plate_map_round{r}.csv" for r in run.rounds] + [f"results_round{r}_wells.csv" for r in run.rounds]
-    notes = [f"{len(wide)} condition rows over {len(run.rounds)} round(s), {len(run.solutes)} solutes.",
-             "Deliverable files in the run folder: " + ", ".join(f"`{f}`" for f in files if run._optional(f)) + "; QC numbers in `qc_summary.md`."]
+    notes = [f"{len(wide)} condition rows over {len(run.rounds)} round(s), {len(run.solutes)} solute(s).",
+             "Deliverable files in the run folder: " + ", ".join(f"`{f}`" for f in files if run._optional(f)) + "; QC numbers in the `qc_summary.md` written by `analysis qc` (one level up with `--arms`)."]
     return pd.DataFrame(), notes, [save(fig, outdir / "report_R7_dataset.png")]
 
 
@@ -400,8 +405,8 @@ def r7_dataset(run, outdir):
 QUESTIONS = {  # what each analysis is for, printed under its heading in report_summary.md
     "R1": "For each solute on its own, does any green-solvent mixture dissolve more than the best single green solvent, "
           "and how close does it come to DMF?",
-    "R2": "Is there one mixture that dissolves all solutes well at once, i.e. whose worst solute still beats the best "
-          "single solvent's worst solute? This is the proposal's success criterion.",
+    "R2": "Is there one mixture that dissolves all solutes in this report well at once (with `--arms`: that arm's solutes), "
+          "i.e. whose worst solute still beats the best single solvent's worst solute? This is the proposal's success criterion.",
     "R3": "Is the Bayesian optimisation learning: does the best objective improve round on round, and do its exploit picks "
           "outperform its explore picks and the seed grid?",
     "R4": "Where in composition space do the good mixtures lie, and what does the model believe about the regions it has "
@@ -415,9 +420,11 @@ QUESTIONS = {  # what each analysis is for, printed under its heading in report_
 }
 
 
-def run_report(run, outdir, with_gp=True, seed=0):
+def run_report(run, outdir, with_gp=True, seed=0, arm=None):
+    """All R1-R7 sections into outdir/report_summary.md; `arm` names the arm whose solutes `run` was restricted to."""
     outdir.mkdir(parents=True, exist_ok=True)
-    summary = Summary(f"Report: {run.folder.name} (rounds {', '.join(map(str, run.rounds))})")
+    view = f", arm {arm}: {', '.join(run.solutes)}" if arm else ""
+    summary = Summary(f"Report: {run.folder.name} (rounds {', '.join(map(str, run.rounds))}{view})")
     parts = [("R1 mixtures vs single solvents, per solute", r1_per_solute(run, outdir)),
              ("R2 the 'dissolves everything' objective", r2_objective(run, outdir)),
              ("R3 BO progress", r3_progress(run, outdir)),

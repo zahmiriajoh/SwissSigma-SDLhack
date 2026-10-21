@@ -37,7 +37,7 @@ DEFAULT_NM_RANGE = (200.0, 700.0)  # the whole scanned spectrum
 BLANK_MAX_DEFAULT = 1.0  # a wavelength is usable only where every solvent blank stays below this absorbance (PLAN decision 15)
 NOISE_NM = (600.0, 700.0)  # no solute absorbs here: the spread of the corrected control spectrum estimates the reader noise
 MIN_SIGNAL_SIGMAS = 3.0    # a solute counts as measurable when its control signal exceeds this many noise sigmas
-ABS_MAX_DEFAULT = 2.5    # reader linear range placeholder: raw absorbance above it is flagged "saturated" (PLAN decision 5)
+ABS_MAX_DEFAULT = 4.0    # = OVER_ABS in production/convert_reader_xlsx.py: a reading at or above it is the reader's OVER, flagged "saturated" (PLAN decision 5)
 
 
 class SpectraError(ValueError):
@@ -212,7 +212,7 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
 def reduce_plate(spectra, plate_map, wavelengths, bandwidth_nm=0.0, blank=None, abs_max=ABS_MAX_DEFAULT, blank_max=BLANK_MAX_DEFAULT) -> pd.DataFrame:
     """(well, absorbance, blank_abs, flag): each well read at its solute's wavelength, averaged over +/- bandwidth_nm.
 
-    `flag` is "saturated" (raw above abs_max), "opaque" (that well's blank above blank_max) or both; bo_bridge merge
+    `flag` is "saturated" (raw at or above abs_max), "opaque" (that well's blank above blank_max) or both; bo_bridge merge
     reads only the first numeric column, so the extra columns are harmless there.
     """
     check_wells(spectra, plate_map)
@@ -221,7 +221,7 @@ def reduce_plate(spectra, plate_map, wavelengths, bandwidth_nm=0.0, blank=None, 
         wl = wavelengths[solute]
         a = spectra.loc[wl - bandwidth_nm: wl + bandwidth_nm, well].mean()
         b = blank.loc[wl - bandwidth_nm: wl + bandwidth_nm, well].mean() if blank is not None and well in blank.columns else np.nan
-        flags = (["saturated"] if a > abs_max else []) + (["opaque"] if b > blank_max else [])
+        flags = (["saturated"] if a >= abs_max else []) + (["opaque"] if b > blank_max else [])
         rows.append((well, a, b, "+".join(flags)))
     return pd.DataFrame(rows, columns=["well", "absorbance", "blank_abs", "flag"]).round({"absorbance": 4, "blank_abs": 4})
 

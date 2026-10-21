@@ -10,7 +10,7 @@ from .spectra import ABS_MAX_DEFAULT, DEFAULT_NM_RANGE, MIN_SIGNAL_SIGMAS, blank
 from .summary import Summary
 
 PLATE_OFFSET_FLAG = 0.05       # a plate whose median deviates from the others by more than this is flagged
-SCATTER_NM = (600.0, 800.0)    # no solute absorbs here: signal = scattering by undissolved solid
+SCATTER_NM = (600.0, 700.0)    # no solute absorbs here (top of the 200-700 nm scan): signal = scattering by undissolved solid
 MIN_ABS_FOR_PEAK = 0.05     # peak position is only meaningful for wells whose corrected band is at least this high
 
 
@@ -75,8 +75,8 @@ def q2_control_stability(run, outdir):
             ax.plot(g["round"], g["abs_corrected"], PLATE_MARKERS[k % len(PLATE_MARKERS)], color=colors[solute],
                     ms=5, alpha=0.8, mfc="none" if k else colors[solute])
         ax.plot(by_round.index, by_round.to_numpy(), "-", color=colors[solute], lw=1.2, label=solute)
-        rows.append({"solute": solute, "round1_mean": by_round.iloc[0],
-                     "max_drift_vs_round1": float((by_round / by_round.iloc[0] - 1).abs().max()),
+        rows.append({"solute": solute, "first_round_mean": by_round.iloc[0],
+                     "max_drift_vs_first_round": float((by_round / by_round.iloc[0] - 1).abs().max()),
                      "within_round_cv": float((c.groupby("round")["abs_corrected"].std() / by_round).mean())})
     ax.set_xticks(run.rounds)
     ax.set_xlabel("Round", fontsize=9)
@@ -119,7 +119,7 @@ def q4_spectral(run, outdir, abs_max=ABS_MAX_DEFAULT, nm_range=DEFAULT_NM_RANGE)
                 shift[p] = (band.idxmax() - pm["solute"].map(wl)).where(height >= MIN_ABS_FOR_PEAK)
             if len(long_wl):
                 scatter[p] = long_wl[pm.index].mean()
-        sat = run.wells[(run.wells["round"] == r) & (run.wells["abs_raw"] > abs_max)]
+        sat = run.wells[(run.wells["round"] == r) & (run.wells["abs_raw"] >= abs_max)]
         rows.append({"round": r, "n_saturated": len(sat), "saturated_wells": " ".join(f"P{p}:{w}" for p, w in zip(sat["plate"], sat["well"]))[:80],
                      "n_peak_shift_gt10nm": int((pd.concat(shift.values()).abs() > 10).sum()) if shift else np.nan,
                      "median_abs_peak_shift_nm": float(pd.concat(shift.values()).abs().median()) if shift else np.nan,
@@ -136,8 +136,10 @@ def q4_spectral(run, outdir, abs_max=ABS_MAX_DEFAULT, nm_range=DEFAULT_NM_RANGE)
             fig.colorbar(im, ax=axes[0].tolist(), shrink=0.8, pad=0.02).set_label(label, fontsize=9)
             fig.suptitle(f"Round {r}: {label.lower()}", fontsize=11)
             figs.append(save(fig, outdir / f"qc_Q4_{name}_round{r}.png"))
-    notes = [f"Saturation: raw absorbance above {abs_max} (reader linear range placeholder, PLAN Q-b).",
-             f"Peak shift needs full spectra and a band of at least {MIN_ABS_FOR_PEAK} absorbance (grey = too weak); scattering needs readings at 600-800 nm (add a 700 nm read in fixed-wavelength mode).",
+    notes = [f"Saturation: raw absorbance at or above {abs_max}, i.e. a reading the plate reader returned as OVER (PLAN decision 5). "
+             "Informational only: by the user's decision an over-range reading is kept as 4.0 and used as a real value "
+             "(docs/uv_saturation_estimate.md).",
+             f"Peak shift needs full spectra and a band of at least {MIN_ABS_FOR_PEAK} absorbance (grey = too weak); scattering needs readings at 600-700 nm (add a 700 nm read in fixed-wavelength mode).",
              "High scattering = undissolved solid in the light path, which inflates that well."]
     return pd.DataFrame(rows), notes, figs
 

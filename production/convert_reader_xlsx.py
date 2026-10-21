@@ -23,7 +23,7 @@ import pandas as pd
 
 from analysis.spectra import SpectraError, normalize_well
 
-OVER_ABS = 4.0  # stands in for an over-range reading: above the blank limit (1.0) and the saturation flag (2.5)
+OVER_ABS = 4.0  # stands in for an over-range reading: above the blank limit (1.0); analysis flags >= this as saturated
 _OVER = re.compile(r"\s*(over\w*|>.*)\s*", re.IGNORECASE)
 
 

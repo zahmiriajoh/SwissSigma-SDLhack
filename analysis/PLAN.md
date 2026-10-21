@@ -26,7 +26,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
 |---|---|---|
 | **Q1 plate-to-plate reproducibility** | `qc_Q1_plates_roundN.png`: per solute, plate 1 vs the others, plus the CV histogram | median CV per solute and round; plates offset by more than 5 % are flagged |
 | **Q2 control stability** | `qc_Q2_controls.png`: DMF control per solute, plate and round | max drift vs round 1; within-round CV |
-| **Q4 spectral QC** | `qc_Q4_peakshift_roundN.png`, `qc_Q4_scatter_roundN.png`: 8×12 maps per plate | saturated wells (raw > `--abs-max`), wells with peak shift > 10 nm, max scattering 600–800 nm |
+| **Q4 spectral QC** | `qc_Q4_peakshift_roundN.png`, `qc_Q4_scatter_roundN.png`: 8×12 maps per plate | saturated wells (raw ≥ `--abs-max`), wells with peak shift > 10 nm, max scattering 600–800 nm |
 | **Q5 precision against signal** | `qc_Q5_precision.png`: std vs mean per condition, detection limit dashed | detection limit = 3 × the reader noise (600–800 nm spread of the control spectrum); fraction below it; log slope |
 | **Q6 cross-round re-tests** | `qc_Q6_retests.png`: re-test vs first value, ± 2 CV band | mean absolute difference; fraction within 2 × that solute's CV |
 
@@ -52,6 +52,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
   `analysis report --arms` writes one report per arm (R1–R7 on that arm's solutes only, `Run(folder, solutes)`), so R2 and R3 show
   the objective each arm optimises: phthalimide alone, and the minimum of the other three. Without `--arms` the report is
   the all-solute one, which after round 0 covers only the seed mixtures. Q1–Q6 stay per solute and need no split.
+  Each arm report's title names the arm, and a one-solute arm (phthalimide) skips R6, which has nothing to compare.
 - **Q-e priorities:** Q1, Q2, R2, R1, R3, Q4, R4, R5, Q5, Q6, R6, R7 (Q3 and Q7 dropped with the QC plate).
 - **Q-f output:** PNG at 300 dpi plus `qc_summary.md` and `report_summary.md`; **ask again about slides later**.
 
@@ -64,7 +65,9 @@ line-style cue wherever two categories meet, round number on every title, PNG at
    `abs_raw`, `abs_blank` and `abs_corrected` separately; with no blank, `abs_blank` is 0.
 4. **Fixed wavelengths:** read at each solute's peak **plus 700 nm** so the scattering check (Q4) still works. The peak-shift
    map needs full spectra and is skipped otherwise. Peaks are picked on the unsmoothed spectrum.
-5. **Saturation threshold** `--abs-max` defaults to 2.5 absorbance until the reader's linear range is known (Q-b).
+5. **Saturation threshold** `--abs-max` defaults to 4.0, the value `production/convert_reader_xlsx.py` gives the reader's
+   `OVER` cells (commit 12c45f3): a well is flagged saturated only when the reader could not measure it (user, 2026-10-21;
+   the earlier 2.5 placeholder predates the production values and is dropped).
    **User decision (2026-10-21):** an over-range reading stays absorbance 4.0 and is used as a real value; the
    `saturated` flag is informational only (no guard, the round is not stopped, the solute is not marked not
    measurable). See decision 3 in `docs/uv_saturation_estimate.md`.
@@ -109,7 +112,7 @@ line-style cue wherever two categories meet, round number on every title, PNG at
     the solute is read on its shoulder and `wavelengths_roundN.csv` records `at_band_max = False`, the band maximum,
     the window and `signal_fraction`. A solute whose control signal at that wavelength is below 3 x the spectral noise
     (600-700 nm spread) is marked `measurable = False`, and the console says so. Endpoint files carry `blank_abs` and a
-    `flag` column (`saturated` above `--abs-max`, `opaque` above `--blank-max`) that bo_bridge merge ignores.
+    `flag` column (`saturated` at or above `--abs-max`, `opaque` above `--blank-max`) that bo_bridge merge ignores.
     Consequences: measurements stay valid in every well at the cost of sensitivity; a solute that cannot be measured is
     declared unmeasurable up front rather than reported as insoluble, and a solute flagged in **any** round is excluded
     from the worst-solute objective by both `analysis report` (`Run.measurable_solutes`) and SDL_BO's scoring

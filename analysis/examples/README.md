@@ -20,7 +20,7 @@ follow `OT protocols/bo_bridge.py`.
 Each solute has one Gaussian band (Glutarimide 275 nm, Boc-hydroxyproline 350 nm, Phthalimide 295 nm, Succinimide 410 nm; invented) on a UV-rising baseline with noise.
 Band height = 1.2 × a "dissolved fraction" = fraction-weighted per-solvent dissolving power plus a synergy bonus for
 balanced mixtures, capped at 1. DMF gives full dissolution. Optional knobs (used by `make_toy_run.py`, off by
-default): per-solute band heights, plate attack growing with the read delay, a reader ceiling of 3.5.
+default): per-solute band heights, plate attack growing with the read delay, a reader ceiling of 4.0 (readings at or above it come back as OVER, the converter's capped value).
 
 ## Source of variations in the generated fake values
 

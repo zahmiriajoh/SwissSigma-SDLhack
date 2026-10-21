@@ -56,7 +56,7 @@ names come from the plate map, so the same commands run on the older 1-based toy
 | `--nm-range MIN MAX` | 200 700 | search peaks only in this range |
 | `--bandwidth` | 0 | average over ± this many nm around the wavelength |
 | `--blank-max` | 1.0 | with `--blank`: read only where every solvent blank is below this absorbance |
-| `--abs-max` | 2.5 | flag wells whose raw absorbance exceeds this (reader linear range) |
+| `--abs-max` | 4.0 | flag wells whose raw absorbance is at or above this: the reader's `OVER`, which the converter reads as 4.0 |
 | `--plots` | off | also write `spectra_roundN.png` and `plates_roundN.png` |
 
 Each solute is read at its **fixed wavelength** (`wavelength_nm` in `production/config.toml`, or `--wavelength`). When none
@@ -68,7 +68,7 @@ output folder, so one solute is read at one wavelength all campaign (a run with 
 warning, so set the wavelengths before the first real round. With a blank (`--solvent-blanks` or `--blank`), the peak is restricted to the
 **usable window** (wavelengths where every solvent blank stays below `--blank-max`; acetone is opaque below about
 330 nm), and a band maximum outside it is read on its shoulder. `wavelengths_roundN.csv` records `band_max_nm`,
-`at_band_max`, the window, `signal_fraction` and a `measurable` verdict (control signal above 3 x the 600–800 nm noise; 600–700 nm with the planned scan).
+`at_band_max`, the window, `signal_fraction` and a `measurable` verdict (control signal above 3 x the 600–700 nm noise).
 Endpoint files carry `blank_abs` and a `flag` column (`saturated`, `opaque`); `bo_bridge.py merge` reads only the
 absorbance. See PLAN.md decision 15.
 
@@ -90,8 +90,8 @@ prediction; give either option, not both. With neither, nothing is subtracted.
 |---|---|---|
 | `--run` | required | the campaign folder |
 | `--outdir` | `<run>/figures` | figures and summary |
-| `qc --abs-max` | 2.5 | reader linear range: raw absorbance above it is flagged as saturated |
-| `report --arms` | off | one report per arm of `production/config.toml` in `<outdir>/<arm>/`: each arm's objective (phthalimide alone; the minimum of the other three) replaces the all-solute one, because after round 0 the arms share no conditions |
+| `qc --abs-max` | 4.0 | raw absorbance at or above it (the reader's `OVER`) is flagged as saturated |
+| `report --arms` | off | one report per arm of `production/config.toml` in `<outdir>/<arm>/`: each arm's objective (phthalimide alone; the minimum of the other three) replaces the all-solute one, because after round 0 the arms share no conditions. Each title names its arm; a one-solute arm skips R6 (nothing to compare). `qc_summary.md` stays one level up, in `<outdir>/` |
 | `report --no-gp` | off | skip the SDL_BO Gaussian-process landscape (needs `SDL_BO` and a few seconds per solute) |
 | `report --seed` | 0 | seed for the GP fits |
 

@@ -48,13 +48,13 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="average absorbance over +/- this many nm around the wavelength (default 0)")
     reduce.add_argument("--blank-max", type=float, default=BLANK_MAX_DEFAULT,
                         help="read only where every solvent blank is below this absorbance (default %(default)s)")
-    reduce.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="flag wells whose raw absorbance exceeds this")
+    reduce.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="flag wells whose raw absorbance is at or above this (default: the reader's OVER, 4.0)")
     reduce.add_argument("--plots", action="store_true", help="also write QC figures (spectra, plate heat maps)")
 
     qc = commands.add_parser("qc", help="experiment-quality figures and qc_summary.md for a campaign folder")
     qc.add_argument("--run", required=True, help="folder with plate_map_roundN.csv, results_roundN_wells.csv, bo_dataset.csv, ...")
     qc.add_argument("--outdir", help="where figures and qc_summary.md go (default <run>/figures)")
-    qc.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="reader linear range: flag raw absorbance above this")
+    qc.add_argument("--abs-max", type=float, default=ABS_MAX_DEFAULT, help="flag raw absorbance at or above this as saturated (default: the reader's OVER, 4.0)")
 
     report = commands.add_parser("report", help="study-aim figures and report_summary.md for a campaign folder")
     report.add_argument("--run", required=True, help="campaign folder (see qc)")
@@ -69,9 +69,9 @@ def _run_report(args) -> None:
     from .report import run_report
     from .run import Run
     outdir = Path(args.outdir or Path(args.run) / "figures")
-    views = {outdir / arm: solutes for arm, solutes in ARMS.items()} if args.arms else {outdir: None}
-    for arm_dir, solutes in views.items():
-        path = run_report(Run(args.run, solutes), arm_dir, not args.no_gp, args.seed)
+    views = {arm: (outdir / arm, solutes) for arm, solutes in ARMS.items()} if args.arms else {None: (outdir, None)}
+    for arm, (arm_dir, solutes) in views.items():
+        path = run_report(Run(args.run, solutes), arm_dir, not args.no_gp, args.seed, arm)
         print(f"wrote {path} and figures to {path.parent}")
 
 

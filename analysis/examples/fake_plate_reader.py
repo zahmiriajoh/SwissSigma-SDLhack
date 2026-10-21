@@ -26,7 +26,8 @@ ATTACK_PER_MIN = {}  # solvent -> absorbance gained per minute of contact at 300
 CUTOFF_NM = {}  # solvent -> UV cut-off: the solvent itself absorbs strongly below this wavelength; default none
 CUTOFF_ABS = 3.0  # absorbance a pure solvent reaches well below its cut-off (the reader clips at READER_MAX)
 NOISE = 0.004
-READER_MAX = 3.5  # the reader cannot report more than this absorbance
+from production.convert_reader_xlsx import OVER_ABS  # noqa: E402
+READER_MAX = OVER_ABS  # the reader's ceiling: higher readings come back as OVER, which the converter turns into this value
 SYNERGY = 0.4  # bonus for balanced mixtures: 0 for a pure solvent, up to SYNERGY * 2/3 for an equal ternary
 
 # Made-up dissolving power (0-1) of each solvent (production order, reference first) for each solute; DMF dissolves everything.

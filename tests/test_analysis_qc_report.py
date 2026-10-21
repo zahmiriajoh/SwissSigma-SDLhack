@@ -10,6 +10,7 @@ from conftest import DEBUG_DIR, REPO
 from analysis.qc import run_qc
 from analysis.report import run_report, synergy_table
 from analysis.run import Run, condition_kind
+from analysis.spectra import ABS_MAX_DEFAULT
 from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
 from production.config import is_allowed as config_is_allowed
 
@@ -42,8 +43,7 @@ def test_qc_summary_recovers_the_fake_data(toy_run, tmp_path):
         assert f"## {q}" in summary
     r0, p0 = FIRST_ROUND, FIRST_PLATE
     assert (outdir / f"qc_Q4_peakshift_round{r0}.png").exists()
-    # the second solute saturates (band 2.6 > 2.5) in its DMF control well; with no blank window, acetone wells also
-    # saturate at the first solute's 275 nm read (acetone absorbs there), which Q4 now reports
+    # the second solute's band (4.5) is over range in its DMF control well: the reader returns OVER = 4.0, which Q4 reports
     pm = toy_run.plate_maps[r0]
     ctrl = pm.index[(pm["solute"] == SOLUTES[1]) & (pm["role"] == "control")][0]
     assert f"P{p0}:{ctrl}" in summary
@@ -77,7 +77,7 @@ def test_report_finds_the_synergistic_optimum(toy_run, tmp_path):
     assert obj["obj_min_rel"].max() > obj.loc[obj["n_solvents"] == 1, "obj_min_rel"].max()
     for name in ("R1_per_solute", "R2_objective", "R3_progress", "R4_ternary", "R4_binaries", "R5_synergy", "R6_solutes", "R7_dataset"):
         assert (outdir / f"report_{name}.png").exists()
-    assert BAND_HEIGHTS[SOLUTES[1]] > 2.5 and BAND_HEIGHTS[SOLUTES[3]] < 0.1  # the toy really does span the reader's range
+    assert BAND_HEIGHTS[SOLUTES[1]] >= ABS_MAX_DEFAULT and BAND_HEIGHTS[SOLUTES[3]] < 0.1  # the toy really spans the reader's range
 
 
 def test_run_restricted_to_an_arm_has_that_arms_objective(toy_run):
@@ -127,3 +127,37 @@ def test_run_reads_the_production_csvs_layout_and_skips_unmeasured_rounds(toy_ru
     assert run.rounds == toy_run.rounds and run.pending_rounds == [last + 1]
     assert run.wavelengths(last) is not None and run.plate_log() is not None
     assert run.pooled_objective().shape == toy_run.pooled_objective().shape
+
+
+def test_figures_so_far_commands_of_run_bo_sh(toy_run, tmp_path):
+    """The two commands run_bo.sh's "figures so far" step runs: qc, then report --arms (one report per arm, GP on)."""
+    from production.config import ARMS
+    fig = tmp_path / "figures"
+    for args in (["qc"], ["report", "--arms"]):
+        result = subprocess.run([sys.executable, "-m", "analysis", *args, "--run", toy_run.folder, "--outdir", fig],
+                                capture_output=True, text=True, cwd=REPO)
+        assert result.returncode == 0, result.stdout + result.stderr
+    assert (fig / "qc_summary.md").exists()
+    for arm, solutes in ARMS.items():
+        summary = (fig / arm / "report_summary.md").read_text()
+        assert f"arm {arm}" in summary.splitlines()[0] and (fig / arm / "report_R4_gp.png").exists()
+        if len(solutes) == 1:
+            assert "nothing to compare" in summary and not (fig / arm / "report_R6_solutes.png").exists()
+
+
+def test_saturation_flag_is_the_readers_over_value():
+    """The flag means "the reader returned OVER": the threshold is the converter's capped value, so they cannot drift."""
+    from production.convert_reader_xlsx import OVER_ABS
+    assert ABS_MAX_DEFAULT == OVER_ABS
+
+
+def test_saturated_readings_stay_in_the_data_as_real_values(toy_run):
+    """User decision: an over-range reading is kept as OVER = 4.0 and used, never dropped; the flag is informational.
+    Exactly the readings at 4.0 are flagged, nothing below."""
+    r0, p0 = FIRST_ROUND, FIRST_PLATE
+    endpoint = pd.read_csv(toy_run.folder / f"endpoint_round{r0}_plate{p0}.csv")
+    flagged = endpoint["flag"].fillna("").str.contains("saturated")
+    assert flagged.any() and (flagged == (endpoint["absorbance"] >= ABS_MAX_DEFAULT)).all()
+    wells = toy_run.wells
+    saturated = wells[wells["abs_raw"] >= ABS_MAX_DEFAULT]
+    assert len(saturated) and saturated["abs_corrected"].notna().all() and saturated["rel_to_DMF"].notna().all()

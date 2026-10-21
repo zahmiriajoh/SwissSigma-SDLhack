@@ -31,7 +31,7 @@ BO_BRIDGE = REPO / "OT protocols" / "bo_bridge.py"
 N_PLATES = 3
 N_EXPLOIT, N_EXPLORE, N_RETEST = 12, 6, 5
 SOLVENT_BUDGET = 0.95 * 24000 / (300 * N_PLATES * 4)  # sum of a solvent's fractions over a round's conditions that one trough can feed
-BAND_HEIGHTS = dict(zip(SOLUTES, [1.2, 2.6, 0.5, 0.06]))  # normal (but under acetone's cut-off), saturating, modest, near the noise
+BAND_HEIGHTS = dict(zip(SOLUTES, [1.2, 4.5, 0.5, 0.06]))  # normal (but under acetone's cut-off), over range (reads OVER = 4.0 in good solvents), modest, near the noise
 ATTACK_PER_MIN = {s: 4e-4 for s in PLATE_ATTACKERS}  # polystyrene attack by the solvents flagged in the config
 CUTOFF_NM = {"DMF": 270, "acetone": 330}  # the two opaque solvents; the first solute's 275 nm band then sits under acetone's cut-off
 PLATES = list(range(FIRST_PLATE, FIRST_PLATE + N_PLATES))
