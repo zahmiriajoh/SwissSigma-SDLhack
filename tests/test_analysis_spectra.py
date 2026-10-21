@@ -8,7 +8,8 @@ import pytest
 
 from conftest import DEBUG_DIR, OT_EXAMPLES, REPO
 from production.config import FIRST_PLATE, FIRST_ROUND, SOLUTES
-from analysis.spectra import SOLVENT_WELLS, SpectraError, predicted_blank, read_plate_map, read_spectra, reduce_round
+from analysis.spectra import (SOLVENT_WELLS, SpectraError, on_grid, predicted_blank, read_plate_map, read_spectra,
+                              reduce_round)
 
 EXAMPLES = DEBUG_DIR
 R = FIRST_ROUND
@@ -113,6 +114,16 @@ def test_reduce_with_predicted_blank_agrees_with_full_blank(plates, blank, plate
     wl_pred, ep_pred, *_ = reduce_round(plate_map, plates, predicted)
     assert (wl_full == wl_pred).all() and len(ep_pred) == 4
     assert (ep_pred[-1]["absorbance"] - ep_full[-1]["absorbance"]).abs().max() < 0.03  # the blank endpoint merge subtracts
+
+
+def test_blank_scanned_on_another_grid_is_interpolated(plates, blank, plate_map):
+    """A blank plate read at 230-700 nm in 2 nm steps still corrects plates read at 200-700 nm in 5 nm steps."""
+    fine = on_grid(blank, pd.Index(np.arange(230.0, 701.0, 2.0)))
+    wl_same, ep_same, *_ = reduce_round(plate_map, plates, blank)
+    wl_fine, ep_fine, corrected, _ = reduce_round(plate_map, plates, fine)
+    assert corrected[0].index[0] == 230 and (corrected[0].index.to_series().diff().dropna() == 5).all()
+    assert (wl_same == wl_fine).all() and (ep_fine[0]["absorbance"] == ep_same[0]["absorbance"]).all()
+    assert (ep_fine[-1]["absorbance"] - ep_same[-1]["absorbance"]).abs().max() < 0.01
 
 
 def test_each_round_reads_its_own_blank_column(plate_map):

@@ -33,7 +33,6 @@ def solvent_wells(round_=FIRST_ROUND) -> dict:
 SOLVENT_WELLS = solvent_wells()  # the first round's: A1 DMF, B1 acetone, ... in config order
 CONTROL_ROLE = "control"  # plate-map role of the DMF reference wells
 DEFAULT_NM_RANGE = (200.0, 700.0)  # the whole scanned spectrum
-MAX_SCAN_STEP_NM = 5  # the scan step (nm): a picked wavelength within one step of the band maximum counts as at it
 BLANK_MAX_DEFAULT = 1.0  # a wavelength is usable only where every solvent blank stays below this absorbance (PLAN decision 15)
 NOISE_NM = (600.0, 700.0)  # no solute absorbs here: the spread of the corrected control spectrum estimates the reader noise
 MIN_SIGNAL_SIGMAS = 3.0    # a solute counts as measurable when its control signal exceeds this many noise sigmas
@@ -107,15 +106,31 @@ def read_plate_map(path) -> pd.DataFrame:
     return pm.set_index("well")
 
 
+def common_grid(spectra_list) -> pd.Index:
+    """The first table's wavelengths inside the range every table covers (plates may be scanned at different steps)."""
+    lo, hi = max(s.index.min() for s in spectra_list), min(s.index.max() for s in spectra_list)
+    grid = spectra_list[0].index[(spectra_list[0].index >= lo) & (spectra_list[0].index <= hi)]
+    if grid.empty:
+        raise SpectraError(f"the plates' scans share no wavelength range ({[(s.index.min(), s.index.max()) for s in spectra_list]})")
+    return grid
+
+
+def on_grid(spectra, grid) -> pd.DataFrame:
+    """The spectra linearly interpolated onto the wavelengths `grid` (unchanged if already on it)."""
+    if spectra.index.equals(grid):
+        return spectra
+    x = spectra.index.to_numpy(dtype=float)
+    return pd.DataFrame({w: np.interp(grid, x, spectra[w].to_numpy(dtype=float)) for w in spectra.columns},
+                        index=grid).rename_axis("wavelength_nm")
+
+
 def blank_correct(spectra, blank) -> pd.DataFrame:
-    """Subtract the solvent-only plate well by well; wells and wavelengths must match."""
+    """Subtract the solvent-only plate well by well, over the wavelengths both cover (the blank put on the plate's grid)."""
     missing = spectra.columns.difference(blank.columns)
     if len(missing):
         raise SpectraError(f"blank plate lacks wells {list(missing)}")
-    blank = blank.reindex(spectra.index)
-    if blank[spectra.columns].isna().any().any():
-        raise SpectraError("blank plate was read at different wavelengths from the sample plates")
-    return spectra - blank[spectra.columns]
+    grid = common_grid([spectra, blank])
+    return on_grid(spectra, grid) - on_grid(blank, grid)[spectra.columns]
 
 
 def predicted_blank(solvent_spectra, plate_map) -> pd.DataFrame:
@@ -148,7 +163,7 @@ def usable_mask(blank_wide, blank_max=BLANK_MAX_DEFAULT) -> pd.Series:
 
 
 def nearest_nm(index, nm) -> float:
-    """The scanned wavelength closest to nm (a fixed wavelength off the 5 nm grid would read nothing)."""
+    """The scanned wavelength closest to nm (a fixed wavelength off the scan grid would read nothing)."""
     return float(index[np.abs(index.to_numpy(dtype=float) - float(nm)).argmin()])
 
 
@@ -166,6 +181,7 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
     for solute, block in controls.groupby("solute"):
         spec = pd.concat([s.loc[lo:hi, block.index] for s in spectra_list], axis=1).mean(axis=1)
         band_max = float(spec.idxmax())
+        step = float(np.median(np.diff(spec.index))) if len(spec) > 1 else 0.0  # the scan step: within it counts as at the maximum
         allowed = spec if usable is None else spec[usable.reindex(spec.index).fillna(False).to_numpy()]
         if allowed.empty:
             raise SpectraError(f"{solute}: no usable wavelength in {lo:.0f}-{hi:.0f} nm (every point has a solvent blank above the limit)")
@@ -174,7 +190,7 @@ def pick_wavelengths(spectra_list, plate_map, nm_range=DEFAULT_NM_RANGE, overrid
         tail = full.loc[NOISE_NM[0]:NOISE_NM[1]]
         noise = float(tail.std()) if len(tail) > 3 else np.nan
         signal = float(spec.get(nm, np.nan))
-        rows.append({"solute": solute, "wavelength_nm": nm, "band_max_nm": band_max, "at_band_max": abs(nm - band_max) <= MAX_SCAN_STEP_NM,
+        rows.append({"solute": solute, "wavelength_nm": nm, "band_max_nm": band_max, "at_band_max": abs(nm - band_max) <= step,
                      "window_min_nm": float(allowed.index.min()), "window_max_nm": float(allowed.index.max()),
                      "control_signal": signal, "signal_fraction": signal / spec.loc[band_max] if spec.loc[band_max] > 0 else np.nan,
                      "noise": noise, "measurable": bool(signal > MIN_SIGNAL_SIGMAS * noise) if noise == noise else True})
@@ -215,10 +231,14 @@ def reduce_round(plate_map, plates, blank=None, overrides=None, nm_range=DEFAULT
 
     Returns (wavelengths, endpoints, corrected, report): wavelengths per solute; endpoint tables for each plate and
     (last, if given) the blank, in input order; the blank-corrected spectra used to pick the peaks; the wavelength report.
-    The usable window comes from the blank plate; without one every wavelength in nm_range is usable.
+    The usable window comes from the blank plate; without one every wavelength in nm_range is usable. Plates and blank are
+    put on plate 0's wavelengths, over the range they all cover, so they may be scanned at different steps.
     """
     for i, s in enumerate(plates, start=1):
         check_wells(s, plate_map, f"plate {i}")
+    grid = common_grid(plates + ([blank] if blank is not None else []))  # one wavelength grid for plates and blank
+    plates = [on_grid(s, grid) for s in plates]
+    blank = on_grid(blank, grid) if blank is not None else None
     corrected = [blank_correct(s, blank) for s in plates] if blank is not None else list(plates)
     usable = usable_mask(blank, blank_max) if blank is not None else None
     wavelengths, report = pick_wavelengths(corrected, plate_map, nm_range, overrides, usable)
