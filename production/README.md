@@ -98,7 +98,7 @@ the UV readout can follow (see "Interpretation notes").
 |---|---|---|
 | `numbering` | first round 0, first plate 0, first mixture condition 1 | a condition is one solvent or one mixture; the DMF control is condition 0; well names stay A1–H12 |
 | `well` | 300 µL per well, 5 µL minimum component, up to 3 solvents | the control well is 300 µL of pure DMF |
-| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume; 2 reservoirs (slot 5 + the slot-4 backup) | no QC plate; the solvent blank plate (slot 6) gets one column of pure-solvent wells per round (A1-G1 in round 0, A2-G2 in round 1, ...), read separately; the lab may load 30 mL per trough (Scientist instructions), the protocol plans with 25 mL; `limit_solvent_to_trough = false`: the BO is not held to one trough per solvent, so a round may need up to 48 mL from the two reservoirs (`bo_bridge.py layout` warns above that), or above that a spare trough (add it to `SOLVENT_TROUGHS` here and in the protocol) |
+| `plates` | 3 identical plates per round; 25 mL trough fill, 1 mL dead volume; 2 reservoirs (slot 5 + the slot-4 backup) | no QC plate; the solvent blank plate (slot 6) gets one column of pure-solvent wells per round (A1-G1 in round 0, A2-G2 in round 1, ...), read separately; the lab may load 30 mL per trough (Scientist instructions), the protocol plans with 25 mL; `limit_solvent_to_trough = true` (user decision 2026-10-21, absolute): the BO never asks for more of a solvent than the protocol accepts, both reservoirs minus the 300 µL blank-plate well, about 3,900 µL per solute block per round; a spare trough (in `SOLVENT_TROUGHS` here and in the protocol) raises that solvent's budget |
 | `reference` | DMF | pure control in every solute block, never mixed |
 | `arms` | phthalimide: Phthalimide; others: Glutarimide, Boc-hydroxyproline, Succinimide | after the shared round-0 seed design the campaign splits into these independent trajectories, each optimising the minimum over its solutes with its own GPs; every solute is in exactly one arm (`SDL_BO/README.md`, "Arms") |
 | `solutes` | Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide | plate-block order; set `wavelength_nm` to the absorption maximum before round 0 (snapped to the nearest scanned wavelength; absent = picked from the raw DMF-control spectrum, which lands on DMF's UV edge) |
@@ -163,6 +163,6 @@ To forbid another pair, add a `[[forbidden_pairs]]` entry; to allow water/ester 
 |---|---|
 | `OT protocols/bo_bridge.py` | solvents, solutes, troughs, the trough-cap switch, volumes, numbering (sdl_merge wiring) |
 | `OT protocols/sdl_solubility_ot2.py` | `SOLVENT_TROUGHS` mirrored by hand; checked by `tests/` |
-| `SDL_BO/` | solvents, number of solutes, volumes, arms, the optional trough cap, first round (sdl_merge wiring) |
+| `SDL_BO/` | solvents, number of solutes, volumes, arms, troughs, reservoirs and the trough cap, first round (sdl_merge wiring) |
 | `analysis/` | reference solvent, first plate, arms (`report --arms`), solute wavelengths; the toy examples also read the polystyrene attackers |
 | `tests/test_production_config.py` | that the file is consistent |

@@ -46,7 +46,7 @@ R1_exploit01,0.2833,0.0,0.35,0.0,0.3667,0.0
 - 23 rows per round = conditions per solute in bo_bridge's default layout (4 solutes × 24 wells, 1 DMF control each). With `--branch` the file lists 23 conditions for each of the 4 solutes (92 rows). bo_bridge adds the DMF control itself, so SDL_BO never writes DMF.
 - Fractions are multiples of 5 µL of 300 µL, so bo_bridge dispenses them unchanged (its minimum is 5 µL).
 - Mixtures containing a forbidden (immiscible) pair from `production/config.toml` (water with i-PrOAc or t-BuOAc) are never enumerated, so neither the seed design nor any pick contains one.
-- **No solvent cap in production** (`limit_solvent_to_trough = false` in `production/config.toml`): picks are not limited by one trough per solvent, so `bo_bridge.py layout` may report a solvent that needs a spare trough (it warns and still writes the files). With `true`, the conditions use at most 1960 µL of any one solvent in a single well set (3 plates × 4 solutes fit one 25 mL trough: 24 mL usable, 2 % margin), and fewer rows are written if fewer fit.
+- **Solvent cap** (`limit_solvent_to_trough = true` in `production/config.toml`, absolute): a round never needs more of a solvent than the OT-2 protocol accepts, i.e. its troughs on both reservoirs (2 × 24 mL usable) minus its 300 µL blank-plate well. Split over 3 plates × 4 solute blocks with a 2 % margin, one solute block's conditions use at most about 3,900 µL of any one solvent (`space.solvent_budget_ul`). Re-tests, exploit and explore picks are chosen within it; fewer rows are written if fewer fit. A spare trough for a solvent raises its budget accordingly.
 - `condition_id`: `R<round>_seed01`, `R<round>_exploit01`, `R<round>_explore01`; in an arm `R<round>_<arm>_exploit01` etc. (rounds start at 0 and mixture counters at 1, as in `production/config.toml`; condition 0 is the DMF control); a re-test keeps the id it was first run under.
 
 **Input, `bo_dataset.csv`** (from `bo_bridge.py merge`): one row per round × solute × condition with `round, solute,
@@ -71,8 +71,8 @@ glutarimide, Boc-hydroxyproline and succinimide). Round 0 is the shared seed des
 - the output lists each arm's conditions once per solute of the arm in a `solute` column, which `bo_bridge.py layout` already
   understands, so the phthalimide block and the other three blocks get different conditions on the same plates;
 - ids carry the arm (`R1_others_exploit01`) so the arms' conditions never collide; a re-test keeps the id it was first run under;
-- with the cap on, the trough budget is split by plate blocks, one quarter of each solvent's trough per solute, so every arm's
-  conditions stay within the same 1960 µL per solvent as before; with it off (production) the arms are not limited;
+- the solvent budget is split by plate blocks, one quarter of each solvent's supply per solute block, so the phthalimide
+  arm (one block) can use a quarter and the other arm (three blocks) three quarters, and together they never exceed it;
 - if every solute of an arm is flagged not measurable, they are scored anyway, with a warning.
 
 ## Use from Python
@@ -100,7 +100,7 @@ the branched one (`suggest --branch` through `run_bo.sh`) is exercised by `tests
 
 | File | Role |
 |---|---|
-| `space.py` | Solvents, 5 µL grid (23,016 allowed mixtures), the optional trough cap. Constants mirror `bo_bridge.py`. |
+| `space.py` | Solvents, 5 µL grid (23,016 allowed mixtures), the per-solvent trough cap. Constants mirror `bo_bridge.py`. |
 | `dataset.py` | Reads and validates `bo_dataset.csv`; per-mixture scores. |
 | `model.py` | One Gaussian process per solute (kernel by cross-validation); exploit (batch expected improvement) and explore picks under a solvent `Budget`. |
 | `campaign.py` | Round-0 design, `fit_per_solute` (GP per solute for plots), `suggest_next_round`, `suggest_arms` (one design per arm). |

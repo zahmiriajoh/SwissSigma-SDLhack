@@ -37,14 +37,25 @@ def test_ul_fraction_round_trip():
     assert space.mixture_key(ul[0]) == (150, 150, 0, 0, 0, 0)
 
 
-def test_production_has_no_solvent_cap():
-    assert space.solvent_budget_ul() == float("inf")
+def test_production_caps_every_solvent():
+    assert space.LIMIT_SOLVENT_TO_TROUGH and np.isfinite(space.solvent_budget_ul()).all()
 
 
-def test_solvent_budget_matches_one_trough_per_solvent(monkeypatch):
-    monkeypatch.setattr(space, "LIMIT_SOLVENT_TO_TROUGH", True)  # the cap is off in production; this is what `true` means
-    assert space.solvent_budget_ul() == pytest.approx(0.98 * 24000 / (3 * 4))
+def test_solvent_budget_is_the_protocols_supply_per_solute_block():
+    # 2 reservoirs x 24 mL usable, minus the 300 uL blank-plate well, over 3 plates x 4 solute blocks, 2 % margin
+    assert space.solvent_budget_ul() == pytest.approx(np.full(6, 0.98 * (2 * 24000 - 300) / (3 * 4)))
     assert space.solvent_budget_ul(n_solutes=2) == pytest.approx(2 * space.solvent_budget_ul())
+
+
+def test_a_spare_trough_doubles_that_solvents_budget(monkeypatch):
+    monkeypatch.setitem(space.SOLVENT_TROUGHS, "acetone", ["B1", "H1"])
+    budget = space.solvent_budget_ul()
+    assert budget[space.GREEN_SOLVENTS.index("acetone")] == pytest.approx(0.98 * (4 * 24000 - 300) / 12)
+
+
+def test_switching_the_cap_off_removes_it(monkeypatch):
+    monkeypatch.setattr(space, "LIMIT_SOLVENT_TO_TROUGH", False)
+    assert np.isinf(space.solvent_budget_ul()).all()
 
 
 def test_enumerated_mixtures_avoid_forbidden_pairs(coarse_grid):

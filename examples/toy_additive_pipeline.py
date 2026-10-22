@@ -6,10 +6,11 @@ Fake solubility of a mixture = sum over solvents of (fraction x that solvent's p
 synergy, and one solvent (DOMINANT) is best for every solute. The optimum is then 100% DOMINANT: the report's best
 mixture must be the pure solvent and the exploit picks should move towards it.
 
-With the solvent cap on (`limit_solvent_to_trough = true`) how far they can move is capped by the hardware: one 25 mL
-trough per solvent feeds 3 plates x 4 solutes, so a round's 23 conditions may hold at most ~1960 uL of any solvent (mean
-fraction 0.28), and the BO spends the whole DOMINANT budget on the DOMINANT-richest untested mixtures. `--one-plate`
-loosens that cap (5880 uL). Production has the cap off, so the picks are not limited unless the config says `true`.
+How far they can move is capped by the hardware (`limit_solvent_to_trough = true`, as in production): each solvent's
+troughs on the two reservoirs (2 x 24 mL usable, minus its 300 uL blank-plate well) feed 3 plates x 4 solutes, so a
+round's 23 conditions may hold at most ~3900 uL of any solvent (mean fraction 0.56), and the BO spends the whole
+DOMINANT budget on the DOMINANT-richest untested mixtures. `--one-plate` loosens that cap (~11,700 uL, more than 23 wells
+can hold, so it no longer binds).
 
 Run from the repo root with `uv run` (~1 min per round on the 5 uL grid, ~10 s with --coarse):
     python examples/toy_additive_pipeline.py [--rounds 3] [--coarse] [--one-plate] [--dominant EtOH] [--outdir DIR]
@@ -102,7 +103,7 @@ def main(argv=None) -> int:
     print(f"\nMean fraction of {args.dominant} in the suggestions, by condition kind:\n{table}")
     best_is_pure = report.splitlines()[0].startswith(f"Best mixture: 100% {args.dominant} ")
     exploit_fraction = table.loc["exploit"].iloc[-1]
-    budget_used = last[f"frac_{args.dominant}"].sum() * space.TOTAL_UL / space.solvent_budget_ul()
+    budget_used = last[f"frac_{args.dominant}"].sum() * space.TOTAL_UL / space.solvent_budget_ul()[space.GREEN_SOLVENTS.index(args.dominant)]
     pushed = exploit_fraction >= MIN_EXPLOIT_FRACTION or budget_used >= MIN_BUDGET_USED
     print(f"\nBest mixture is pure {args.dominant}: {best_is_pure}")
     print(f"Last round's exploit picks average {exploit_fraction:.2f} {args.dominant} (>= {MIN_EXPLOIT_FRACTION} wanted), "

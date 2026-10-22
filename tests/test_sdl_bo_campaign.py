@@ -11,7 +11,6 @@ def solvent_totals_ul(suggestions: pd.DataFrame) -> pd.Series:
 
 
 def test_seed_design_is_bo_bridge_suggestions_format(monkeypatch):
-    monkeypatch.setattr(space, "LIMIT_SOLVENT_TO_TROUGH", True)  # the cap is off in production; check it still works when on
     design = campaign.seed_design()
     assert list(design.columns) == ["condition_id", *space.GREEN_FRACTION_COLUMNS]
     assert len(design) == campaign.N_CONDITIONS
@@ -32,7 +31,6 @@ def test_seed_design_is_deterministic_and_spread():
 
 
 def test_suggest_next_round_from_example_dataset(coarse_grid, monkeypatch):
-    monkeypatch.setattr(space, "LIMIT_SOLVENT_TO_TROUGH", True)
     path = SDL_BO_EXAMPLES / "bo_dataset.csv"
     suggestions, info = campaign.suggest_next_round(path, seed=1)
     tested = set(dataset.load_dataset(path)["mixture_key"])

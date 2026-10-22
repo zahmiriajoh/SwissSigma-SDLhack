@@ -54,7 +54,7 @@ Succinimide sits near the noise; its solutes are the production ones, the two ad
 | Folder | Rounds × plates | Look at |
 |---|---|---|
 | `examples/toy_additive_output/` | 3 × 3 | `figures/qc_summary.md` (Q1, Q2, Q4–Q6 with figures), `figures/report_summary.md` (R1–R7 with figures) |
-| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the 25 mL DMC trough runs out before the picks can get richer; both runs were made with the old per-round solvent cap, which production has since turned off) |
+| `examples/toy_additive_output_one_plate/` | 2 × 1 | the same, showing what the checks do without replicate plates; with 3× the solvent budget per round the exploit picks themselves become DMC-rich (mean DMC fraction 0.96 vs 0.30 in the 3-plate run, where the 25 mL DMC trough runs out before the picks can get richer; both runs were made with the old one-reservoir cap of about 1960 µL per solvent; production's cap now counts both reservoirs, about 3,900 µL) |
 | `examples/toy_synergy_output/` | 3 × 3 | the contrasting case: the best mixture is a ternary that beats every single solvent (R2, z = 243), 177 of 180 synergies are significant (R5), the GP landscape shows an interior optimum (R4); Q4 flags the saturated Boc-hydroxyproline controls and the acetone wells read for glutarimide |
 
 Each folder holds, per round, `suggestions_roundN.csv` → `ot_input_roundN.csv` + `plate_map_roundN.csv` →
@@ -70,22 +70,20 @@ run). Regenerate the synergy run with
 - **Solutes:** Glutarimide, Boc-hydroxyproline, Phthalimide, Succinimide (plate-block order).
 - **Solvents:** acetone, EtOH, i-PrOH, water, i-PrOAc, t-BuOAc as mixture components (CSV names `acetone, EtOH, iPrOH, water, iPrOAc, tBuOAc`); DMF only as the pure reference control.
 - **Plate layout:** 4 solutes × 24 wells each: 1 DMF control + 23 conditions, run on 3 identical plates per round. In round 0 the 23 conditions are shared by all solutes; from round 1 the phthalimide block and the other three blocks hold different conditions (one set per arm).
-- **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps. It does **not** limit a round to one trough per solvent (see "Solvent trough volume" below).
+- **Mixtures:** 1-3 solvents, integer µL summing to 300 µL, each used solvent ≥ 5 µL. SDL_BO proposes in 5 µL steps and never asks for more of a solvent than the robot's troughs hold (see "Solvent trough volume" below).
 - **Forbidden pairs:** water with i-PrOAc and water with t-BuOAc are immiscible (`[[forbidden_pairs]]` in the config); SDL_BO and `bo_bridge.py grid` never propose them and `layout` refuses a suggestions row that contains one.
 - **Numbering:** rounds and plates start at 0 (`round0`, `plate0`). A condition is one solvent or one mixture: the DMF control is condition 0 and the mixtures are conditions 1–23 (`R0_seed01`…), and every well on every plate has a sample id `round{R}_plate{P}_solute{S}_cond{C}` (naming convention given by the user; A1 of round 0, plate 1 is `round0_plate1_solute0_cond0`). `bo_bridge.py` writes it as `sample_id` in `results_roundN_wells.csv` (and its parts `solute_index`, `cond` in the plate map); `cond` is the well's position in its solute block, cond0 = the DMF control. `condition_id` (`R0_seed01`, `R1_others_exploit07`, …) still names the mixture; well names stay `A1`–`H12`.
 - **Objective:** absorbance relative to the DMF control per solute. Round 0 is one shared design on all four solutes; from round 1 on the campaign splits into two independent arms (`[[arms]]` in the config): **phthalimide** alone, and the **minimum of glutarimide, Boc-hydroxyproline and succinimide**. Each arm has its own GPs trained on the seed round and its own wells, and its own plate blocks.
 
-**Solvent trough volume (no cap, user decision 2026-10-20).** Each solvent has one trough on the 8-trough reservoir (organiser
-labware, 30 mL nominal); the protocol fills it with 25 mL and keeps 1 mL as dead volume, so 24 mL per solvent. Every
-condition is pipetted into 3 plates and each solute block it is in, so a round whose conditions together hold more than
-about 1960 µL of one solvent (a mean fraction of 0.28 per well) needs more than one trough. SDL_BO no longer holds its
-picks to that limit (`limit_solvent_to_trough = false` in `production/config.toml`; `true` restores it, with each solute
-block owning a quarter of the trough). **Consequence:** the slot-4 backup reservoir (`reservoirs = 2` in the config; the
-protocol's "Backup reservoir" setting, on by default) takes over once a solvent's slot-5 trough is used up, so each solvent
-has 48 mL per round; in the fake branched run i-PrOH needed 26.7 mL in round 3. Above 48 mL (or above 24 mL with the backup
-switched off; set `reservoirs = 1` then) `bo_bridge.py layout` prints a "TOO MUCH" fill sheet and a warning, and the OT-2
-protocol refuses to run (and simulate) until a spare trough for that solvent (e.g. the unused H1) is added to
-`SOLVENT_TROUGHS` in the protocol and in the config and loaded.
+**Solvent trough volume (capped, user decision 2026-10-21).** Each solvent has one trough on the 8-trough reservoir in slot
+5 and the same trough on the slot-4 backup (organiser labware, 30 mL nominal); the protocol fills each with 25 mL and keeps
+1 mL as dead volume, so 48 mL per solvent per round with the backup on (its default). The protocol refuses a round that
+needs more, counting every well on the 3 plates and the solvent's 300 µL blank-plate well. SDL_BO's cap is the same
+check and is absolute (`limit_solvent_to_trough = true` in `production/config.toml`): one solute block's conditions may
+hold at most about 3,900 µL of a solvent (a mean fraction of 0.56 per well), so the phthalimide arm can use a quarter of
+each solvent and the other arm three quarters. The robot CSV is never edited by hand, so every round the BO designs
+runs. A solvent given a spare trough (e.g. the unused H1, in `SOLVENT_TROUGHS` of the protocol and in the config) gets a
+larger budget automatically. With the backup reservoir switched off, set `reservoirs = 1` so the cap halves.
 
 ## Pending decisions and open questions
 
@@ -96,7 +94,6 @@ Open before the first real round; the details and current placeholders live in t
   and whether the figures also go into slides.
 - **Robot run** ([`OT protocols/README.md`](OT%20protocols/README.md), "Before running" and "Known limitations"):
   polystyrene readout plates attacked by esters, ethers and DMF; the fill time is a simulator estimate until a water dry run.
-- **Solvent trough volume** (see "Solvent trough volume" above): the BO is no longer capped; the slot-4 backup reservoir covers up to 48 mL per solvent, so only a round beyond that needs a spare trough (e.g. the unused H1) in the protocol and config; decide who adds it.
 - **UV readout** ([`production/README.md`](production/README.md), "Interpretation notes"): glutarimide, succinimide and
   Boc-hydroxyproline absorb little UV above about 250 nm while DMF and acetone cut off at 270 and 330 nm, so the absorbance
   readout may not work for them. Blanks are one pure-solvent well per solvent per round (`reader_roundN_solvents.csv`); `run_bo.sh` waits for that file (without it, via `--allow-no-blank`, nothing is subtracted), and

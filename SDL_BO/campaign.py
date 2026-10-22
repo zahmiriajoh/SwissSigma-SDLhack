@@ -41,7 +41,7 @@ def _ids(round_number, tag, n, arm=None) -> list:
 
 
 def _round_budget(n_solutes=space.N_SOLUTES) -> Budget:
-    return Budget(np.full(len(space.GREEN_SOLVENTS), space.solvent_budget_ul(n_solutes)))
+    return Budget(space.solvent_budget_ul(n_solutes))
 
 
 def seed_design(n_conditions=N_CONDITIONS, round_number=space.FIRST_ROUND, n_solutes=space.N_SOLUTES) -> pd.DataFrame:

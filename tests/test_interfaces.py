@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from SDL_BO import campaign, dataset, space
-from conftest import DEBUG_DIR, OT_EXAMPLES, PROTOCOLS, REPO, load_bo_bridge, run_bridge
+from conftest import DEBUG_DIR, OT_EXAMPLES, PROTOCOLS, REPO, SDL_BO_EXAMPLES, load_bo_bridge, run_bridge
 from production import config
 
 R0, P = config.FIRST_ROUND, config.FIRST_PLATE
@@ -126,15 +126,35 @@ def test_bo_bridge_grid_and_layout_respect_forbidden_pairs(tmp_path):
         assert result.returncode != 0 and "forbidden" in result.stdout + result.stderr
 
 
-def test_layout_warns_but_succeeds_when_a_solvent_exceeds_its_trough(tmp_path):
-    """Production has no solvent cap (limit_solvent_to_trough = false): layout says to add troughs instead of failing."""
-    assert not config.LIMIT_SOLVENT_TO_TROUGH
+def test_layout_refuses_a_round_that_exceeds_the_troughs(tmp_path):
+    """With the cap on (production) a round the protocol would refuse never gets robot files."""
+    assert config.LIMIT_SOLVENT_TO_TROUGH
     suggestions = tmp_path / "suggestions.csv"
     rows = [{"condition_id": f"R0_x{i:02d}", **{f"frac_{s}": float(s == "acetone") for s in config.GREEN_SOLVENTS}} for i in range(23)]
-    pd.DataFrame(rows).to_csv(suggestions, index=False)  # 23 conditions of pure acetone: far more than one trough
+    pd.DataFrame(rows).to_csv(suggestions, index=False)  # 23 conditions of pure acetone: 3 x 4 x 23 x 300 uL = 82.8 mL
     result = run_bridge("layout", "--round", R0, "--suggestions", suggestions, "--outdir", tmp_path)
+    assert result.returncode != 0 and "TOO MUCH" in result.stdout
+
+
+def solvent_need_ul(plate_map) -> dict:
+    """What the protocol draws per solvent for one round: every well on every plate, plus its blank-plate well."""
+    return {s: config.N_PLATES * plate_map[f"vol_{s}_ul"].sum() + config.TOTAL_UL for s in config.ALL_SOLVENTS}
+
+
+def test_bo_never_designs_a_round_the_robot_refuses(tmp_path, coarse_grid):
+    """Fake results in which acetone is best for every solute push both arms to put acetone everywhere; the cap holds."""
+    rows = pd.read_csv(SDL_BO_EXAMPLES / "bo_dataset.csv")
+    rows["rel_mean"] = rows["frac_acetone"].where(rows["is_reference"] == 0, 1.0)  # more acetone = better
+    path = tmp_path / "bo_dataset.csv"
+    rows.to_csv(path, index=False)
+    suggestions, _ = campaign.suggest_arms(path, seed=0)
+    suggestions.to_csv(tmp_path / "suggestions.csv", index=False)
+    result = run_bridge("layout", "--round", 9, "--suggestions", tmp_path / "suggestions.csv", "--outdir", tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "TOO MUCH" in result.stdout and "WARNING" in result.stdout and (tmp_path / f"ot_input_round{R0}.csv").exists()
+    need = solvent_need_ul(pd.read_csv(tmp_path / "plate_map_round9.csv"))
+    supply = {s: config.TROUGH_USABLE_UL * len(config.SOLVENT_TROUGHS[s]) * config.N_RESERVOIRS for s in config.ALL_SOLVENTS}
+    assert all(need[s] <= supply[s] for s in supply), (need, supply)
+    assert need["acetone"] > 0.9 * supply["acetone"]  # the cap really binds: the BO uses nearly all the acetone there is
 
 
 @pytest.mark.parametrize("protocol", PROTOCOLS, ids=lambda p: p.parent.name)

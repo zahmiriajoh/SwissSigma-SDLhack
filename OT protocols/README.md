@@ -159,10 +159,11 @@ F1 i-PrOAc, G1 t-BuOAc, H1 diluent. With this volume model the diluent isn't use
 fills from it only if a CSV has a `vol_diluent_ul` column. `layout` prints how much each solvent
 needs per round; the committed round 0 needs up to about 19 mL (acetone).
 
-**More than 48 mL of a solvent.** The BO is not limited to one trough per solvent (`limit_solvent_to_trough = false`); up to
-48 mL the backup reservoir below covers it, and `layout`'s fill sheet counts both reservoirs (`reservoirs = 2` in the config;
-with the backup switched off the limit is 24 mL, so set `reservoirs = 1`). Above that `layout` prints "TOO MUCH" and a
-warning, and the protocol refuses to run. Give that solvent a second trough: `trough = ["D1", "H1"]` for it in the config
+**More than 48 mL of a solvent.** The BO never designs such a round (`limit_solvent_to_trough = true`, user decision
+2026-10-21): SDL_BO keeps every solvent within what both reservoirs supply, and `layout`'s fill sheet counts both
+(`reservoirs = 2` in the config; with the backup switched off the limit is 24 mL, so set `reservoirs = 1`). A
+suggestions file that still asks for more makes `layout` print "TOO MUCH" and stop without writing robot files. To give
+a solvent more room, add a second trough: `trough = ["D1", "H1"]` for it in the config
 and the same list in `SOLVENT_TROUGHS` of this protocol and its copy in `production/`, dropping their `diluent` entry if H1
 is used, then load both troughs. `tests/` check that they agree.
 

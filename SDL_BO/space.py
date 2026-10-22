@@ -14,7 +14,8 @@ from itertools import combinations
 import numpy as np
 
 from production.config import (ALL_SOLVENTS, FIRST_CONDITION, FIRST_ROUND, MAX_SOLVENTS_PER_MIXTURE, MIN_UL,  # noqa: F401
-                               LIMIT_SOLVENT_TO_TROUGH, N_PLATES, REFERENCE_SOLVENT, SOLUTES, TOTAL_UL, TROUGH_USABLE_UL, is_allowed)
+                               LIMIT_SOLVENT_TO_TROUGH, N_PLATES, N_RESERVOIRS, REFERENCE_SOLVENT, SOLUTES, SOLVENT_TROUGHS,
+                               TOTAL_UL, TROUGH_USABLE_UL, is_allowed)
 
 GREEN_SOLVENTS = [s for s in ALL_SOLVENTS if s != REFERENCE_SOLVENT]  # the model's inputs
 FRACTION_COLUMNS = [f"frac_{s}" for s in ALL_SOLVENTS]  # bo_bridge column names
@@ -24,17 +25,20 @@ N_SOLUTES = len(SOLUTES)
 STEP_UL = 5  # resolution of proposed mixtures (>= MIN_UL, divides TOTAL_UL)
 assert STEP_UL >= MIN_UL and TOTAL_UL % STEP_UL == 0
 
-# Reservoir limit: one trough per solvent feeds every plate and solute block, so the conditions of a round may together
-# use at most TROUGH_USABLE_UL / (N_PLATES * n_solutes) of each solvent. BUDGET_MARGIN leaves room for bo_bridge's
-# rounding to whole uL. Off in production (`limit_solvent_to_trough = false`): the budget is then infinite.
+# Reservoir limit, the same check the OT-2 protocol makes before it accepts a round: a solvent's troughs on every reservoir
+# (TROUGH_USABLE_UL each) feed every plate and solute block plus that solvent's well on the blank plate (TOTAL_UL). So the
+# conditions of one solute block may together use at most (troughs - blank well) / (N_PLATES * n_solutes) of it.
+# BUDGET_MARGIN leaves room for bo_bridge's rounding to whole uL. `limit_solvent_to_trough = false` removes the limit.
 BUDGET_MARGIN = 0.98
 
 
-def solvent_budget_ul(n_solutes=N_SOLUTES) -> float:
-    """Largest total single-well volume of one solvent over all conditions of a round that still fits its trough (inf: no limit)."""
+def solvent_budget_ul(n_solutes=N_SOLUTES) -> np.ndarray:
+    """Per green solvent: the largest total single-well volume over one solute block's conditions in a round that still
+    fits its troughs (inf: no limit). Each solute block gets 1 / n_solutes of every solvent."""
     if not LIMIT_SOLVENT_TO_TROUGH:
-        return float("inf")
-    return BUDGET_MARGIN * TROUGH_USABLE_UL / (N_PLATES * n_solutes)
+        return np.full(len(GREEN_SOLVENTS), np.inf)
+    supply = np.array([TROUGH_USABLE_UL * len(SOLVENT_TROUGHS[s]) * N_RESERVOIRS - TOTAL_UL for s in GREEN_SOLVENTS])
+    return BUDGET_MARGIN * supply / (N_PLATES * n_solutes)
 
 
 def _split_into_positive_parts(n_parts: int, total: int):
