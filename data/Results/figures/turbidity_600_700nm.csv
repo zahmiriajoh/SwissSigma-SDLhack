@@ -1,0 +1,97 @@
+solute,cond,mix,0,1,2,mean,sd
+Boc-hydroxyproline,0,DMF,2.042,2.028,2.046,2.039,0.009
+Boc-hydroxyproline,1,acetone 100,1.176,1.323,1.084,1.194,0.120
+Boc-hydroxyproline,2,EtOH 100,0.085,0.097,0.104,0.095,0.010
+Boc-hydroxyproline,3,i-PrOH 100,0.100,0.127,0.147,0.125,0.024
+Boc-hydroxyproline,4,water 100,0.080,0.088,0.087,0.085,0.004
+Boc-hydroxyproline,5,i-PrOAc 100,1.970,2.196,2.105,2.090,0.114
+Boc-hydroxyproline,6,t-BuOAc 100,2.135,2.311,1.654,2.033,0.340
+Boc-hydroxyproline,7,acetone 33 / EtOH 33 / i-PrOH 33,1.761,1.723,1.766,1.750,0.024
+Boc-hydroxyproline,8,acetone 20 / i-PrOAc 40 / t-BuOAc 40,1.745,1.742,1.754,1.747,0.006
+Boc-hydroxyproline,9,acetone 50 / water 50,1.890,1.851,1.815,1.852,0.038
+Boc-hydroxyproline,10,EtOH 50 / water 50,0.101,0.087,0.157,0.115,0.037
+Boc-hydroxyproline,11,i-PrOH 50 / water 50,0.083,0.102,0.090,0.092,0.009
+Boc-hydroxyproline,12,EtOH 52 / i-PrOAc 48,0.113,0.122,0.128,0.121,0.008
+Boc-hydroxyproline,13,EtOH 52 / t-BuOAc 48,0.111,0.112,0.111,0.111,0.001
+Boc-hydroxyproline,14,i-PrOH 52 / i-PrOAc 48,0.191,0.284,0.313,0.263,0.064
+Boc-hydroxyproline,15,i-PrOH 52 / t-BuOAc 48,0.132,0.131,0.139,0.134,0.004
+Boc-hydroxyproline,16,acetone 60 / i-PrOAc 40,1.670,1.558,1.592,1.607,0.057
+Boc-hydroxyproline,17,acetone 60 / t-BuOAc 40,1.397,1.389,1.295,1.360,0.057
+Boc-hydroxyproline,18,acetone 33 / EtOH 67,1.796,1.803,1.808,1.803,0.006
+Boc-hydroxyproline,19,acetone 67 / EtOH 33,1.817,1.812,1.812,1.814,0.003
+Boc-hydroxyproline,20,acetone 33 / i-PrOH 67,1.414,1.519,1.442,1.458,0.054
+Boc-hydroxyproline,21,acetone 67 / i-PrOH 33,1.735,1.768,1.769,1.757,0.020
+Boc-hydroxyproline,22,EtOH 33 / i-PrOH 67,0.086,0.097,0.099,0.094,0.007
+Boc-hydroxyproline,23,EtOH 67 / i-PrOH 33,0.086,0.097,0.090,0.091,0.005
+Glutarimide,0,DMF,2.163,2.197,2.078,2.146,0.061
+Glutarimide,1,acetone 100,0.259,0.601,0.868,0.576,0.305
+Glutarimide,2,EtOH 100,0.532,0.952,0.806,0.763,0.213
+Glutarimide,3,i-PrOH 100,1.390,0.923,0.739,1.017,0.336
+Glutarimide,4,water 100,0.222,0.088,0.085,0.132,0.078
+Glutarimide,5,i-PrOAc 100,0.530,0.813,0.587,0.643,0.150
+Glutarimide,6,t-BuOAc 100,1.179,1.822,1.351,1.451,0.333
+Glutarimide,7,acetone 33 / EtOH 33 / i-PrOH 33,1.765,1.540,1.727,1.677,0.120
+Glutarimide,8,acetone 20 / i-PrOAc 40 / t-BuOAc 40,1.209,1.707,1.738,1.552,0.297
+Glutarimide,9,acetone 50 / water 50,1.859,1.821,1.811,1.830,0.026
+Glutarimide,10,EtOH 50 / water 50,0.311,0.087,0.087,0.161,0.129
+Glutarimide,11,i-PrOH 50 / water 50,0.522,0.294,0.189,0.335,0.170
+Glutarimide,12,EtOH 52 / i-PrOAc 48,0.381,0.936,0.220,0.512,0.376
+Glutarimide,13,EtOH 52 / t-BuOAc 48,0.517,1.319,0.498,0.778,0.468
+Glutarimide,14,i-PrOH 52 / i-PrOAc 48,0.683,0.840,0.611,0.712,0.117
+Glutarimide,15,i-PrOH 52 / t-BuOAc 48,0.591,0.581,0.662,0.611,0.044
+Glutarimide,16,acetone 60 / i-PrOAc 40,0.580,1.695,1.586,1.287,0.614
+Glutarimide,17,acetone 60 / t-BuOAc 40,0.447,1.471,1.095,1.004,0.518
+Glutarimide,18,acetone 33 / EtOH 67,1.784,1.724,1.811,1.773,0.045
+Glutarimide,19,acetone 67 / EtOH 33,1.644,1.762,1.722,1.709,0.060
+Glutarimide,20,acetone 33 / i-PrOH 67,1.138,1.949,1.224,1.437,0.446
+Glutarimide,21,acetone 67 / i-PrOH 33,1.430,1.554,1.771,1.585,0.173
+Glutarimide,22,EtOH 33 / i-PrOH 67,0.726,0.806,1.173,0.901,0.238
+Glutarimide,23,EtOH 67 / i-PrOH 33,0.814,1.006,1.308,1.043,0.249
+Phthalimide,0,DMF,1.858,2.043,2.038,1.980,0.105
+Phthalimide,1,acetone 100,0.582,0.654,1.193,0.810,0.334
+Phthalimide,2,EtOH 100,1.759,1.770,1.759,1.763,0.006
+Phthalimide,3,i-PrOH 100,1.370,0.772,0.363,0.835,0.506
+Phthalimide,4,water 100,1.689,1.253,1.247,1.396,0.253
+Phthalimide,5,i-PrOAc 100,0.687,1.046,1.521,1.085,0.418
+Phthalimide,6,t-BuOAc 100,1.781,1.939,2.230,1.983,0.228
+Phthalimide,7,acetone 33 / EtOH 33 / i-PrOH 33,1.865,1.813,1.799,1.826,0.035
+Phthalimide,8,acetone 20 / i-PrOAc 40 / t-BuOAc 40,1.769,2.271,2.382,2.141,0.326
+Phthalimide,9,acetone 50 / water 50,1.732,1.835,1.828,1.798,0.058
+Phthalimide,10,EtOH 50 / water 50,1.735,1.810,1.750,1.765,0.039
+Phthalimide,11,i-PrOH 50 / water 50,1.664,1.704,1.823,1.731,0.083
+Phthalimide,12,EtOH 52 / i-PrOAc 48,1.771,1.811,1.839,1.807,0.034
+Phthalimide,13,EtOH 52 / t-BuOAc 48,0.920,1.290,0.986,1.065,0.197
+Phthalimide,14,i-PrOH 52 / i-PrOAc 48,1.488,1.416,1.183,1.363,0.159
+Phthalimide,15,i-PrOH 52 / t-BuOAc 48,1.356,1.331,1.197,1.294,0.086
+Phthalimide,16,acetone 60 / i-PrOAc 40,1.411,0.942,1.299,1.217,0.245
+Phthalimide,17,acetone 60 / t-BuOAc 40,0.772,0.611,1.691,1.025,0.583
+Phthalimide,18,acetone 33 / EtOH 67,1.960,1.992,1.973,1.975,0.016
+Phthalimide,19,acetone 67 / EtOH 33,1.875,1.907,1.997,1.926,0.063
+Phthalimide,20,acetone 33 / i-PrOH 67,1.759,1.787,1.758,1.768,0.016
+Phthalimide,21,acetone 67 / i-PrOH 33,1.579,1.691,1.748,1.673,0.086
+Phthalimide,22,EtOH 33 / i-PrOH 67,1.769,1.670,1.693,1.711,0.052
+Phthalimide,23,EtOH 67 / i-PrOH 33,1.781,1.786,1.726,1.764,0.033
+Succinimide,0,DMF,1.893,1.925,1.927,1.915,0.019
+Succinimide,1,acetone 100,0.169,0.252,0.224,0.215,0.043
+Succinimide,2,EtOH 100,0.756,0.775,0.372,0.634,0.227
+Succinimide,3,i-PrOH 100,0.320,0.441,0.194,0.318,0.124
+Succinimide,4,water 100,0.091,0.087,0.090,0.089,0.002
+Succinimide,5,i-PrOAc 100,0.863,1.285,1.900,1.349,0.521
+Succinimide,6,t-BuOAc 100,1.612,1.879,1.688,1.726,0.138
+Succinimide,7,acetone 33 / EtOH 33 / i-PrOH 33,1.514,1.527,1.605,1.549,0.049
+Succinimide,8,acetone 20 / i-PrOAc 40 / t-BuOAc 40,1.195,1.649,1.839,1.561,0.331
+Succinimide,9,acetone 50 / water 50,1.881,1.869,1.876,1.875,0.006
+Succinimide,10,EtOH 50 / water 50,0.090,0.136,0.123,0.116,0.024
+Succinimide,11,i-PrOH 50 / water 50,0.108,0.105,0.100,0.104,0.004
+Succinimide,12,EtOH 52 / i-PrOAc 48,0.245,0.458,0.259,0.321,0.119
+Succinimide,13,EtOH 52 / t-BuOAc 48,0.503,0.702,0.357,0.520,0.173
+Succinimide,14,i-PrOH 52 / i-PrOAc 48,0.358,0.385,0.493,0.412,0.071
+Succinimide,15,i-PrOH 52 / t-BuOAc 48,0.297,0.360,0.467,0.375,0.086
+Succinimide,16,acetone 60 / i-PrOAc 40,0.172,0.206,0.286,0.221,0.059
+Succinimide,17,acetone 60 / t-BuOAc 40,0.273,0.910,1.462,0.882,0.595
+Succinimide,18,acetone 33 / EtOH 67,1.638,1.620,1.639,1.632,0.011
+Succinimide,19,acetone 67 / EtOH 33,1.725,1.615,1.740,1.693,0.068
+Succinimide,20,acetone 33 / i-PrOH 67,0.666,0.741,0.646,0.684,0.050
+Succinimide,21,acetone 67 / i-PrOH 33,1.315,1.314,0.830,1.153,0.280
+Succinimide,22,EtOH 33 / i-PrOH 67,0.609,0.885,0.598,0.697,0.163
+Succinimide,23,EtOH 67 / i-PrOH 33,0.755,0.741,0.319,0.605,0.248
